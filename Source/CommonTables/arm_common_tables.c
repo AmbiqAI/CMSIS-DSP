@@ -39073,7 +39073,7 @@ const float32_t realCoefB[8192] ARM_DSP_TABLE_ATTRIBUTE = {
   Convert to fixed point Q31 format
       round(pATable[i] * pow(2, 31))
 */
-const q31_t realCoefAQ31[8192] ARM_DSP_TABLE_ATTRIBUTE = {
+const q31_t realCoefAQ31[8194] ARM_DSP_TABLE_ATTRIBUTE = {
     (q31_t)0x40000000, (q31_t)0xc0000000, (q31_t)0x3ff36f02, (q31_t)0xc000013c,
     (q31_t)0x3fe6de05, (q31_t)0xc00004ef, (q31_t)0x3fda4d09, (q31_t)0xc0000b1a,
     (q31_t)0x3fcdbc0f, (q31_t)0xc00013bd, (q31_t)0x3fc12b16, (q31_t)0xc0001ed8,
@@ -41122,6 +41122,7 @@ const q31_t realCoefAQ31[8192] ARM_DSP_TABLE_ATTRIBUTE = {
     (q31_t)0x3fb49a1f, (q31_t)0x3fffd396, (q31_t)0x3fc12b16, (q31_t)0x3fffe128,
     (q31_t)0x3fcdbc0f, (q31_t)0x3fffec43, (q31_t)0x3fda4d09, (q31_t)0x3ffff4e6,
     (q31_t)0x3fe6de05, (q31_t)0x3ffffb11, (q31_t)0x3ff36f02, (q31_t)0x3ffffec4,
+    (q31_t)0x0, (q31_t)0x0,
 };
 
 
@@ -41140,7 +41141,7 @@ const q31_t realCoefAQ31[8192] ARM_DSP_TABLE_ATTRIBUTE = {
       round(pBTable[i] * pow(2, 31))
  */
 
-const q31_t realCoefBQ31[8192] ARM_DSP_TABLE_ATTRIBUTE = {
+const q31_t realCoefBQ31[8194] ARM_DSP_TABLE_ATTRIBUTE = {
     (q31_t)0x40000000, (q31_t)0x40000000, (q31_t)0x400c90fe, (q31_t)0x3ffffec4,
     (q31_t)0x401921fb, (q31_t)0x3ffffb11, (q31_t)0x4025b2f7, (q31_t)0x3ffff4e6,
     (q31_t)0x403243f1, (q31_t)0x3fffec43, (q31_t)0x403ed4ea, (q31_t)0x3fffe128,
@@ -43189,6 +43190,7 @@ const q31_t realCoefBQ31[8192] ARM_DSP_TABLE_ATTRIBUTE = {
     (q31_t)0x404b65e1, (q31_t)0xc0002c6a, (q31_t)0x403ed4ea, (q31_t)0xc0001ed8,
     (q31_t)0x403243f1, (q31_t)0xc00013bd, (q31_t)0x4025b2f7, (q31_t)0xc0000b1a,
     (q31_t)0x401921fb, (q31_t)0xc00004ef, (q31_t)0x400c90fe, (q31_t)0xc000013c,
+    (q31_t)0x0, (q31_t)0x0,
 };
 
 /**
@@ -43205,7 +43207,7 @@ const q31_t realCoefBQ31[8192] ARM_DSP_TABLE_ATTRIBUTE = {
   Convert to fixed point Q15 format
         round(pATable[i] * pow(2, 15))
  */
-const q15_t __ALIGNED(4) realCoefAQ15[8192] ARM_DSP_TABLE_ATTRIBUTE = {
+const q15_t __ALIGNED(4) realCoefAQ15[8194] ARM_DSP_TABLE_ATTRIBUTE = {
     (q15_t)0x4000, (q15_t)0xc000, (q15_t)0x3ff3, (q15_t)0xc000, (q15_t)0x3fe7, (q15_t)0xc000, (q15_t)0x3fda, (q15_t)0xc000,
     (q15_t)0x3fce, (q15_t)0xc000, (q15_t)0x3fc1, (q15_t)0xc000, (q15_t)0x3fb5, (q15_t)0xc000, (q15_t)0x3fa8, (q15_t)0xc000,
     (q15_t)0x3f9b, (q15_t)0xc000, (q15_t)0x3f8f, (q15_t)0xc000, (q15_t)0x3f82, (q15_t)0xc000, (q15_t)0x3f76, (q15_t)0xc001,
@@ -44230,6 +44232,7 @@ const q15_t __ALIGNED(4) realCoefAQ15[8192] ARM_DSP_TABLE_ATTRIBUTE = {
     (q15_t)0x3f69, (q15_t)0x3fff, (q15_t)0x3f76, (q15_t)0x3fff, (q15_t)0x3f82, (q15_t)0x4000, (q15_t)0x3f8f, (q15_t)0x4000,
     (q15_t)0x3f9b, (q15_t)0x4000, (q15_t)0x3fa8, (q15_t)0x4000, (q15_t)0x3fb5, (q15_t)0x4000, (q15_t)0x3fc1, (q15_t)0x4000,
     (q15_t)0x3fce, (q15_t)0x4000, (q15_t)0x3fda, (q15_t)0x4000, (q15_t)0x3fe7, (q15_t)0x4000, (q15_t)0x3ff3, (q15_t)0x4000,
+    (q15_t)0x0, (q15_t)0x0,
 };
 
 /**
@@ -44246,7 +44249,7 @@ const q15_t __ALIGNED(4) realCoefAQ15[8192] ARM_DSP_TABLE_ATTRIBUTE = {
   Convert to fixed point Q15 format
         round(pBTable[i] * pow(2, 15))
 */
-const q15_t __ALIGNED(4) realCoefBQ15[8192] ARM_DSP_TABLE_ATTRIBUTE = {
+const q15_t __ALIGNED(4) realCoefBQ15[8194] ARM_DSP_TABLE_ATTRIBUTE = {
     (q15_t)0x4000, (q15_t)0x4000, (q15_t)0x400d, (q15_t)0x4000, (q15_t)0x4019, (q15_t)0x4000, (q15_t)0x4026, (q15_t)0x4000,
     (q15_t)0x4032, (q15_t)0x4000, (q15_t)0x403f, (q15_t)0x4000, (q15_t)0x404b, (q15_t)0x4000, (q15_t)0x4058, (q15_t)0x4000,
     (q15_t)0x4065, (q15_t)0x4000, (q15_t)0x4071, (q15_t)0x4000, (q15_t)0x407e, (q15_t)0x4000, (q15_t)0x408a, (q15_t)0x3fff,
@@ -45271,6 +45274,7 @@ const q15_t __ALIGNED(4) realCoefBQ15[8192] ARM_DSP_TABLE_ATTRIBUTE = {
     (q15_t)0x4097, (q15_t)0xc001, (q15_t)0x408a, (q15_t)0xc001, (q15_t)0x407e, (q15_t)0xc000, (q15_t)0x4071, (q15_t)0xc000,
     (q15_t)0x4065, (q15_t)0xc000, (q15_t)0x4058, (q15_t)0xc000, (q15_t)0x404b, (q15_t)0xc000, (q15_t)0x403f, (q15_t)0xc000,
     (q15_t)0x4032, (q15_t)0xc000, (q15_t)0x4026, (q15_t)0xc000, (q15_t)0x4019, (q15_t)0xc000, (q15_t)0x400d, (q15_t)0xc000,
+    (q15_t)0x0, (q15_t)0x0,
 };
 
 /**
