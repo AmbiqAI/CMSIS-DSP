@@ -253,9 +253,28 @@ extern "C"
    * @brief  Initialization function for the floating-point FIR filter.
    * @param[in,out] S          points to an instance of the floating-point FIR filter structure.
    * @param[in]     numTaps    Number of filter coefficients in the filter.
-   * @param[in]     pCoeffs    points to the filter coefficients.
-   * @param[in]     pState     points to the state buffer.
+   * @param[in]     pCoeffs    points to the filter coefficients in time-reversed order.
+   * @param[in]     pState     points to caller-owned state and working storage.
    * @param[in]     blockSize  number of samples that are processed at a time.
+   *
+   * @par State storage
+   * When @c ARM_MATH_MVEF is defined and @c ARM_MATH_AUTOVECTORIZE is not
+   * defined, @p pState must contain at least
+   * <code>numTaps + 2 * blockSize - 1</code> float32_t elements. The first
+   * @p blockSize elements are temporary working storage. Otherwise the
+   * required length is <code>numTaps + blockSize - 1</code> float32_t elements.
+   * This function clears the required state storage; it does not receive
+   * a capacity argument and cannot check whether the buffer is large enough.
+   *
+   * @par Helium coefficient storage
+   * Under the same MVE configuration, @p pCoeffs must contain
+   * <code>4 * ((numTaps + 3) / 4)</code> float32_t elements, using integer
+   * division to round up to a multiple of four. Set trailing padding to zero
+   * before processing. Keep @p numTaps equal to the actual number of taps.
+   * This function does not allocate, extend, or zero-pad the coefficient array.
+   *
+   * @note These lengths are element counts, not byte counts. State and
+   * coefficient storage must remain valid while the filter instance uses it.
    */
   void arm_fir_init_f32(
         arm_fir_instance_f32 * S,
