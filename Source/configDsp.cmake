@@ -16,8 +16,9 @@ if (MATRIXCHECK)
   target_compile_definitions(${project} PRIVATE ARM_MATH_MATRIX_CHECK)
 endif()
 
+# These options affect public headers and must also reach consumers.
 if (AUTOVECTORIZE)
-    target_compile_definitions(${project} PRIVATE ARM_MATH_AUTOVECTORIZE) 
+    target_compile_definitions(${project} PUBLIC ARM_MATH_AUTOVECTORIZE)
 endif()
 
 if (NEON)
@@ -40,7 +41,7 @@ if (NEONEXPERIMENTAL)
 endif()
 
 if (MVEFLOAT16)
-    target_compile_definitions(${project} PRIVATE ARM_MATH_MVE_FLOAT16) 
+    target_compile_definitions(${project} PUBLIC ARM_MATH_MVE_FLOAT16)
 endif()
 
 target_include_directories(${project} PRIVATE "${DSP}/PrivateInclude")
@@ -58,7 +59,7 @@ if (MVEI OR MVEF OR HELIUM OR NEON OR NEONEXPERIMENTAL)
 endif()
 
 if (DISABLEFLOAT16)
-    target_compile_definitions(${project} PRIVATE DISABLEFLOAT16) 
+    target_compile_definitions(${project} PUBLIC DISABLEFLOAT16)
 endif()
 
 
