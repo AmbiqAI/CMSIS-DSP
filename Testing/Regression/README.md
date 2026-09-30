@@ -34,7 +34,7 @@ This focused regression complements, rather than replaces, the upstream suites.
 ## FIR f32 state-bound regression
 
 `mve_fir_f32_state_bound.c` places the `arm_fir_f32` state buffer against an
-MPU guard for 1–12 taps and 1–12 samples per block (144 cases) and, after a
+MPU guard for 1–20 taps and 1–12 samples per block (240 cases, covering the 1–4, 5–8, 9–12, 13–16, and 17+ tap paths) and, after a
 recovered MemManage fault, grows the buffer one element at a time until the
 kernel runs without touching the guard. It records for each case how many
 elements beyond the documented `numTaps + 2 * blockSize - 1` were touched

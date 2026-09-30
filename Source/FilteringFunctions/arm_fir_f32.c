@@ -606,21 +606,21 @@ uint32_t blockSize)
 
             mve_pred16_t p0 = vctp32q(cnt);
 
-            vecIn0 = vld1q(pSamples);
+            vecIn0 = vldrwq_z_f32(pSamples, p0);
             vecAcc0 = vmulq(vecIn0, c0);
-            vecIn0 = vld1q(&pSamples[1]);
+            vecIn0 = vldrwq_z_f32(&pSamples[1], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c1);
-            vecIn0 = vld1q(&pSamples[2]);
+            vecIn0 = vldrwq_z_f32(&pSamples[2], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c2);
-            vecIn0 = vld1q(&pSamples[3]);
+            vecIn0 = vldrwq_z_f32(&pSamples[3], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c3);
-            vecIn0 = vld1q(&pSamples[4]);
+            vecIn0 = vldrwq_z_f32(&pSamples[4], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c4);
-            vecIn0 = vld1q(&pSamples[5]);
+            vecIn0 = vldrwq_z_f32(&pSamples[5], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c5);
-            vecIn0 = vld1q(&pSamples[6]);
+            vecIn0 = vldrwq_z_f32(&pSamples[6], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c6);
-            vecIn0 = vld1q(&pSamples[7]);
+            vecIn0 = vldrwq_z_f32(&pSamples[7], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c7);
             float32x4_t pap = vld1q_f32(partial_accu_ptr);
             vstrwq_p_f32(pOutput, vecAcc0+pap,p0);

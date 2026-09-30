@@ -30,7 +30,7 @@
 #endif
 
 #ifndef MAX_TAPS
-#define MAX_TAPS 12U
+#define MAX_TAPS 20U
 #endif
 #ifndef MAX_BLOCK
 #define MAX_BLOCK 12U
