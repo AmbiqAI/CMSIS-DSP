@@ -18,6 +18,18 @@
 #define MAX_COLS 17U
 #define GUARD_BYTES 32U
 
+/* Datatypes under test, selectable per build so that a negative control can
+ * link one unmodified upstream kernel while the others are absent. */
+#ifndef MATVEC_TEST_Q7
+#define MATVEC_TEST_Q7 1
+#endif
+#ifndef MATVEC_TEST_Q15
+#define MATVEC_TEST_Q15 1
+#endif
+#ifndef MATVEC_TEST_Q31
+#define MATVEC_TEST_Q31 1
+#endif
+
 extern void regression_console_init(void);
 static unsigned char arena[512 + GUARD_BYTES] __ALIGNED(32);
 static volatile unsigned current_bits, current_rows, current_cols;
@@ -112,18 +124,29 @@ static int run_##T(unsigned *checks)                                           \
     return 0;                                                                  \
 }
 
+#if MATVEC_TEST_Q7
 DEFINE_CASES(q7, 7, 7, 9)
+#endif
+#if MATVEC_TEST_Q15
 DEFINE_CASES(q15, 15, 15, 2311)
+#endif
+#if MATVEC_TEST_Q31
 DEFINE_CASES(q31, 31, 31, 151500000)
+#endif
 
 int main(void)
 {
     regression_console_init();
     unsigned checks = 0;
-    if (run_q7(&checks) || run_q15(&checks) || run_q31(&checks))
-    {
-        return 1;
-    }
+#if MATVEC_TEST_Q7
+    if (run_q7(&checks)) return 1;
+#endif
+#if MATVEC_TEST_Q15
+    if (run_q15(&checks)) return 1;
+#endif
+#if MATVEC_TEST_Q31
+    if (run_q31(&checks)) return 1;
+#endif
     printf("PASS: %u MVE fixed-point matrix-tail cases\n", checks);
     return 0;
 }

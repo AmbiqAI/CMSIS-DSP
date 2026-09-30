@@ -14,19 +14,26 @@ parser.add_argument('--platform-linker', type=Path, required=True)
 parser.add_argument('--fvp-root', type=Path, required=True, help='Corstone-300 model package root')
 parser.add_argument('--compiler', default='arm-none-eabi-gcc')
 parser.add_argument('--build-dir', type=Path, required=True)
-parser.add_argument('--matrix-source-dir', type=Path, help='Optional directory of upstream sources for negative control')
+parser.add_argument('--datatype', choices=['q7', 'q15', 'q31', 'all'], default='all',
+                    help='Compile and run one kernel only (default: all three)')
+parser.add_argument('--matrix-source', type=Path,
+                    help='Optional upstream source for the selected datatype, for the negative control')
 args = parser.parse_args()
+if args.matrix_source and args.datatype == 'all':
+    parser.error('--matrix-source requires --datatype q7, q15, or q31')
+types = ['q7', 'q15', 'q31'] if args.datatype == 'all' else [args.datatype]
 repo = Path(__file__).resolve().parents[2]
 here = Path(__file__).resolve().parent
 build = args.build_dir.resolve()
 build.mkdir(parents=True, exist_ok=True)
 device = args.cortex_dfp.resolve() / 'Device/ARMCM55'
-source_dir = args.matrix_source_dir or repo / 'Source/MatrixFunctions'
-sources = [source_dir / f'arm_mat_vec_mult_{t}.c' for t in ('q7', 'q15', 'q31')]
+sources = [args.matrix_source if args.matrix_source else repo / f'Source/MatrixFunctions/arm_mat_vec_mult_{t}.c'
+           for t in types]
 elf = build / 'mve_matvec_tail_fixed.elf'
 cmd = [args.compiler, '-mcpu=cortex-m55', '-mthumb', '-mfloat-abi=hard',
        '-O3', '-ffast-math', '-flax-vector-conversions', '-ffunction-sections',
        '-fdata-sections', '-DARMCM55', '-DDISABLEFLOAT16']
+cmd += [f'-DMATVEC_TEST_{t.upper()}={int(t in types)}' for t in ('q7', 'q15', 'q31')]
 for include in [repo / 'Include', repo / 'PrivateInclude', args.cmsis_core / 'Include', device / 'Include']:
     cmd += ['-I' + str(include.resolve())]
 cmd += [str(here / 'mve_matvec_tail_fixed.c'), str(here / 'corstone300_console.c'),
@@ -50,5 +57,6 @@ log = result.stdout + result.stderr
 (build / 'run.log').write_text(log)
 print(log)
 # The UART shutdown path returns zero even when the test reports failure.
-if result.returncode or 'FAIL:' in log or 'PASS: 357 MVE fixed-point matrix-tail cases' not in log:
+expected = f'PASS: {119 * len(types)} MVE fixed-point matrix-tail cases'
+if result.returncode or 'FAIL:' in log or expected not in log:
     raise SystemExit(1)
