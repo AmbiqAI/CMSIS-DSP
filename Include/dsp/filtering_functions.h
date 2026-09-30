@@ -445,8 +445,8 @@ extern "C"
    *                Its size is numStages and each element of this buffer has type arm_biquad_mod_coef_f32.
    *                So, its total size is 32*numStages float32_t elements, and it is owned by the caller.
    *                The initialization function which must be used is arm_biquad_cascade_df1_mve_init_f32.
-   *                An instance initialized with this function produces incorrect output
-   *                from arm_biquad_cascade_df1_f32 in that configuration.
+   *                In that configuration an instance initialized with arm_biquad_cascade_df1_init_f32
+   *                (this function, plain coefficients) produces incorrect output from arm_biquad_cascade_df1_f32.
    */
   void arm_biquad_cascade_df1_init_f32(
         arm_biquad_casd_df1_inst_f32 * S,
