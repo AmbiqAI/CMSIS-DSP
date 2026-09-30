@@ -47,6 +47,24 @@ SRCS := $(CMSIS_DSP)/Source/BasicMathFunctions/BasicMathFunctions.c \
  $(CMSIS_DSP)/Source/SupportFunctions/SupportFunctions.c \
  $(CMSIS_DSP)/Source/FilteringFunctions/FilteringFunctions.c \
  $(CMSIS_DSP)/Source/TransformFunctions/TransformFunctions.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_32_q15.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_64_q15.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_128_q15.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_256_q15.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_512_q15.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_1024_q15.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_2048_q15.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_4096_q15.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_8192_q15.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_32_q31.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_64_q31.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_128_q31.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_256_q31.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_512_q31.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_1024_q31.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_2048_q31.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_4096_q31.c \
+ $(CMSIS_DSP)/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_8192_q31.c \
  $(CMSIS_DSP)/Source/WindowFunctions/WindowFunctions.c
 
 # Includes
