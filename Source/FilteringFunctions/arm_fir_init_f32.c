@@ -69,7 +69,9 @@
                  used during the computation but which is not the state of the FIR.
                  The first blockSize samples are temporary data.
                  The remaining samples are the state of the FIR filter.
-                 So the state buffer has size <code> numTaps + 2 * blockSize - 1 </code>
+                 The vector kernel evaluates 4a taps (numTaps rounded up to a multiple
+                 of four, matching the coefficient array), so the state buffer has size
+                 <code> 4a + 2 * blockSize - 1 </code> and this function clears all of it.
 
  */
 

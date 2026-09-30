@@ -129,7 +129,8 @@
 
   @par
                  So the state buffer has size <code> numTaps + A + blockSize - 1 </code> :
-                 - A is blockSize for f32
+                 - A is blockSize for f32, and numTaps is rounded up to a multiple of four
+                   (the vector kernel evaluates the zero-padded coefficients too)
                  - A is 8*ceil(blockSize/8) for f16
                  - A is 8*ceil(blockSize/4) for q31
                  - A is 0 for other datatypes (q15 and q7)
