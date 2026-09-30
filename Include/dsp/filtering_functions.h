@@ -260,16 +260,23 @@ extern "C"
    * @par State storage
    * When @c ARM_MATH_MVEF is defined and @c ARM_MATH_AUTOVECTORIZE is not
    * defined, @p pState must contain at least
-   * <code>numTaps + 2 * blockSize - 1</code> float32_t elements. The first
-   * @p blockSize elements are temporary working storage. When the scalar
+   * <code>4 * ((numTaps + 3) / 4) + 8 * ((blockSize + 3) / 4)</code>
+   * float32_t elements, using integer division to round each parameter up to
+   * a multiple of four. The kernel uses <code>numTaps + 2 * blockSize - 1</code>
+   * of them, the first @p blockSize as temporary working storage, and its
+   * unpredicated four-lane accesses touch up to six more when either
+   * parameter is not a multiple of four (measured on Cortex-M55 for
+   * 1 to 12 taps and 1 to 12 samples per block). When the scalar
    * implementation is selected, including @c ARM_MATH_MVEF together with
    * @c ARM_MATH_AUTOVECTORIZE, the required length is
    * <code>numTaps + blockSize - 1</code> float32_t elements. This note does
    * not cover @c ARM_MATH_NEON builds: that implementation reads past
    * <code>numTaps + blockSize - 1</code>, and no Neon-specific length is
    * documented in this library.
-   * This function clears the required state storage; it does not receive
-   * a capacity argument and cannot check whether the buffer is large enough.
+   * This function clears <code>numTaps + 2 * blockSize - 1</code> elements in
+   * the MVE configuration and <code>numTaps + blockSize - 1</code> otherwise;
+   * it does not receive a capacity argument and cannot check whether the
+   * buffer is large enough.
    *
    * @par Helium coefficient storage
    * Under the same MVE configuration, @p pCoeffs must contain
@@ -280,8 +287,8 @@ extern "C"
    *
    * @par Portable allocation
    * Code that must build in both configurations should allocate
-   * <code>numTaps + 2 * blockSize - 1</code> state elements and pad the
-   * coefficient array to a multiple of four in both. The scalar
+   * <code>4 * ((numTaps + 3) / 4) + 8 * ((blockSize + 3) / 4)</code> state
+   * elements and pad the coefficient array to a multiple of four in both. The scalar
    * implementation reads only the first <code>numTaps + blockSize - 1</code>
    * state elements and the first @p numTaps coefficients, so the extra
    * storage is unused there.
