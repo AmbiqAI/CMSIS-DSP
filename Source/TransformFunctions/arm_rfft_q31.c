@@ -44,6 +44,10 @@ ARM_DSP_ATTRIBUTE void arm_split_rfft_q31(
         q31_t * pDst,
         uint32_t modifier);
 
+#if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE) && \
+    !defined(ARM_MATH_MVE_FFT_REFERENCE) && defined(__GNUC__) && !defined(__clang__)
+__attribute__((noinline))
+#endif
 ARM_DSP_ATTRIBUTE void arm_split_rifft_q31(
         q31_t * pSrc,
         uint32_t fftLen,
@@ -51,6 +55,17 @@ ARM_DSP_ATTRIBUTE void arm_split_rifft_q31(
   const q31_t * pBTable,
         q31_t * pDst,
         uint32_t modifier);
+
+#if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE) && \
+    !defined(ARM_MATH_MVE_FFT_REFERENCE) && defined(__GNUC__) && !defined(__clang__)
+static void arm_split_rifft_q31_mve_gcc(
+        const q31_t *pSrc,
+        const q31_t *pCoefA,
+        const q31_t *pCoefB,
+        q31_t *pDst,
+        uint32_t fftLen,
+        uint32_t modifier);
+#endif
 #endif
 /**
   @addtogroup RealFFTQ31
@@ -161,7 +176,19 @@ ARM_DSP_ATTRIBUTE void arm_rfft_q31(
   if (S->ifftFlagR == 1U)
   {
      /*  Real IFFT core process */
-     arm_split_rifft_q31 (pSrc, L2, S->pTwiddleAReal, S->pTwiddleBReal, pDst, S->twidCoefRModifier);
+#if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE) && \
+    !defined(ARM_MATH_MVE_FFT_REFERENCE) && defined(__GNUC__) && !defined(__clang__)
+     if (L2 > 16U)
+     {
+        arm_split_rifft_q31_mve_gcc(pSrc, S->pTwiddleAReal, S->pTwiddleBReal,
+                                    pDst, L2, S->twidCoefRModifier);
+     }
+     else
+#endif
+     {
+        arm_split_rifft_q31(pSrc, L2, S->pTwiddleAReal, S->pTwiddleBReal,
+                            pDst, S->twidCoefRModifier);
+     }
 
      /* Complex IFFT process */
      arm_cfft_q31 (S_CFFT, pDst, S->ifftFlagR, S->bitReverseFlagR);
@@ -200,6 +227,58 @@ ARM_DSP_ATTRIBUTE void arm_rfft_q31(
 
 #include "arm_helium_utils.h"
 #include "arm_vec_fft.h"
+
+#if !defined(ARM_MATH_MVE_FFT_REFERENCE) && defined(__GNUC__) && !defined(__clang__)
+/* Keep RIFFT loop state in registers and negate imaginary lanes without VMUL. */
+static __attribute__((noinline)) void arm_split_rifft_q31_mve_gcc(
+    const q31_t *pSrc,
+    const q31_t *pCoefA,
+    const q31_t *pCoefB,
+    q31_t *pDst,
+    uint32_t fftLen,
+    uint32_t modifier)
+{
+    uint32_t offsets[8] = {
+        fftLen * 2, fftLen * 2 + 1, fftLen * 2 - 2, fftLen * 2 - 1,
+        0, 1, modifier * 2, modifier * 2 + 1
+    };
+    uint32_t count = fftLen >> 1;
+    uint32_t coefficientStep = modifier * 4;
+    const q31_t *sourceBase = pSrc;
+    uint32_t imaginaryLanes = 0xF0F0U;
+
+    __asm volatile(
+        "vldrw.u32 q0, [%[offsets]]\n"
+        "vldrw.u32 q1, [%[offsets], #16]\n"
+        "vmsr p0, %[imaginary_lanes]\n"
+        "dls lr, %[count]\n"
+        "1:\n"
+        "vldrw.u32 q6, [%[coef_a], q1, uxtw #2]\n"
+        "vldrw.u32 q7, [%[coef_b], q1, uxtw #2]\n"
+        "vldrw.u32 q5, [%[source_base], q0, uxtw #2]\n"
+        "vldrw.32 q4, [%[source]], #16\n"
+        "vadd.i32 q1, q1, %[coefficient_step]\n"
+        "vmov.i32 q3, #0xfffffffc\n"
+        "vadd.i32 q0, q0, q3\n"
+        "vmov.i32 q2, #0\n"
+        "vmov.i32 q3, #0\n"
+        "vqdmlsdhx.s32 q2, q4, q6\n"
+        "vqdmladh.s32 q2, q4, q6\n"
+        "vqdmlsdh.s32 q3, q5, q7\n"
+        "vqdmladhx.s32 q3, q5, q7\n"
+        "vpst\n"
+        "vnegt.s32 q3, q3\n"
+        "vhadd.s32 q2, q2, q3\n"
+        "vstrw.32 q2, [%[destination]], #16\n"
+        "le lr, 1b\n"
+        : [source] "+&r" (pSrc), [destination] "+&r" (pDst)
+        : [source_base] "r" (sourceBase), [coef_a] "r" (pCoefA), [coef_b] "r" (pCoefB),
+          [offsets] "r" (offsets), [count] "r" (count),
+          [coefficient_step] "r" (coefficientStep),
+          [imaginary_lanes] "r" (imaginaryLanes)
+        : "lr", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "cc", "memory");
+}
+#endif
 
 
 ARM_DSP_ATTRIBUTE void arm_split_rfft_q31(
