@@ -261,8 +261,11 @@ extern "C"
    * When @c ARM_MATH_MVEF is defined and @c ARM_MATH_AUTOVECTORIZE is not
    * defined, @p pState must contain at least
    * <code>numTaps + 2 * blockSize - 1</code> float32_t elements. The first
-   * @p blockSize elements are temporary working storage. Otherwise the
-   * required length is <code>numTaps + blockSize - 1</code> float32_t elements.
+   * @p blockSize elements are temporary working storage. In scalar builds
+   * (neither MVE nor @c ARM_MATH_NEON) the required length is
+   * <code>numTaps + blockSize - 1</code> float32_t elements. The Neon
+   * implementation loads whole vectors past that bound and has its own
+   * storage requirement, described in arm_fir_f32.c.
    * This function clears the required state storage; it does not receive
    * a capacity argument and cannot check whether the buffer is large enough.
    *
