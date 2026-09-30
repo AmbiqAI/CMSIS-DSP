@@ -88,7 +88,9 @@ ARM_DSP_ATTRIBUTE void arm_fir_init_f32(
 
   /* Clear state buffer. The size is always (blockSize + numTaps - 1) */
 #if defined(ARM_MATH_MVEF) && !defined(ARM_MATH_AUTOVECTORIZE)
-  memset(pState, 0, (numTaps + (blockSize - 1U) + blockSize) * sizeof(float32_t));
+  /* The vector kernel evaluates numTaps rounded up to a multiple of four
+     taps, so the state it reads extends that far; clear all of it. */
+  memset(pState, 0, (((numTaps + 3U) & ~3U) + (blockSize - 1U) + blockSize) * sizeof(float32_t));
 #else
   memset(pState, 0, (numTaps + (blockSize - 1U)) * sizeof(float32_t));
 #endif

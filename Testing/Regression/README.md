@@ -48,7 +48,8 @@ python3 Testing/Regression/run_mve_fir_f32_state_bound.py <dependency options> \
   --build-dir /path/to/build
 ```
 
-For the negative control, pass the unpatched `arm_fir_f32.c` through
-`--fir-source`; it must report
-`FAIL: 117 of 144 MVE FIR f32 state-bound cases exceed the contract`. The
-per-case table is printed in both runs.
+The input block ends at a second guard, and the initializer must have
+cleared everything the kernel reads. For the negative control, pass the
+unpatched `arm_fir_f32.c` through `--fir-source`; its residual input copy
+reads past the input block, which no amount of state padding cures, so it
+must report `FAIL: numTaps=1 blockSize=1 still faults with 16 extra elements`.

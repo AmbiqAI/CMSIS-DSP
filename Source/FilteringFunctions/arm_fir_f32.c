@@ -281,7 +281,7 @@ __STATIC_INLINE void arm_fir_f32_5_8_mve(const arm_fir_instance_f32 * S,
     int cnt = blockSize;
     do {
         mve_pred16_t p0 = vctp32q(cnt);
-        vstrwq_p_f32(pTempDest, vld1q(pTempSrc), p0);
+        vstrwq_p_f32(pTempDest, vldrwq_z_f32(pTempSrc, p0), p0);
         pTempDest += 4;
         pTempSrc += 4;
         cnt -= 4;
@@ -411,7 +411,7 @@ uint32_t blockSize)
     int cnt = blockSize;
     do {
         mve_pred16_t p0 = vctp32q(cnt);
-        vstrwq_p_f32(pTempDest, vld1q(pTempSrc), p0);
+        vstrwq_p_f32(pTempDest, vldrwq_z_f32(pTempSrc, p0), p0);
         pTempDest += 4;
         pTempSrc += 4;
         cnt -= 4;

@@ -4,13 +4,15 @@
 /* Cortex-M55 regression: the handwritten MVE arm_fir_f32 kernel must not
  * store past the documented state length numTaps + 2 * blockSize - 1 and
  * must not read past 4 * ceil(numTaps / 4) + 2 * blockSize - 1 (the same
- * rounding the coefficient array needs), for 1..MAX_TAPS taps and
- * 1..MAX_BLOCK samples per block. Each case also reports how many elements
- * beyond the documented length were touched.
+ * rounding the coefficient array needs), the initializer must clear that
+ * whole length, and the kernel must not read past the blockSize input
+ * samples, for 1..MAX_TAPS taps and 1..MAX_BLOCK samples per block. Each
+ * case also reports how many state elements beyond the documented length
+ * were touched.
  *
  * The state buffer ends at an MPU-inaccessible guard, first with the
  * documented length and then with one extra element at a time until no
- * access faults. A MemManage fault is recovered by rewriting the stacked
+ * access faults; the input block ends at a second guard. A MemManage fault is recovered by rewriting the stacked
  * return address, so one run measures every case. Elements in the extra
  * region are canaries, so stores and loads past the documented length are
  * distinguished.
@@ -41,7 +43,7 @@ extern void regression_console_init(void);
 
 static float32_t arena[256 + GUARD_BYTES / sizeof(float32_t)] __ALIGNED(32);
 static float32_t coeffs[MAX_TAPS + 4];
-static float32_t input[2 * MAX_BLOCK + 16];
+static float32_t input_arena[64 + GUARD_BYTES / sizeof(float32_t)] __ALIGNED(32);
 static float32_t output[MAX_BLOCK + 2];
 static jmp_buf recover_env;
 static volatile unsigned faulted;
@@ -75,8 +77,10 @@ __attribute__((naked)) void MemManage_Handler(void)
         "b memmanage_c\n");
 }
 
-static void protect_tail(uintptr_t guard)
+static void protect_tails(uintptr_t guard_a, uintptr_t guard_b)
 {
+    uintptr_t lo = guard_a < guard_b ? guard_a : guard_b;
+    uintptr_t hi = guard_a < guard_b ? guard_b : guard_a;
     ARM_MPU_Disable();
     for (uint32_t region = 0; region < ((MPU->TYPE >> 8) & 0xffU); ++region)
     {
@@ -84,36 +88,50 @@ static void protect_tail(uintptr_t guard)
     }
     ARM_MPU_SetMemAttr(0, ARM_MPU_ATTR(ARM_MPU_ATTR_NON_CACHEABLE,
                                      ARM_MPU_ATTR_NON_CACHEABLE));
+    /* Map everything except the two aligned 32-byte guards. No background map. */
     ARM_MPU_SetRegion(0, ARM_MPU_RBAR(0, ARM_MPU_SH_NON, 0, 1, 0),
-                     ARM_MPU_RLAR(guard - 1U, 0));
-    ARM_MPU_SetRegion(1, ARM_MPU_RBAR(guard + GUARD_BYTES, ARM_MPU_SH_NON, 0, 1, 0),
+                     ARM_MPU_RLAR(lo - 1U, 0));
+    ARM_MPU_SetRegion(1, ARM_MPU_RBAR(lo + GUARD_BYTES, ARM_MPU_SH_NON, 0, 1, 0),
+                     ARM_MPU_RLAR(hi - 1U, 0));
+    ARM_MPU_SetRegion(2, ARM_MPU_RBAR(hi + GUARD_BYTES, ARM_MPU_SH_NON, 0, 1, 0),
                      ARM_MPU_RLAR(UINT32_MAX, 0));
     ARM_MPU_Enable(0);
 }
 
-/* Returns 0 on success, 1 on fault, 2 on canary/numerical failure. */
+/* Returns 0 on success, 1 on fault, 2 on canary/numerical/clearing failure. */
 static int run_case(unsigned numTaps, unsigned blockSize, unsigned extra, int *stored)
 {
     const unsigned documented = numTaps + 2U * blockSize - 1U;
+    const unsigned cleared = ((numTaps + 3U) & ~3U) + 2U * blockSize - 1U;
     float32_t *end = arena + 256;
     float32_t *state = end - documented - extra;
+    float32_t *input_end = input_arena + 64;
+    float32_t *input = input_end - 2U * blockSize; /* two blocks, the second ends at the guard */
     arm_fir_instance_f32 S;
 
     for (unsigned i = 0; i < MAX_TAPS + 4; ++i)
         coeffs[i] = (i < numTaps) ? (float32_t)((int)(i % 5) - 2) * 0.25f : 0.0f;
-    for (unsigned i = 0; i < 2 * MAX_BLOCK + 16; ++i)
-        input[i] = (float32_t)((int)(i % 7) - 3) * 0.5f;
+    for (unsigned i = 0; i < 2U * blockSize; ++i)
+        input[i] = (float32_t)((int)(i % 7) + 1) * 0.5f; /* never zero */
     for (unsigned i = 0; i < documented + extra; ++i)
-        state[i] = CANARY; /* the initializer must clear what it uses */
+        state[i] = CANARY;
 
     arm_fir_init_f32(&S, (uint16_t)numTaps, coeffs, state, blockSize);
-    for (unsigned i = documented; i < documented + extra; ++i)
-        state[i] = CANARY; /* extra region: canaries to detect stores */
+    /* The initializer must clear everything the kernel may read. */
+    for (unsigned i = 0; i < cleared && i < documented + extra; ++i)
+    {
+        if (state[i] != 0.0f)
+        {
+            printf("FAIL: initializer left state[%u] uncleared numTaps=%u blockSize=%u\n",
+                   i, numTaps, blockSize);
+            return 2;
+        }
+    }
 
     faulted = 0;
     if (setjmp(recover_env) == 0)
     {
-        protect_tail((uintptr_t)end);
+        protect_tails((uintptr_t)end, (uintptr_t)input_end);
         for (unsigned block = 0; block < 2; ++block)
         {
             for (unsigned i = 0; i < MAX_BLOCK + 2; ++i)
@@ -142,16 +160,18 @@ static int run_case(unsigned numTaps, unsigned blockSize, unsigned extra, int *s
                     return 2;
                 }
             }
-            protect_tail((uintptr_t)end);
+            protect_tails((uintptr_t)end, (uintptr_t)input_end);
         }
         ARM_MPU_Disable();
     }
     ARM_MPU_Disable();
     if (faulted)
         return 1;
+    /* Elements past the documented length hold zero from the initializer (or
+     * the canary beyond the cleared length); any stored input sample is nonzero. */
     *stored = 0;
     for (unsigned i = documented; i < documented + extra; ++i)
-        if (state[i] != CANARY)
+        if (state[i] != 0.0f && state[i] != CANARY)
             *stored = 1;
     return 0;
 }
