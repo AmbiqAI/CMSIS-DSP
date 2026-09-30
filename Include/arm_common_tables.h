@@ -238,11 +238,12 @@ extern "C"
     extern const float32_t realCoefA[8192];
     extern const float32_t realCoefB[8192];
 
-    extern const q31_t realCoefAQ31[8192];
-    extern const q31_t realCoefBQ31[8192];
+    /* 8192 coefficients plus two guards for the final MVE vector load. */
+    extern const q31_t realCoefAQ31[8194];
+    extern const q31_t realCoefBQ31[8194];
 
-    extern const q15_t realCoefAQ15[8192];
-    extern const q15_t realCoefBQ15[8192];
+    extern const q15_t realCoefAQ15[8194];
+    extern const q15_t realCoefBQ15[8194];
 
     extern const float32_t Weights_128[256];
     extern const float32_t cos_factors_128[128];
