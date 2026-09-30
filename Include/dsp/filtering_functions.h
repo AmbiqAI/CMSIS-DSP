@@ -273,6 +273,14 @@ extern "C"
    * before processing. Keep @p numTaps equal to the actual number of taps.
    * This function does not allocate, extend, or zero-pad the coefficient array.
    *
+   * @par Portable allocation
+   * Code that must build in both configurations should allocate
+   * <code>numTaps + 2 * blockSize - 1</code> state elements and pad the
+   * coefficient array to a multiple of four in both. The scalar
+   * implementation reads only the first <code>numTaps + blockSize - 1</code>
+   * state elements and the first @p numTaps coefficients, so the extra
+   * storage is unused there.
+   *
    * @note These lengths are element counts, not byte counts. State and
    * coefficient storage must remain valid while the filter instance uses it.
    */
