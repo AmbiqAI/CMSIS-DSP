@@ -28,15 +28,17 @@ with tempfile.TemporaryDirectory(prefix='cmsis-consumer-features-') as tmp:
                    for bit, name in enumerate(['AUTOVECTORIZE', 'MVEFLOAT16', 'DISABLEFLOAT16'])]
         if args.config_dsp_file:
             options.append('-DCONFIG_DSP_FILE=' + str(args.config_dsp_file.resolve()))
-        run('cmake', '-S', str(source), '-B', str(build),
+        # One configuration for every phase, so multi-config generators (Visual
+        # Studio, Xcode) build, test, and install the same binaries.
+        run('cmake', '-S', str(source), '-B', str(build), '-DCMAKE_BUILD_TYPE=Release',
             '-DCMAKE_INSTALL_PREFIX=' + str(prefix), f'-DEXPECTED_FEATURES={mask}', *options)
-        run('cmake', '--build', str(build))
-        run('ctest', '--test-dir', str(build), '--output-on-failure')
-        run('cmake', '--install', str(build))
+        run('cmake', '--build', str(build), '--config', 'Release')
+        run('ctest', '--test-dir', str(build), '--build-config', 'Release', '--output-on-failure')
+        run('cmake', '--install', str(build), '--config', 'Release')
         installed = root / f'consumer-{mask}'
         # No feature options are supplied: they must come from the exported target.
-        run('cmake', '-S', str(source), '-B', str(installed),
+        run('cmake', '-S', str(source), '-B', str(installed), '-DCMAKE_BUILD_TYPE=Release',
             '-DPROBE_PACKAGE=' + str(prefix), f'-DEXPECTED_FEATURES={mask}')
-        run('cmake', '--build', str(installed))
-        run('ctest', '--test-dir', str(installed), '--output-on-failure')
+        run('cmake', '--build', str(installed), '--config', 'Release')
+        run('ctest', '--test-dir', str(installed), '--build-config', 'Release', '--output-on-failure')
         print(f'PASS: feature mask {mask}, in-tree and installed consumers', flush=True)
