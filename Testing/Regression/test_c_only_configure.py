@@ -9,8 +9,11 @@ import tempfile
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--cmsis-dsp', type=Path, default=Path(__file__).resolve().parents[2],
-                    help='Optional unpatched checkout for negative control')
+                    help='CMSIS-DSP checkout to configure (default: this repository)')
+parser.add_argument('--expect-failure', action='store_true',
+                    help='Negative control: pass only if every configuration fails')
 args = parser.parse_args()
+failures = 0
 repo = args.cmsis_dsp.resolve()
 with tempfile.TemporaryDirectory(prefix='cmsis-c-only-') as tmp:
     root = Path(tmp)
@@ -32,6 +35,15 @@ with tempfile.TemporaryDirectory(prefix='cmsis-c-only-') as tmp:
                  '-DCMAKE_CXX_COMPILER=' + str(root / 'no-cxx-compiler')],
                 capture_output=True, text=True)
             if result.returncode:
-                print(result.stdout + result.stderr)
-                raise SystemExit(result.returncode)
-            print(f'PASS: {name} entry point, {mode}, unavailable C++ compiler')
+                failures += 1
+                if not args.expect_failure:
+                    print(result.stdout + result.stderr)
+                    raise SystemExit(result.returncode)
+                print(f'EXPECTED FAILURE: {name} entry point, {mode}, unavailable C++ compiler')
+            elif args.expect_failure:
+                print(f'FAIL: {name} entry point, {mode} configured without a C++ compiler')
+                raise SystemExit(1)
+            else:
+                print(f'PASS: {name} entry point, {mode}, unavailable C++ compiler')
+if args.expect_failure:
+    print(f'PASS: negative control, {failures} configurations failed as expected')
