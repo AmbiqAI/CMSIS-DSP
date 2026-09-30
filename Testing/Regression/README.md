@@ -30,3 +30,25 @@ report `FAIL: matrix tail access rows=1 cols=1`; the patched source must report
 `PASS: 63 MVE matrix-tail cases`. The runner checks the output as well as the
 model status because UART-triggered shutdown alone does not encode pass/fail.
 This focused regression complements, rather than replaces, the upstream suites.
+
+## Fixed-point companion
+
+`mve_matvec_tail_fixed.c` applies the same MPU-guarded check to the Q7, Q15,
+and Q31 kernels: 1–7 rows and 1–17 columns per datatype, 357 cases in all.
+Each case compares the guarded run with a run on readable nonzero padding
+(identical output) and with a scalar 64-bit accumulation (within one LSB).
+The runner `run_mve_matvec_tail_fixed.py` takes the same dependency options
+as the f32 runner. `--datatype q7|q15|q31` compiles and runs one kernel only
+and expects `PASS: 119 MVE fixed-point matrix-tail cases`; the default `all`
+expects 357.
+
+The negative control is per datatype, because the first fault ends the run:
+save the unpatched `arm_mat_vec_mult_<type>.c` outside the checkout and pass
+
+```sh
+python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
+  --datatype q15 --matrix-source /path/to/upstream/arm_mat_vec_mult_q15.c
+```
+
+which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
+`q7` and `q31`.
