@@ -38,6 +38,94 @@
 #include "arm_vec_fft.h"
 
 
+#if !defined(ARM_MATH_MVE_FFT_REFERENCE) && defined(__GNUC__) && !defined(__clang__)
+/*
+ * GCC spills the vector gather base used by the final radix-4 stage on every
+ * output store. Keep the address vector in q7 and schedule the butterfly so
+ * that all live values remain in q0-q6.
+ *
+ * This is deliberately a GNU-style inline assembly leaf rather than a
+ * separate .S file, while inlining lets the surrounding butterfly save the
+ * callee-preserved MVE registers only once. ATFE already keeps the base live
+ * in a vector register, so it stays on the intrinsic implementation.
+ */
+__STATIC_FORCEINLINE void arm_cfft_radix4_last_q31_mve(
+    q31_t *pSrc,
+    uint32_t blkCnt,
+    uint32_t inverse)
+{
+    static const int32_t offsets[4] = {
+        -64, -60, -32, -28
+    };
+
+    if (inverse)
+    {
+        __asm volatile(
+            "vldrw.u32 q7, [%[offsets]]\n"
+            "vdup.32 q6, %[src]\n"
+            "vadd.i32 q7, q7, q6\n"
+            "vldrw.u32 q0, [q7, #64]!\n"
+            "vldrw.u32 q1, [q7, #16]\n"
+            "dls lr, %[count]\n"
+            "1:\n"
+            "vhadd.s32 q2, q0, q1\n"
+            "vhsub.s32 q3, q0, q1\n"
+            "vldrw.u32 q0, [q7, #8]\n"
+            "vldrw.u32 q1, [q7, #24]\n"
+            "vhadd.s32 q4, q0, q1\n"
+            "vhsub.s32 q5, q0, q1\n"
+            "vldrw.u32 q0, [q7, #64]!\n"
+            "vldrw.u32 q1, [q7, #16]\n"
+            "vhadd.s32 q6, q2, q4\n"
+            "vstrw.32 q6, [q7, #-64]\n"
+            "vhsub.s32 q6, q2, q4\n"
+            "vstrw.32 q6, [q7, #-56]\n"
+            "vhcadd.s32 q6, q3, q5, #90\n"
+            "vstrw.32 q6, [q7, #-48]\n"
+            "vhcadd.s32 q6, q3, q5, #270\n"
+            "vstrw.32 q6, [q7, #-40]\n"
+            "le lr, 1b\n"
+            :
+            : [src] "r" (pSrc), [offsets] "r" (offsets),
+              [count] "r" (blkCnt)
+            : "lr", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "cc", "memory");
+    }
+    else
+    {
+        __asm volatile(
+            "vldrw.u32 q7, [%[offsets]]\n"
+            "vdup.32 q6, %[src]\n"
+            "vadd.i32 q7, q7, q6\n"
+            "vldrw.u32 q0, [q7, #64]!\n"
+            "vldrw.u32 q1, [q7, #16]\n"
+            "dls lr, %[count]\n"
+            "1:\n"
+            "vhadd.s32 q2, q0, q1\n"
+            "vhsub.s32 q3, q0, q1\n"
+            "vldrw.u32 q0, [q7, #8]\n"
+            "vldrw.u32 q1, [q7, #24]\n"
+            "vhadd.s32 q4, q0, q1\n"
+            "vhsub.s32 q5, q0, q1\n"
+            "vldrw.u32 q0, [q7, #64]!\n"
+            "vldrw.u32 q1, [q7, #16]\n"
+            "vhadd.s32 q6, q2, q4\n"
+            "vstrw.32 q6, [q7, #-64]\n"
+            "vhsub.s32 q6, q2, q4\n"
+            "vstrw.32 q6, [q7, #-56]\n"
+            "vhcadd.s32 q6, q3, q5, #270\n"
+            "vstrw.32 q6, [q7, #-48]\n"
+            "vhcadd.s32 q6, q3, q5, #90\n"
+            "vstrw.32 q6, [q7, #-40]\n"
+            "le lr, 1b\n"
+            :
+            : [src] "r" (pSrc), [offsets] "r" (offsets),
+              [count] "r" (blkCnt)
+            : "lr", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "cc", "memory");
+    }
+}
+#endif
+
+
 static void _arm_radix4_butterfly_q31_mve(
     const arm_cfft_instance_q31 * S,
     q31_t   *pSrc,
@@ -50,10 +138,12 @@ static void _arm_radix4_butterfly_q31_mve(
     uint32_t  n1, n2;
     uint32_t  stage = 0;
     int32_t  iter = 1;
+#if defined(ARM_MATH_MVE_FFT_REFERENCE) || !defined(__GNUC__) || defined(__clang__)
     static const int32_t strides[4] = {
-        (0 - 16) * (int32_t)sizeof(q31_t *), (1 - 16) * (int32_t)sizeof(q31_t *),
-        (8 - 16) * (int32_t)sizeof(q31_t *), (9 - 16) * (int32_t)sizeof(q31_t *)
+        (0 - 16) * (int32_t)sizeof(q31_t), (1 - 16) * (int32_t)sizeof(q31_t),
+        (8 - 16) * (int32_t)sizeof(q31_t), (9 - 16) * (int32_t)sizeof(q31_t)
     };
+#endif
 
 
     /*
@@ -172,6 +262,9 @@ static void _arm_radix4_butterfly_q31_mve(
     /*
      * start of Last stage process
      */
+#if !defined(ARM_MATH_MVE_FFT_REFERENCE) && defined(__GNUC__) && !defined(__clang__)
+    arm_cfft_radix4_last_q31_mve(pSrc, fftLen >> 3, 0U);
+#else
     uint32x4_t vecScGathAddr = vld1q_u32((uint32_t*)strides);
     vecScGathAddr = vecScGathAddr + (uint32_t) pSrc;
 
@@ -212,6 +305,7 @@ static void _arm_radix4_butterfly_q31_mve(
 
         blkCnt--;
     }
+#endif
 
     /*
      * output is in 11.21(q21) format for the 1024 point
@@ -302,10 +396,12 @@ static void _arm_radix4_butterfly_inverse_q31_mve(
     uint32_t  n1, n2;
     uint32_t  stage = 0;
     int32_t  iter = 1;
+#if defined(ARM_MATH_MVE_FFT_REFERENCE) || !defined(__GNUC__) || defined(__clang__)
     static const int32_t strides[4] = {
-        (0 - 16) * (int32_t)sizeof(q31_t *), (1 - 16) * (int32_t)sizeof(q31_t *),
-        (8 - 16) * (int32_t)sizeof(q31_t *), (9 - 16) * (int32_t)sizeof(q31_t *)
+        (0 - 16) * (int32_t)sizeof(q31_t), (1 - 16) * (int32_t)sizeof(q31_t),
+        (8 - 16) * (int32_t)sizeof(q31_t), (9 - 16) * (int32_t)sizeof(q31_t)
     };
+#endif
 
     /*
      * Process first stages
@@ -422,6 +518,9 @@ static void _arm_radix4_butterfly_inverse_q31_mve(
     /*
      * start of Last stage process
      */
+#if !defined(ARM_MATH_MVE_FFT_REFERENCE) && defined(__GNUC__) && !defined(__clang__)
+    arm_cfft_radix4_last_q31_mve(pSrc, fftLen >> 3, 1U);
+#else
     uint32x4_t vecScGathAddr = vld1q_u32((uint32_t*)strides);
     vecScGathAddr = vecScGathAddr + (uint32_t) pSrc;
 
@@ -462,6 +561,7 @@ static void _arm_radix4_butterfly_inverse_q31_mve(
 
         blkCnt--;
     }
+#endif
     /*
      * output is in 11.21(q21) format for the 1024 point
      * output is in 9.23(q23) format for the 256 point
