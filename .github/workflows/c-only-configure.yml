@@ -1,0 +1,20 @@
+name: C-only configure
+
+on:
+  pull_request:
+    paths:
+      - 'CMakeLists.txt'
+      - 'Source/CMakeLists.txt'
+      - 'Source/configDsp.cmake'
+      - 'cmake/**'
+      - 'Testing/Regression/test_c_only_configure.py'
+      - '.github/workflows/c-only-configure.yml'
+  workflow_dispatch:
+
+jobs:
+  configure-without-cxx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure both entry points without a C++ compiler
+        run: python3 Testing/Regression/test_c_only_configure.py
