@@ -125,9 +125,10 @@ ARM_DSP_ATTRIBUTE void arm_mat_vec_mult_q15(
         {
             mve_pred16_t p0 = vctp16q(blkCnt);
 
-            vecMatA0 = vld1q(pMat0Vec);
-            vecMatA1 = vld1q(pMat1Vec);
-            vecMatA2 = vld1q(pMat2Vec);
+            /* Predicate matrix tails as well as the input vector. */
+            vecMatA0 = vldrhq_z_s16(pMat0Vec, p0);
+            vecMatA1 = vldrhq_z_s16(pMat1Vec, p0);
+            vecMatA2 = vldrhq_z_s16(pMat2Vec, p0);
             vecIn = vldrhq_z_s16(pVec, p0);
 
             acc0 = vmlaldavaq(acc0, vecIn, vecMatA0);
@@ -200,8 +201,9 @@ ARM_DSP_ATTRIBUTE void arm_mat_vec_mult_q15(
         {
             mve_pred16_t p0 = vctp16q(blkCnt);
 
-            vecMatA0 = vld1q(pMat0Vec);
-            vecMatA1 = vld1q(pMat1Vec);
+            /* Predicate matrix tails as well as the input vector. */
+            vecMatA0 = vldrhq_z_s16(pMat0Vec, p0);
+            vecMatA1 = vldrhq_z_s16(pMat1Vec, p0);
             vecIn = vldrhq_z_s16(pVec, p0);
 
             acc0 = vmlaldavaq(acc0, vecIn, vecMatA0);
@@ -260,7 +262,8 @@ ARM_DSP_ATTRIBUTE void arm_mat_vec_mult_q15(
         {
             mve_pred16_t p0 = vctp16q(blkCnt);
 
-            vecMatA0 = vld1q(pMat0Vec);
+            /* Predicate matrix tails as well as the input vector. */
+            vecMatA0 = vldrhq_z_s16(pMat0Vec, p0);
             vecIn = vldrhq_z_s16(pVec, p0);
             acc0 = vmlaldavaq(acc0, vecIn, vecMatA0);
         }
