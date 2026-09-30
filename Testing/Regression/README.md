@@ -30,3 +30,25 @@ report `FAIL: matrix tail access rows=1 cols=1`; the patched source must report
 `PASS: 63 MVE matrix-tail cases`. The runner checks the output as well as the
 model status because UART-triggered shutdown alone does not encode pass/fail.
 This focused regression complements, rather than replaces, the upstream suites.
+
+## FIR f32 state-bound regression
+
+`mve_fir_f32_state_bound.c` places the `arm_fir_f32` state buffer against an
+MPU guard for 1–12 taps and 1–12 samples per block (144 cases) and, after a
+recovered MemManage fault, grows the buffer one element at a time until the
+kernel runs without touching the guard. It records for each case how many
+elements beyond the documented `numTaps + 2 * blockSize - 1` were touched
+and whether any were stored to. The pass condition is no stores past the
+documented length and no reads past `4 * ceil(numTaps / 4) + 2 * blockSize - 1`,
+the rounding the coefficient array already needs; outputs are checked against
+a double-precision reference in every case.
+
+```sh
+python3 Testing/Regression/run_mve_fir_f32_state_bound.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass the unpatched `arm_fir_f32.c` through
+`--fir-source`; it must report
+`FAIL: 117 of 144 MVE FIR f32 state-bound cases exceed the contract`. The
+per-case table is printed in both runs.
