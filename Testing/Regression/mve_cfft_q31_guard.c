@@ -77,7 +77,7 @@ static int run_case(uint32_t len, unsigned inverse, unsigned *checks)
     for (uint32_t i = 0; i < 2U * len; ++i)
     {
         /* Low amplitude keeps the forward transform away from saturation. */
-        reference_in[i] = (q31_t)(((int32_t)((i * 2654435761U) >> 8) & 0xffffff) - 0x800000) << 2;
+        reference_in[i] = ((q31_t)(((i * 2654435761U) >> 8) & 0xffffffU) - 0x800000) * 4;
         buf[i] = reference_in[i];
     }
     for (uint32_t i = 0; i < PAD_WORDS; ++i)
