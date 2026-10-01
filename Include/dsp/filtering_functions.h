@@ -260,35 +260,33 @@ extern "C"
    * @par State storage
    * When @c ARM_MATH_MVEF is defined and @c ARM_MATH_AUTOVECTORIZE is not
    * defined, @p pState must contain at least
-   * <code>4 * ((numTaps + 3) / 4) + 8 * ((blockSize + 3) / 4)</code>
-   * float32_t elements, using integer division to round each parameter up to
-   * a multiple of four. The kernel uses <code>numTaps + 2 * blockSize - 1</code>
-   * of them, the first @p blockSize as temporary working storage, and its
-   * unpredicated four-lane accesses touch up to six more when either
-   * parameter is not a multiple of four (measured on Cortex-M55 for
-   * 1 to 12 taps and 1 to 12 samples per block). When the scalar
-   * implementation is selected, including @c ARM_MATH_MVEF together with
-   * @c ARM_MATH_AUTOVECTORIZE, the required length is
+   * <code>4 * ((numTaps + 3) / 4) + 2 * blockSize - 1</code> float32_t
+   * elements, using integer division to round @p numTaps up to a multiple of
+   * four, the same rounding the coefficient array needs. The first
+   * @p blockSize elements are temporary working storage; the vector kernel
+   * evaluates the zero-padded taps and reads the state that far. This
+   * function clears that whole length. When the scalar implementation is
+   * selected, including @c ARM_MATH_MVEF together with
+   * @c ARM_MATH_AUTOVECTORIZE, the required and cleared length is
    * <code>numTaps + blockSize - 1</code> float32_t elements. This note does
    * not cover @c ARM_MATH_NEON builds: that implementation reads past
    * <code>numTaps + blockSize - 1</code>, and no Neon-specific length is
-   * documented in this library.
-   * This function clears <code>numTaps + 2 * blockSize - 1</code> elements in
-   * the MVE configuration and <code>numTaps + blockSize - 1</code> otherwise;
-   * it does not receive a capacity argument and cannot check whether the
-   * buffer is large enough.
+   * documented in this library. This function does not receive a capacity
+   * argument and cannot check whether the buffer is large enough.
    *
    * @par Helium coefficient storage
    * Under the same MVE configuration, @p pCoeffs must contain
-   * <code>4 * ((numTaps + 3) / 4)</code> float32_t elements, using integer
-   * division to round up to a multiple of four. Set trailing padding to zero
-   * before processing. Keep @p numTaps equal to the actual number of taps.
-   * This function does not allocate, extend, or zero-pad the coefficient array.
+   * <code>4 * ((numTaps + 3) / 4)</code> float32_t elements. Set trailing
+   * padding to zero before processing. Keep @p numTaps equal to the actual
+   * number of taps. This function does not allocate, extend, or zero-pad the
+   * coefficient array. The MVE kernel reads no input past the @p blockSize
+   * samples of each call and writes no state past
+   * <code>numTaps + 2 * blockSize - 1</code>.
    *
    * @par Portable allocation
    * Code that must build in both configurations should allocate
-   * <code>4 * ((numTaps + 3) / 4) + 8 * ((blockSize + 3) / 4)</code> state
-   * elements and pad the coefficient array to a multiple of four in both. The scalar
+   * <code>4 * ((numTaps + 3) / 4) + 2 * blockSize - 1</code> state elements
+   * and pad the coefficient array to a multiple of four in both. The scalar
    * implementation reads only the first <code>numTaps + blockSize - 1</code>
    * state elements and the first @p numTaps coefficients, so the extra
    * storage is unused there.
