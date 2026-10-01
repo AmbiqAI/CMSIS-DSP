@@ -47,38 +47,7 @@
  */
 
 
-#if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
-#define RFFTINIT_Q31(LEN,CFFTLEN,TWIDMOD)                         \
-ARM_DSP_ATTRIBUTE arm_status arm_rfft_init_##LEN##_q31( arm_rfft_instance_q31 * S,  \
-    uint32_t ifftFlagR,                                           \
-    uint32_t bitReverseFlag )                                     \
-{                                                                 \
-    /*  Initialise the default arm status */                      \
-    arm_status status = ARM_MATH_ARGUMENT_ERROR;                  \
-                                                                  \
-    /*  Initialize the Real FFT length */                         \
-    S->fftLenReal = (uint16_t) LEN;                               \
-                                                                  \
-    /*  Initialize the Twiddle coefficientA pointer */            \
-    S->pTwiddleAReal = (q31_t *) realCoefAQ31;                    \
-                                                                  \
-    /*  Initialize the Twiddle coefficientB pointer */            \
-    S->pTwiddleBReal = (q31_t *) realCoefBQ31;                    \
-                                                                  \
-    /*  Initialize the Flag for selection of RFFT or RIFFT */     \
-    S->ifftFlagR = (uint8_t) ifftFlagR;                           \
-                                                                  \
-    /*  Initialize the Flag for calculation Bit reversal or not */\
-    S->bitReverseFlagR = (uint8_t) bitReverseFlag;                \
-                                                                  \
-    S->twidCoefRModifier = TWIDMOD;                               \
-                                                                  \
-    status=arm_cfft_init_##CFFTLEN##_q31(&(S->cfftInst));         \
-                                                                  \
-    /* return the status of RFFT Init function */                 \
-    return (status);                                              \
-}
-#elif defined(ARM_MATH_NEON) 
+#if defined(ARM_MATH_NEON)
 #define RFFTINIT_Q31(LEN,CFFTLEN,TWIDMOD)                                          \
 ARM_DSP_ATTRIBUTE arm_status arm_rfft_init_##LEN##_q31( arm_rfft_instance_q31 * S )\
 {                                                                                  \
@@ -97,35 +66,10 @@ ARM_DSP_ATTRIBUTE arm_status arm_rfft_init_##LEN##_q31( arm_rfft_instance_q31 * 
 }
 #include "arm_neon_tables.h"
 
-
 #else
-#define RFFTINIT_Q31(LEN,CFFTLEN,TWIDMOD)                         \
-ARM_DSP_ATTRIBUTE arm_status arm_rfft_init_##LEN##_q31( arm_rfft_instance_q31 * S,  \
-    uint32_t ifftFlagR,                                           \
-    uint32_t bitReverseFlag )                                     \
-{                                                                 \
-    /*  Initialize the Real FFT length */                         \
-    S->fftLenReal = (uint16_t) LEN;                               \
-                                                                  \
-    /*  Initialize the Twiddle coefficientA pointer */            \
-    S->pTwiddleAReal = (q31_t *) realCoefAQ31;                    \
-                                                                  \
-    /*  Initialize the Twiddle coefficientB pointer */            \
-    S->pTwiddleBReal = (q31_t *) realCoefBQ31;                    \
-                                                                  \
-    /*  Initialize the Flag for selection of RFFT or RIFFT */     \
-    S->ifftFlagR = (uint8_t) ifftFlagR;                           \
-                                                                  \
-    /*  Initialize the Flag for calculation Bit reversal or not */\
-    S->bitReverseFlagR = (uint8_t) bitReverseFlag;                \
-                                                                  \
-    S->twidCoefRModifier = TWIDMOD;                               \
-                                                                  \
-    S->pCfft = &arm_cfft_sR_q31_len##CFFTLEN;                     \
-                                                                  \
-    /* return the status of RFFT Init function */                 \
-    return (ARM_MATH_SUCCESS);                                    \
-}
+/* Non-Neon size-specific initializers and compact tables are generated as
+ * separate translation units under RFFTFixedTables/. */
+#define RFFTINIT_Q31(LEN,CFFTLEN,TWIDMOD)
 #endif
 
 
@@ -437,44 +381,50 @@ ARM_DSP_ATTRIBUTE arm_status arm_rfft_init_q31(
 {
      /*  Initialise the default arm status */
     arm_status status = ARM_MATH_ARGUMENT_ERROR;
-    /*  Initialization of coef modifier depending on the FFT length */
+
+#if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
+#define RFFT_GENERIC_CASE_Q31(LEN, CFFTLEN, MODIFIER)       \
+    case LEN##U:                                            \
+        S->twidCoefRModifier = MODIFIER##U;                 \
+        status = arm_cfft_init_##CFFTLEN##_q31(&S->cfftInst); \
+        break
+#else
+#define RFFT_GENERIC_CASE_Q31(LEN, CFFTLEN, MODIFIER)       \
+    case LEN##U:                                            \
+        S->twidCoefRModifier = MODIFIER##U;                 \
+        S->pCfft = &arm_cfft_sR_q31_len##CFFTLEN;           \
+        status = ARM_MATH_SUCCESS;                          \
+        break
+#endif
+
+    /* Keep the runtime API on the shared master tables. Fixed-length
+       initializers use compact tables emitted in separate objects. */
     switch (fftLenReal)
     {
-    case 8192U:
-        status = arm_rfft_init_8192_q31( S,ifftFlagR,bitReverseFlag );
-        break;
-    case 4096U:
-        status = arm_rfft_init_4096_q31( S,ifftFlagR,bitReverseFlag );
-        break;
-    case 2048U:
-        status = arm_rfft_init_2048_q31( S,ifftFlagR,bitReverseFlag );
-        break;
-    case 1024U:
-        status = arm_rfft_init_1024_q31( S,ifftFlagR,bitReverseFlag );
-        break;
-    case 512U:
-        status = arm_rfft_init_512_q31( S,ifftFlagR,bitReverseFlag );
-        break;
-    case 256U:
-        status = arm_rfft_init_256_q31( S,ifftFlagR,bitReverseFlag );
-        break;
-    case 128U:
-        status = arm_rfft_init_128_q31( S,ifftFlagR,bitReverseFlag );
-        break;
-    case 64U:
-        status = arm_rfft_init_64_q31( S,ifftFlagR,bitReverseFlag );
-        break;
-    case 32U:
-        status = arm_rfft_init_32_q31( S,ifftFlagR,bitReverseFlag );
-        break;
+    RFFT_GENERIC_CASE_Q31(8192, 4096, 1);
+    RFFT_GENERIC_CASE_Q31(4096, 2048, 2);
+    RFFT_GENERIC_CASE_Q31(2048, 1024, 4);
+    RFFT_GENERIC_CASE_Q31(1024, 512, 8);
+    RFFT_GENERIC_CASE_Q31(512, 256, 16);
+    RFFT_GENERIC_CASE_Q31(256, 128, 32);
+    RFFT_GENERIC_CASE_Q31(128, 64, 64);
+    RFFT_GENERIC_CASE_Q31(64, 32, 128);
+    RFFT_GENERIC_CASE_Q31(32, 16, 256);
     default:
-        /*  Reporting argument error if rfftSize is not valid value */
-        status = ARM_MATH_ARGUMENT_ERROR;
         break;
     }
 
-    /* return the status of RFFT Init function */
-    return (status);
+#undef RFFT_GENERIC_CASE_Q31
+
+    if (status == ARM_MATH_SUCCESS)
+    {
+        S->fftLenReal = (uint16_t)fftLenReal;
+        S->pTwiddleAReal = realCoefAQ31;
+        S->pTwiddleBReal = realCoefBQ31;
+        S->ifftFlagR = (uint8_t)ifftFlagR;
+        S->bitReverseFlagR = (uint8_t)bitReverseFlag;
+    }
+    return status;
 }
 #endif /* neon */
 /**

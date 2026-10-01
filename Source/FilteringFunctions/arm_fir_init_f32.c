@@ -88,7 +88,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_init_f32(
   /* Assign coefficient pointer */
   S->pCoeffs = pCoeffs;
 
-  /* Clear state buffer. The size is always (blockSize + numTaps - 1) */
+  /* Clear the state buffer; its length depends on the configuration. */
 #if defined(ARM_MATH_MVEF) && !defined(ARM_MATH_AUTOVECTORIZE)
   /* The vector kernel evaluates numTaps rounded up to a multiple of four
      taps, so the state it reads extends that far; clear all of it. */

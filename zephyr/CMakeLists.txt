@@ -154,6 +154,26 @@ zephyr_library_sources(${CMSIS_DSP_DIR}/Source/FilteringFunctions/FilteringFunct
 
 # Transform functions
 zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/TransformFunctions.c)
+# Fixed-length Q15/Q31 RFFT initializers and their compact twiddle tables
+# are not part of the amalgamation; keep one object per length.
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_32_q15.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_64_q15.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_128_q15.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_256_q15.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_512_q15.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_1024_q15.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_2048_q15.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_4096_q15.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_8192_q15.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_32_q31.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_64_q31.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_128_q31.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_256_q31.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_512_q31.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_1024_q31.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_2048_q31.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_4096_q31.c)
+zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/RFFTFixedTables/arm_rfft_init_8192_q31.c)
 
   if (CONFIG_CMSIS_DSP_FLOAT16)
     zephyr_library_sources(${CMSIS_DSP_DIR}/Source/TransformFunctions/TransformFunctionsF16.c)

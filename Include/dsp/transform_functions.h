@@ -563,6 +563,12 @@ void arm_rfft_q15(
         q15_t * tmp,
         uint8_t ifftFlag);
 #else
+/**
+ * @note In static-library builds, each size-specific Q15 initializer uses a
+ * compact real-twiddle table for only that FFT length. Use arm_rfft_init_q15
+ * only when the length is unknown until runtime; that generic initializer
+ * retains the shared 8192-point master tables.
+ */
 arm_status arm_rfft_init_32_q15(
         arm_rfft_instance_q15 * S,
         uint32_t ifftFlagR,
@@ -692,6 +698,12 @@ extern arm_rfft_instance_q31 *arm_rfft_init_dynamic_q31(uint32_t fftLenReal);
         q31_t * tmp,
         uint8_t ifftFlag);
 #else
+  /**
+   * @note In static-library builds, each size-specific Q31 initializer uses a
+   * compact real-twiddle table for only that FFT length. Use arm_rfft_init_q31
+   * only when the length is unknown until runtime; that generic initializer
+   * retains the shared 8192-point master tables.
+   */
     arm_status arm_rfft_init_32_q31(
         arm_rfft_instance_q31 * S,
         uint32_t ifftFlagR,
