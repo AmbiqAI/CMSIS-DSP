@@ -29,8 +29,10 @@ zephyr_library_compile_definitions_ifdef(CONFIG_CMSIS_DSP_NEON_EXPERIMENTAL     
 zephyr_library_compile_definitions_ifdef(CONFIG_CMSIS_DSP_LOOPUNROLL            ARM_MATH_LOOPUNROLL)
 zephyr_library_compile_definitions_ifdef(CONFIG_CMSIS_DSP_ROUNDING              ARM_MATH_ROUNDING)
 zephyr_library_compile_definitions_ifdef(CONFIG_CMSIS_DSP_MATRIXCHECK           ARM_MATH_MATRIX_CHECK)
-zephyr_library_compile_definitions_ifndef(CONFIG_CMSIS_DSP_FLOAT16              DISABLEFLOAT16)
-zephyr_library_compile_definitions_ifdef(CONFIG_CMSIS_DSP_AUTOVECTORIZE         ARM_MATH_AUTOVECTORIZE)
+# The public headers select instance layouts and initializers on these two
+# definitions, so the application must see the same values as the library.
+zephyr_compile_definitions_ifndef(CONFIG_CMSIS_DSP_FLOAT16              DISABLEFLOAT16)
+zephyr_compile_definitions_ifdef(CONFIG_CMSIS_DSP_AUTOVECTORIZE         ARM_MATH_AUTOVECTORIZE)
 zephyr_library_compile_definitions_ifdef(CONFIG_CMSIS_DSP_NE10_DSP_RIFFT_SCALING CMSIS_NE10_DSP_RIFFT_SCALING)
 zephyr_library_compile_definitions_ifdef(CONFIG_CMSIS_DSP_CUSTOM_CONFIG  ARM_DSP_CUSTOM_CONFIG)
 
