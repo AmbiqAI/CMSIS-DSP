@@ -20,7 +20,9 @@ else()
    zephyr_library_compile_definitions(__GNUC_PYTHON__) # Disable dependency to CMSIS Core
 endif()
 
-zephyr_library_compile_definitions(ZEPHYR_INCLUDE_TOOLCHAIN_ZEPHYR_STDINT_H_)
+# Zephyr's include/zephyr/toolchain/zephyr_stdint.h guard; defining it keeps the
+# compiler's int32_t, which the MVE intrinsics require.
+zephyr_library_compile_definitions(ZEPHYR_INCLUDE_TOOLCHAIN_STDINT_H_)
 
 
 # Global Feature Definitions
