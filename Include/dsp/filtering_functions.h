@@ -470,6 +470,21 @@ extern "C"
       float32_t * pState);
 #endif
   
+  /**
+   * @brief  Initialization function for the floating-point Biquad cascade filter.
+   * @param[in,out] S          points to an instance of the floating-point Biquad cascade structure.
+   * @param[in]     numStages  number of 2nd order stages in the filter.
+   * @param[in]     pCoeffs    points to the filter coefficients.
+   * @param[in]     pState     points to the state buffer.
+   *
+   * @par           For MVE code (ARM_MATH_MVEF defined and ARM_MATH_AUTOVECTORIZE not defined),
+   *                an additional buffer of modified coefficients is required.
+   *                Its size is numStages and each element of this buffer has type arm_biquad_mod_coef_f32.
+   *                So, its total size is 32*numStages float32_t elements, and it is owned by the caller.
+   *                The initialization function which must be used is arm_biquad_cascade_df1_mve_init_f32.
+   *                In that configuration an instance initialized with arm_biquad_cascade_df1_init_f32
+   *                (this function, plain coefficients) produces incorrect output from arm_biquad_cascade_df1_f32.
+   */
   void arm_biquad_cascade_df1_init_f32(
         arm_biquad_casd_df1_inst_f32 * S,
         uint8_t numStages,

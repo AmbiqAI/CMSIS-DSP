@@ -1,0 +1,24 @@
+name: RFFT fixed tables
+
+on:
+  pull_request:
+    paths:
+      - 'Scripts/genFixedRFFTTwiddleCoefs.py'
+      - 'Source/TransformFunctions/**'
+      - 'Source/CommonTables/arm_common_tables.c'
+      - 'Include/arm_common_tables.h'
+      - 'Include/dsp/transform_functions.h'
+      - 'Testing/Regression/rfft_fixed_tables_parity.c'
+      - 'Testing/Regression/run_rfft_fixed_tables_parity.py'
+      - '.github/workflows/rfft-fixed-tables.yml'
+  workflow_dispatch:
+
+jobs:
+  generated-tables:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generated tables match the generator
+        run: python3 Scripts/genFixedRFFTTwiddleCoefs.py --check
+      - name: Fixed-length vs generic parity on the host library
+        run: python3 Testing/Regression/run_rfft_fixed_tables_parity.py --build-dir build/rfft-parity

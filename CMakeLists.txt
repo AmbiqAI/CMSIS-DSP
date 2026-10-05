@@ -7,5 +7,5 @@
 # existing projects that assume CMSIS-DSP's entry point to be Source/, we only
 # add a redirection in the root CMakeLists.txt.
 cmake_minimum_required(VERSION 3.14)
-project(CMSISDSPRoot)
+project(CMSISDSPRoot LANGUAGES C)
 add_subdirectory(Source)

@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.14)
 cmake_policy(SET CMP0077 NEW)
 include(${CMAKE_CURRENT_LIST_DIR}/../cmake/CMSISDSPVersion.cmake)
-project(CMSISDSP VERSION ${CMSISDSP_VERSION})
+project(CMSISDSP VERSION ${CMSISDSP_VERSION} LANGUAGES C)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 

@@ -1,5 +1,28 @@
 cmake_minimum_required (VERSION 3.14)
 
+# Keep every fixed-length integer RFFT initializer and its compact real
+# twiddle tables in its own archive member. This is intentional even in
+# FASTBUILD mode: selecting one length must not pull the other lengths.
+target_sources(CMSISDSP PRIVATE
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_32_q15.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_64_q15.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_128_q15.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_256_q15.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_512_q15.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_1024_q15.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_2048_q15.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_4096_q15.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_8192_q15.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_32_q31.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_64_q31.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_128_q31.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_256_q31.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_512_q31.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_1024_q31.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_2048_q31.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_4096_q31.c
+  TransformFunctions/RFFTFixedTables/arm_rfft_init_8192_q31.c)
+
 if (FASTBUILD)
   target_sources(CMSISDSP PRIVATE TransformFunctions/TransformFunctions.c)
 
@@ -157,5 +180,3 @@ if (NEON OR NEONEXPERIMENTAL)
 
     endif()
 endif()
-
-

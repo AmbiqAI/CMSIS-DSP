@@ -1,0 +1,25 @@
+# Copyright (c) 2026 Ambiq Micro, Inc.
+# SPDX-License-Identifier: Apache-2.0
+cmake_minimum_required(VERSION 3.14)
+project(configDspConsumer C)
+enable_testing()
+
+if(PROBE_PACKAGE)
+  include("${PROBE_PACKAGE}/lib/cmake/probe/probeTargets.cmake")
+else()
+  get_filename_component(DSP "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+  if(NOT CONFIG_DSP_FILE)
+    set(CONFIG_DSP_FILE "${DSP}/Source/configDsp.cmake")
+  endif()
+  include("${CONFIG_DSP_FILE}")
+  add_library(producer STATIC producer.c)
+  configDsp(producer)
+  add_library(probe::producer ALIAS producer)
+  install(TARGETS producer EXPORT probeTargets ARCHIVE DESTINATION lib)
+  install(EXPORT probeTargets NAMESPACE probe:: DESTINATION lib/cmake/probe)
+endif()
+
+add_executable(consumer consumer.c)
+target_compile_definitions(consumer PRIVATE EXPECTED_FEATURES=${EXPECTED_FEATURES})
+target_link_libraries(consumer PRIVATE probe::producer)
+add_test(NAME consumer_features COMMAND consumer)
