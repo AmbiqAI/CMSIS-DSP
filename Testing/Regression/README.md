@@ -52,3 +52,25 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## Q31 CFFT guard regression (compiler check)
+
+`mve_cfft_q31_guard.c` runs the MVE Q31 complex FFT, forward and inverse,
+for lengths 16 to 1024 on a buffer that starts immediately after an
+MPU-inaccessible guard, with canary padding above it, and checks the result
+against a double-precision DFT (14 cases). The final radix-4 stage gathers
+with `vldrwq_gather_base_wb_s32` and then addresses relative to the
+written-back base; a compiler that issues those accesses from the
+pre-writeback base touches 64 bytes below each block. Arm GNU Toolchain
+15.2.Rel1 does so at every optimization level (`FAIL: CFFT Q31 forward
+length 16 touched the guard`); 14.x passes. The runner takes `--compiler`
+and `--opt O2|O3` so both toolchains can be exercised:
+
+```sh
+python3 Testing/Regression/run_mve_cfft_q31_guard.py <dependency options> \
+  --compiler /path/to/arm-gnu-15.2/bin/arm-none-eabi-gcc --opt O2 --build-dir /path/to/build
+```
+
+Under a correct compiler the upstream kernel reads one element past the
+buffer for the 16-point transform, which is why the upper side is padding
+rather than a second guard.
