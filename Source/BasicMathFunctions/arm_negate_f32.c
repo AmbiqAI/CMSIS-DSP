@@ -100,7 +100,7 @@ ARM_DSP_ATTRIBUTE void arm_negate_f32(
     {
       /* C = |A| */
       mve_pred16_t p0 = vctp32q(blkCnt);
-      vec1 = vld1q((float32_t const *) pSrc);
+      vec1 = vld1q_z((float32_t const *) pSrc, p0);
       vstrwq_p(pDst, vnegq(vec1), p0);
     }
 

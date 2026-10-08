@@ -105,7 +105,7 @@ ARM_DSP_ATTRIBUTE void arm_abs_f32(
     {
       /* C = |A| */
       mve_pred16_t p0 = vctp32q(blkCnt);
-      vec1 = vld1q(pSrc);
+      vec1 = vld1q_z(pSrc, p0);
       vstrwq_p(pDst, vabsq(vec1), p0);
     }
 
