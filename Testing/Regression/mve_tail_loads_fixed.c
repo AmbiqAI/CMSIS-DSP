@@ -321,8 +321,10 @@ static int run_mat_##T(void)                                                   \
 DEFINE_MATRIX(q15_t, q15, 32767, 2048, 16, 32768.0)
 DEFINE_MATRIX(q31_t, q31, 2147483647, 134217728, 8, 2147483648.0)
 
-/* arm_mat_trans_q7 gathers one column per output row; the tail handles
- * numRows % 8 rows with an unpredicated gather. Rows 1 to 9, columns 1 to 3. */
+/* arm_mat_trans_q7 gathers one column per output row; before this change the
+ * tail of numRows % 8 rows used an unpredicated gather, now
+ * vldrbq_gather_offset_z_u16 under the tail predicate. Rows 1 to 9, columns
+ * 1 to 3. */
 static int run_mat_trans_q7(void)
 {
     for (unsigned rows = 1; rows <= 9U; ++rows)

@@ -5,7 +5,8 @@
 
 The regression compiles with the given compiler (Arm GNU or ATfE clang) and
 links with an Arm GNU toolchain, so that one runner serves both compiler
-families. For the negative control, pass unmodified upstream copies of one
+families. A group is available when its test file mve_tail_loads_<group>.c
+is present next to this runner; the groups arrive in separate pull requests. For the negative control, pass unmodified upstream copies of one
 or more kernels through --source; each replaces the checkout's file of the
 same name.
 """
@@ -61,10 +62,28 @@ GROUPS = {
             'StatisticsFunctions/arm_mse_q7.c',
         ],
     },
+    'f16': {
+        'test': 'mve_tail_loads_f16.c',
+        'expected': 'PASS: 288 MVE f16 tail-load cases',
+        'defines': [],
+        'sources': [
+            'BasicMathFunctions/arm_abs_f16.c', 'BasicMathFunctions/arm_add_f16.c',
+            'BasicMathFunctions/arm_dot_prod_f16.c', 'BasicMathFunctions/arm_mult_f16.c',
+            'BasicMathFunctions/arm_negate_f16.c', 'BasicMathFunctions/arm_offset_f16.c',
+            'BasicMathFunctions/arm_scale_f16.c', 'BasicMathFunctions/arm_sub_f16.c',
+            'ComplexMathFunctions/arm_cmplx_mult_real_f16.c', 'MatrixFunctions/arm_mat_add_f16.c',
+            'MatrixFunctions/arm_mat_scale_f16.c', 'MatrixFunctions/arm_mat_sub_f16.c',
+            'StatisticsFunctions/arm_absmin_f16.c', 'StatisticsFunctions/arm_mse_f16.c',
+            'SupportFunctions/arm_q15_to_f16.c',
+        ],
+    },
 }
 
+here = Path(__file__).resolve().parent
+available = sorted(g for g in GROUPS if (here / GROUPS[g]['test']).exists())
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--group', choices=sorted(GROUPS), required=True)
+parser.add_argument('--group', choices=sorted(GROUPS), required=True,
+                    help=f"kernel group; present in this checkout: {', '.join(available) or 'none'}")
 parser.add_argument('--cmsis-core', type=Path, required=True, help='CMSIS/Core directory')
 parser.add_argument('--cortex-dfp', type=Path, required=True)
 parser.add_argument('--platform-linker', type=Path, required=True)
@@ -78,8 +97,10 @@ parser.add_argument('--source', type=Path, action='append', default=[],
                     help='Upstream kernel replacing the checkout file of the same name (negative control)')
 args = parser.parse_args()
 group = GROUPS[args.group]
+if args.group not in available:
+    parser.error(f"group {args.group}: {group['test']} is not in this checkout "
+                 f"(present: {', '.join(available) or 'none'})")
 repo = Path(__file__).resolve().parents[2]
-here = Path(__file__).resolve().parent
 build = args.build_dir.resolve()
 build.mkdir(parents=True, exist_ok=True)
 device = args.cortex_dfp.resolve() / 'Device/ARMCM55'
