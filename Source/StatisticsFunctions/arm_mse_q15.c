@@ -86,8 +86,8 @@ ARM_DSP_ATTRIBUTE void arm_mse_q15(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp16q(blkCnt);
-        vecSrcA = vld1q(pSrcA);
-        vecSrcB = vld1q(pSrcB);
+        vecSrcA = vld1q_z(pSrcA, p0);
+        vecSrcB = vld1q_z(pSrcB, p0);
 
         vecSrcA = vshrq(vecSrcA,1);
         vecSrcB = vshrq(vecSrcB,1);

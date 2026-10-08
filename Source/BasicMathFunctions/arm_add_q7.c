@@ -96,8 +96,8 @@ ARM_DSP_ATTRIBUTE void arm_add_q7(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp8q(blkCnt);
-        vecA = vld1q(pSrcA);
-        vecB = vld1q(pSrcB);
+        vecA = vld1q_z(pSrcA, p0);
+        vecB = vld1q_z(pSrcB, p0);
         vstrbq_p(pDst, vqaddq(vecA, vecB), p0);
     }
 }

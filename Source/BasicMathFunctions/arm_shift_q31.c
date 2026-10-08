@@ -111,7 +111,7 @@ ARM_DSP_ATTRIBUTE void arm_shift_q31(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp32q(blkCnt);
-        vecSrc = vld1q((q31_t const *) pSrc);
+        vecSrc = vld1q_z((q31_t const *) pSrc, p0);
         vecDst = vqshlq_r(vecSrc, shiftBits);
         vstrwq_p(pDst, vecDst, p0);
     }

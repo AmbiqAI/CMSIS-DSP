@@ -52,3 +52,24 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## Predicated tail loads, fixed-point kernels
+
+`mve_tail_loads_fixed.c` applies the guarded check to the 45 Q7/Q15/Q31 and
+u8/u16 kernels whose final partial block was loaded with an unpredicated
+`vld1q` (or offset gather) after `vctp8q`/`vctp16q`/`vctp32q`:
+`arm_abs`, `arm_negate`, `arm_offset`, `arm_scale`, `arm_shift`, `arm_add`,
+`arm_sub`, `arm_mult`, `arm_dot_prod`, `arm_mse` for q7, q15 and q31;
+`arm_and`, `arm_or`, `arm_xor`, `arm_not` for u8 and u16; `arm_mat_add`,
+`arm_mat_sub`, `arm_mat_scale` for q15 and q31; `arm_mat_trans_q7`. Block
+sizes run from 1 to two full vectors (32 for 8-bit, 16 for 16-bit, 8 for
+32-bit types), matrices 1–2 rows by 1 to two vectors, the transpose 1–9 rows
+by 1–3 columns: 923 cases. Each case compares the guarded run with a run on
+readable nonzero padding (identical output) and with a double-precision
+reference (exact for add, sub, abs, negate, offset, shift and the bitwise
+kernels; within 2 LSB for mult and scale, n + 2 LSB for dot products and
+4 LSB for mse); output canaries detect boundary writes.
+
+`run_mve_tail_loads.py --group fixed` expects
+`PASS: 923 MVE fixed-point tail-load cases`; the negative control through
+`--source` must report `FAIL: <kernel> tail access n=1`.
