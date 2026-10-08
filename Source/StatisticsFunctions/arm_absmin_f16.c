@@ -109,7 +109,7 @@ ARM_DSP_ATTRIBUTE void arm_absmin_f16(
     {
         p0 = vctp16q(blkCnt);
 
-        vecSrc = vldrhq_f16(pSrcVec);  
+        vecSrc = vldrhq_z_f16(pSrcVec, p0);  
         pSrcVec += 8;
         vecSrc = vabsq(vecSrc);
         /*
