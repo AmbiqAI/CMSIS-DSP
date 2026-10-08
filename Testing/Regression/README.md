@@ -52,3 +52,21 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## Predicated tail loads, f16 kernels
+
+`mve_tail_loads_f16.c` applies the guarded check to the fifteen f16 kernels
+whose final partial block was loaded with an unpredicated `vld1q` (or
+unpredicated gather) after `vctp16q`: `arm_abs_f16`, `arm_negate_f16`,
+`arm_offset_f16`, `arm_scale_f16`, `arm_add_f16`, `arm_sub_f16`,
+`arm_mult_f16`, `arm_dot_prod_f16`, `arm_mse_f16`, `arm_absmin_f16`,
+`arm_cmplx_mult_real_f16`, `arm_q15_to_f16`, `arm_mat_add_f16`,
+`arm_mat_sub_f16`, `arm_mat_scale_f16`. Block sizes 1 to 16 and matrices of
+one and two rows by 1 to 16 columns, 288 cases. Inputs are exact in half
+precision and small enough that every result except the mean square error is
+exact; mse is checked within 2 percent.
+
+`run_mve_tail_loads.py --group f16` builds without `DISABLEFLOAT16` and
+expects `PASS: 288 MVE f16 tail-load cases`; Arm GNU 14.3.1 and ATfE 22.1.0
+both compile this group. The negative control through `--source` must report
+`FAIL: <kernel> tail access n=1`.
