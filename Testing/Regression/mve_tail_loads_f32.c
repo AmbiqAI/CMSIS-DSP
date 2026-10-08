@@ -121,9 +121,19 @@ static int check_canaries(unsigned count)
     return 0;
 }
 
+/* Non-finite outputs are rejected by their bit pattern (exponent all ones):
+ * under -ffast-math the compiler may fold isnan()/isfinite() to false, and
+ * fabs(NaN - reference) > tolerance is false. */
+static int is_finite_f32(float32_t x)
+{
+    uint32_t bits;
+    memcpy(&bits, &x, sizeof(bits));
+    return (bits & 0x7f800000U) != 0x7f800000U;
+}
+
 static int check_value(float32_t got, double reference, unsigned index)
 {
-    if (fabs((double)got - reference) > 1e-5)
+    if (!is_finite_f32(got) || fabs((double)got - reference) > 1e-5)
     {
         printf("FAIL: %s numerical result n=%u index=%u\n", current_name, current_n, index);
         return 1;

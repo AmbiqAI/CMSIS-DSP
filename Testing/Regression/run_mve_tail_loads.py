@@ -5,7 +5,8 @@
 
 The regression compiles with the given compiler (Arm GNU or ATfE clang) and
 links with an Arm GNU toolchain, so that one runner serves both compiler
-families. For the negative control, pass unmodified upstream copies of one
+families. A group is available when its test file mve_tail_loads_<group>.c
+is present next to this runner; the groups arrive in separate pull requests. For the negative control, pass unmodified upstream copies of one
 or more kernels through --source; each replaces the checkout's file of the
 same name.
 """
@@ -31,10 +32,58 @@ GROUPS = {
             'StatisticsFunctions/arm_accumulate_f32.c', 'StatisticsFunctions/arm_mse_f32.c',
         ],
     },
+    'fixed': {
+        'test': 'mve_tail_loads_fixed.c',
+        'expected': 'PASS: 923 MVE fixed-point tail-load cases',
+        'defines': ['-DDISABLEFLOAT16'],
+        'sources': [
+            'BasicMathFunctions/arm_abs_q15.c', 'BasicMathFunctions/arm_abs_q31.c',
+            'BasicMathFunctions/arm_abs_q7.c', 'BasicMathFunctions/arm_add_q15.c',
+            'BasicMathFunctions/arm_add_q31.c', 'BasicMathFunctions/arm_add_q7.c',
+            'BasicMathFunctions/arm_and_u16.c', 'BasicMathFunctions/arm_and_u8.c',
+            'BasicMathFunctions/arm_dot_prod_q15.c', 'BasicMathFunctions/arm_dot_prod_q31.c',
+            'BasicMathFunctions/arm_dot_prod_q7.c', 'BasicMathFunctions/arm_mult_q15.c',
+            'BasicMathFunctions/arm_mult_q31.c', 'BasicMathFunctions/arm_mult_q7.c',
+            'BasicMathFunctions/arm_negate_q15.c', 'BasicMathFunctions/arm_negate_q31.c',
+            'BasicMathFunctions/arm_negate_q7.c', 'BasicMathFunctions/arm_not_u16.c',
+            'BasicMathFunctions/arm_not_u8.c', 'BasicMathFunctions/arm_offset_q15.c',
+            'BasicMathFunctions/arm_offset_q31.c', 'BasicMathFunctions/arm_offset_q7.c',
+            'BasicMathFunctions/arm_or_u16.c', 'BasicMathFunctions/arm_or_u8.c',
+            'BasicMathFunctions/arm_scale_q15.c', 'BasicMathFunctions/arm_scale_q31.c',
+            'BasicMathFunctions/arm_scale_q7.c', 'BasicMathFunctions/arm_shift_q15.c',
+            'BasicMathFunctions/arm_shift_q31.c', 'BasicMathFunctions/arm_shift_q7.c',
+            'BasicMathFunctions/arm_sub_q15.c', 'BasicMathFunctions/arm_sub_q31.c',
+            'BasicMathFunctions/arm_sub_q7.c', 'BasicMathFunctions/arm_xor_u16.c',
+            'BasicMathFunctions/arm_xor_u8.c', 'MatrixFunctions/arm_mat_add_q15.c',
+            'MatrixFunctions/arm_mat_add_q31.c', 'MatrixFunctions/arm_mat_scale_q15.c',
+            'MatrixFunctions/arm_mat_scale_q31.c', 'MatrixFunctions/arm_mat_sub_q15.c',
+            'MatrixFunctions/arm_mat_sub_q31.c', 'MatrixFunctions/arm_mat_trans_q7.c',
+            'StatisticsFunctions/arm_mse_q15.c', 'StatisticsFunctions/arm_mse_q31.c',
+            'StatisticsFunctions/arm_mse_q7.c',
+        ],
+    },
+    'f16': {
+        'test': 'mve_tail_loads_f16.c',
+        'expected': 'PASS: 288 MVE f16 tail-load cases',
+        'defines': [],
+        'sources': [
+            'BasicMathFunctions/arm_abs_f16.c', 'BasicMathFunctions/arm_add_f16.c',
+            'BasicMathFunctions/arm_dot_prod_f16.c', 'BasicMathFunctions/arm_mult_f16.c',
+            'BasicMathFunctions/arm_negate_f16.c', 'BasicMathFunctions/arm_offset_f16.c',
+            'BasicMathFunctions/arm_scale_f16.c', 'BasicMathFunctions/arm_sub_f16.c',
+            'ComplexMathFunctions/arm_cmplx_mult_real_f16.c', 'MatrixFunctions/arm_mat_add_f16.c',
+            'MatrixFunctions/arm_mat_scale_f16.c', 'MatrixFunctions/arm_mat_sub_f16.c',
+            'StatisticsFunctions/arm_absmin_f16.c', 'StatisticsFunctions/arm_mse_f16.c',
+            'SupportFunctions/arm_q15_to_f16.c',
+        ],
+    },
 }
 
+here = Path(__file__).resolve().parent
+available = sorted(g for g in GROUPS if (here / GROUPS[g]['test']).exists())
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--group', choices=sorted(GROUPS), required=True)
+parser.add_argument('--group', choices=sorted(GROUPS), required=True,
+                    help=f"kernel group; present in this checkout: {', '.join(available) or 'none'}")
 parser.add_argument('--cmsis-core', type=Path, required=True, help='CMSIS/Core directory')
 parser.add_argument('--cortex-dfp', type=Path, required=True)
 parser.add_argument('--platform-linker', type=Path, required=True)
@@ -48,8 +97,10 @@ parser.add_argument('--source', type=Path, action='append', default=[],
                     help='Upstream kernel replacing the checkout file of the same name (negative control)')
 args = parser.parse_args()
 group = GROUPS[args.group]
+if args.group not in available:
+    parser.error(f"group {args.group}: {group['test']} is not in this checkout "
+                 f"(present: {', '.join(available) or 'none'})")
 repo = Path(__file__).resolve().parents[2]
-here = Path(__file__).resolve().parent
 build = args.build_dir.resolve()
 build.mkdir(parents=True, exist_ok=True)
 device = args.cortex_dfp.resolve() / 'Device/ARMCM55'
