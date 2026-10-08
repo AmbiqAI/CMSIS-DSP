@@ -2,19 +2,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /* Cortex-M55 regression: the GCC inline-assembly paths of the MVE Q31 CFFT
- * (final radix-4 stage, forward and inverse, lengths 16 to 1024) and of the
- * Q31 real inverse FFT split (lengths 64 to 2048; 32 keeps the intrinsic
+ * (final radix-4 stage, forward and inverse, lengths 16 to 4096) and of the
+ * Q31 real inverse FFT split (lengths 64 to 8192; 32 keeps the intrinsic
  * split) produce bit-identical output to Arm's intrinsic paths, which the
  * runner builds from the same sources with ARM_MATH_MVE_FFT_REFERENCE and
  * renamed entry points. The buffers follow an MPU-inaccessible guard as in
- * mve_cfft_q31_guard.c, and the CFFT output is also checked against a
- * double-precision DFT. Under a compiler that does not take the assembly
+ * mve_cfft_q31_guard.c, and the CFFT output up to 1024 points is also checked
+ * against a double-precision DFT (the O(N^2) reference is too slow on the
+ * model beyond that; parity covers 4096). Under a compiler that does not take the assembly
  * path (ATfE) both builds are the intrinsic path and the comparison is
  * trivially equal.
  */
 #include "ARMCM55.h"
 #include "dsp/transform_functions.h"
 #include <math.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,8 +29,8 @@ extern void arm_cfft_q31_reference(const arm_cfft_instance_q31 *S, q31_t *p1,
                                    uint8_t ifftFlag, uint8_t bitReverseFlag);
 extern void arm_rfft_q31_reference(const arm_rfft_instance_q31 *S, q31_t *pSrc, q31_t *pDst);
 
-#define MAX_CFFT 1024U
-#define MAX_RFFT 2048U
+#define MAX_CFFT 4096U
+#define MAX_RFFT 8192U
 #define GUARD_BYTES 32U
 #define PAD_WORDS 32U
 #define CANARY ((q31_t)0x5a5a5a5a)
@@ -38,20 +40,52 @@ extern void regression_console_init(void);
 /* Guard, buffer, canary padding: the kernels under test read a few words
  * past the buffer for small lengths (upstream behaviour), so the upper side
  * is readable padding whose writes are detected. */
-static q31_t arena[GUARD_BYTES / sizeof(q31_t) + 2U * MAX_RFFT + PAD_WORDS] __ALIGNED(32);
-static q31_t input[2U * MAX_RFFT];
-static q31_t reference_out[2U * MAX_RFFT];
-static q31_t rfft_dst[2U * MAX_RFFT + 2U];
-static q31_t rfft_dst_reference[2U * MAX_RFFT + 2U];
+#define LARGE __attribute__((section(".bss.tensor_arena"))) /* SRAM; DTCM is too small */
+static q31_t arena[GUARD_BYTES / sizeof(q31_t) + 2U * MAX_RFFT + PAD_WORDS] __ALIGNED(32) LARGE;
+static q31_t input[2U * MAX_RFFT] LARGE;
+static q31_t reference_out[2U * MAX_RFFT] LARGE;
+static q31_t rfft_dst[2U * MAX_RFFT + 2U] LARGE;
+static q31_t rfft_dst_reference[2U * MAX_RFFT + 2U] LARGE;
+/* Over-read probe: a buffer ending k words below an upper guard. */
+static q31_t probe_arena[2U * MAX_CFFT + 64U + GUARD_BYTES / sizeof(q31_t)] __ALIGNED(32) LARGE;
+static jmp_buf probe_env;
+static volatile unsigned probing, probe_faulted;
 static const char *current_name = "none";
 static volatile unsigned current_len, current_inverse;
 
-void MemManage_Handler(void)
+static void probe_recover(void)
+{
+    longjmp(probe_env, 1);
+}
+
+/* During the probe the fault returns into probe_recover() through the stacked
+ * PC (ICI/IT and ECI bits cleared, the faulting instruction abandoned);
+ * otherwise a fault is a failure. */
+void memmanage_c(uint32_t *frame)
 {
     ARM_MPU_Disable();
+    SCB->CFSR = SCB->CFSR;
+    if (probing)
+    {
+        probe_faulted = 1;
+        frame[6] = (uint32_t)probe_recover & ~1U;
+        frame[7] &= ~0x0600FC00U;
+        frame[7] |= 1U << 24;
+        return;
+    }
     printf("FAIL: %s %s length %u touched the guard (MMFAR 0x%08lx)\n", current_name,
            current_inverse ? "inverse" : "forward", current_len, (unsigned long)SCB->MMFAR);
     exit(1);
+}
+
+__attribute__((naked)) void MemManage_Handler(void)
+{
+    __asm volatile(
+        "tst lr, #4\n"
+        "ite eq\n"
+        "mrseq r0, msp\n"
+        "mrsne r0, psp\n"
+        "b memmanage_c\n");
 }
 
 static void protect_guard(uintptr_t guard)
@@ -120,7 +154,7 @@ static int cfft_case(uint32_t len, unsigned inverse, unsigned *checks)
     }
     /* Scaled DFT in double: the Q31 CFFT divides by len in both directions. */
     double worst = 0.0;
-    for (uint32_t k = 0; k < len; ++k)
+    for (uint32_t k = 0; k < (len <= 1024U ? len : 0U); ++k)
     {
         double re = 0.0, im = 0.0;
         for (uint32_t n = 0; n < len; ++n)
@@ -206,19 +240,60 @@ static int rfft_case(uint32_t len, unsigned inverse, unsigned *checks)
     return 0;
 }
 
+/* Smallest number of bytes above the buffer end that a transform reads: the
+ * buffer is placed k words below an inaccessible guard for k = 0, 1, ... until
+ * no fault occurs. Reported for the configured path and the intrinsic path. */
+typedef void (*cfft_fn)(const arm_cfft_instance_q31 *, q31_t *, uint8_t, uint8_t);
+
+static unsigned probe_overread(cfft_fn fn, uint32_t len, unsigned inverse)
+{
+    q31_t *guard = probe_arena + sizeof(probe_arena) / sizeof(q31_t) - GUARD_BYTES / sizeof(q31_t);
+    arm_cfft_instance_q31 S;
+    arm_cfft_init_q31(&S, (uint16_t)len);
+    for (unsigned k = 0; k <= 64U; ++k)
+    {
+        q31_t *buf = guard - k - 2U * len;
+        fill_input(2U * len);
+        memcpy(buf, input, 2U * len * sizeof(q31_t));
+        probe_faulted = 0;
+        probing = 1;
+        if (setjmp(probe_env) == 0)
+        {
+            protect_guard((uintptr_t)guard);
+            fn(&S, buf, (uint8_t)inverse, 1U);
+        }
+        ARM_MPU_Disable();
+        probing = 0;
+        if (!probe_faulted)
+            return k * (unsigned)sizeof(q31_t);
+    }
+    return 0xffffffffU;
+}
+
 int main(void)
 {
     regression_console_init();
     SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
     unsigned checks = 0;
-    static const uint32_t cfft_lengths[] = {16, 32, 64, 128, 256, 512, 1024};
-    static const uint32_t rfft_lengths[] = {32, 64, 128, 256, 512, 1024, 2048};
+    static const uint32_t cfft_lengths[] = {16, 32, 64, 128, 256, 512, 1024, 4096};
+    static const uint32_t rfft_lengths[] = {32, 64, 128, 256, 512, 1024, 2048, 8192};
     for (unsigned i = 0; i < sizeof(cfft_lengths) / sizeof(cfft_lengths[0]); ++i)
         if (cfft_case(cfft_lengths[i], 0, &checks) || cfft_case(cfft_lengths[i], 1, &checks))
             return 1;
     for (unsigned i = 0; i < sizeof(rfft_lengths) / sizeof(rfft_lengths[0]); ++i)
         if (rfft_case(rfft_lengths[i], 0, &checks) || rfft_case(rfft_lengths[i], 1, &checks))
             return 1;
+    for (unsigned i = 0; i < sizeof(cfft_lengths) / sizeof(cfft_lengths[0]); ++i)
+    {
+        current_name = "CFFT Q31 probe";
+        current_len = cfft_lengths[i];
+        printf("OVERREAD CFFT Q31 length %u: configured path forward %u inverse %u bytes, "
+               "intrinsic path forward %u inverse %u bytes\n", (unsigned)cfft_lengths[i],
+               probe_overread(arm_cfft_q31, cfft_lengths[i], 0),
+               probe_overread(arm_cfft_q31, cfft_lengths[i], 1),
+               probe_overread(arm_cfft_q31_reference, cfft_lengths[i], 0),
+               probe_overread(arm_cfft_q31_reference, cfft_lengths[i], 1));
+    }
     printf("PASS: %u MVE Q31 FFT path-parity cases\n", checks);
     return 0;
 }

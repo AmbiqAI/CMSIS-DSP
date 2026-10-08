@@ -80,5 +80,5 @@ log = result.stdout + result.stderr
 (build / 'run.log').write_text(log)
 print(log)
 # The UART shutdown path returns zero even when the test reports failure.
-if result.returncode or 'FAIL:' in log or 'PASS: 28 MVE Q31 FFT path-parity cases' not in log:
+if result.returncode or 'FAIL:' in log or 'PASS: 32 MVE Q31 FFT path-parity cases' not in log:
     raise SystemExit(1)
