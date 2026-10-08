@@ -92,8 +92,8 @@ ARM_DSP_ATTRIBUTE void arm_cmplx_mult_real_f16(
     if (blkCnt > 0U) {
         mve_pred16_t p0 = vctp16q(blkCnt);
 
-        cmplxVec = vld1q(pSrcCmplx);
-        rVec = vldrhq_gather_shifted_offset_f16(pSrcReal, strideVec);
+        cmplxVec = vld1q_z(pSrcCmplx, p0);
+        rVec = vldrhq_gather_shifted_offset_z_f16(pSrcReal, strideVec, p0);
         dstVec = vmulq(cmplxVec, rVec);
         vstrhq_p_f16(pCmplxDst, dstVec, p0);
     }
