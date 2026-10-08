@@ -52,3 +52,22 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## Q31 FFT path parity (GCC inline-assembly paths)
+
+`mve_cfft_q31_paths.c` checks that the GCC inline-assembly paths of the MVE
+Q31 CFFT final radix-4 stage (forward and inverse, lengths 16 to 1024) and of
+the Q31 real inverse FFT split (lengths 64 to 2048; 32 keeps the intrinsic
+split) produce output identical bit for bit to Arm's intrinsic paths, 28
+cases. `run_mve_cfft_q31_paths.py` compiles `arm_cfft_q31.c` and
+`arm_rfft_q31.c` twice, as configured and with `ARM_MATH_MVE_FFT_REFERENCE`
+plus renamed entry points, links both into one image, and expects
+`PASS: 28 MVE Q31 FFT path-parity cases`. The buffers follow an
+MPU-inaccessible guard as in the CFFT guard regression, and the CFFT output
+is also checked against a double-precision DFT.
+
+`ARM_MATH_MVE_FFT_REFERENCE` is a compile definition, not a CMake option: it
+selects the intrinsic paths under GCC and has no effect under other
+compilers, which take the intrinsic paths unconditionally. Under ATfE both
+builds are the same code and the comparison is trivially equal; the evidence
+for the assembly paths is the Arm GNU run.
