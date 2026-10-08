@@ -115,8 +115,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_sub_q15(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp16q(blkCnt);
-        vecA = vld1q(pSrcAVec); pSrcAVec += 8;
-        vecB = vld1q(pSrcBVec); pSrcBVec += 8;
+        vecA = vld1q_z(pSrcAVec, p0); pSrcAVec += 8;
+        vecB = vld1q_z(pSrcBVec, p0); pSrcBVec += 8;
         vecDst = vqsubq_m(vecDst, vecA, vecB, p0);
         vstrhq_p(pDataDst, vecDst, p0);
     }
