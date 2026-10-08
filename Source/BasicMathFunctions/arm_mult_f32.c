@@ -103,8 +103,8 @@ ARM_DSP_ATTRIBUTE void arm_mult_f32(
     {
       /* C = A + B */
       mve_pred16_t p0 = vctp32q(blkCnt);
-      vec1 = vld1q(pSrcA);
-      vec2 = vld1q(pSrcB);
+      vec1 = vld1q_z(pSrcA, p0);
+      vec2 = vld1q_z(pSrcB, p0);
       vstrwq_p(pDst, vmulq(vec1,vec2), p0);
     }
 

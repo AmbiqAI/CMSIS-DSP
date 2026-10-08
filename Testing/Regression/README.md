@@ -52,3 +52,27 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## Predicated tail loads, f32 and u32 kernels
+
+`mve_tail_loads_f32.c` runs sixteen f32/u32 vector kernels whose final partial
+block was loaded with an unpredicated `vld1q` after `vctp32q` (reading up to
+three elements past each source), plus `arm_mat_add_f32` and `arm_mat_sub_f32`
+for coverage, with every source buffer ending at an MPU-inaccessible region:
+`arm_abs_f32`, `arm_negate_f32`, `arm_offset_f32`, `arm_scale_f32`,
+`arm_add_f32`, `arm_sub_f32`, `arm_mult_f32`, `arm_and_u32`, `arm_or_u32`,
+`arm_xor_u32`, `arm_not_u32`, `arm_dot_prod_f32`, `arm_accumulate_f32`,
+`arm_mse_f32`, `arm_absmin_f32`, `arm_mat_scale_f32`. Block sizes 1 to 8 and
+matrices of one and two rows by 1 to 8 columns, 168 cases, compared with
+double-precision references; output canaries detect boundary writes.
+
+`run_mve_tail_loads.py --group f32` takes the dependency options of the other
+runners plus `--compiler` (Arm GNU `arm-none-eabi-gcc`, or an ATfE `clang`,
+compiled with `--target=arm-none-eabihf`), `--linker` (an Arm GNU driver, used
+for every build) and `--opt O2|O3`, and expects
+`PASS: 168 MVE f32/u32 tail-load cases`. For the negative control, save one
+unpatched kernel outside the checkout and pass it through `--source`; the run
+must report `FAIL: <kernel> tail access n=1`. The two matrix kernels left
+unchanged pass this control, because Arm GNU 14.3 and ATfE 22.1 compile their
+do/while bodies to `dlstp`/`letp` loops at `-O2` and `-O3`, which predicate the
+loads implicitly.
