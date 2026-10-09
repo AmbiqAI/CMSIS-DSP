@@ -170,7 +170,12 @@ static void _arm_radix4_butterfly_q15_mve(
     vecA = (q15x8_t) vldrwq_gather_base_wb_s32(&vecScGathAddr, 64);
     vecC = (q15x8_t) vldrwq_gather_base_s32(vecScGathAddr, 8);
 
-    blkCnt = (fftLen >> 4);
+    /*
+     * The transform length is at least 16, so there is at least one block.
+     * The last block is processed after the loop without the pre-load for a
+     * next iteration, which would read past the end of the buffer.
+     */
+    blkCnt = (fftLen >> 4) - 1U;
     while (blkCnt > 0U)
     {
         vecSum0 = vhaddq(vecA, vecC);
@@ -200,6 +205,30 @@ static void _arm_radix4_butterfly_q15_mve(
         vstrwq_scatter_base_s32(vecScGathAddr, -64 + 12, (int32x4_t) vecTmp0);
 
         blkCnt--;
+    }
+
+    /* last block, without the pre-load */
+    {
+        vecSum0 = vhaddq(vecA, vecC);
+        vecDiff0 = vhsubq(vecA, vecC);
+
+        vecB = (q15x8_t) vldrwq_gather_base_s32(vecScGathAddr, 4);
+        vecD = (q15x8_t) vldrwq_gather_base_s32(vecScGathAddr, 12);
+
+        vecSum1 = vhaddq(vecB, vecD);
+        vecDiff1 = vhsubq(vecB, vecD);
+
+        vecTmp0 = vhaddq(vecSum0, vecSum1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 0, (int32x4_t) vecTmp0);
+
+        vecTmp0 = vhsubq(vecSum0, vecSum1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 4, (int32x4_t) vecTmp0);
+
+        vecTmp0 = MVE_CMPLX_SUB_FX_A_ixB(vecDiff0, vecDiff1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 8, (int32x4_t) vecTmp0);
+
+        vecTmp0 = MVE_CMPLX_ADD_FX_A_ixB(vecDiff0, vecDiff1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 12, (int32x4_t) vecTmp0);
     }
 
 }
@@ -407,7 +436,12 @@ static void _arm_radix4_butterfly_inverse_q15_mve(const arm_cfft_instance_q15 *S
     vecA = (q15x8_t) vldrwq_gather_base_wb_s32(&vecScGathAddr, 64);
     vecC = (q15x8_t) vldrwq_gather_base_s32(vecScGathAddr, 8);
 
-    blkCnt = (fftLen >> 4);
+    /*
+     * The transform length is at least 16, so there is at least one block.
+     * The last block is processed after the loop without the pre-load for a
+     * next iteration, which would read past the end of the buffer.
+     */
+    blkCnt = (fftLen >> 4) - 1U;
     while (blkCnt > 0U)
     {
         vecSum0 = vhaddq(vecA, vecC);
@@ -437,6 +471,30 @@ static void _arm_radix4_butterfly_inverse_q15_mve(const arm_cfft_instance_q15 *S
         vstrwq_scatter_base_s32(vecScGathAddr, -64 + 12, (int32x4_t) vecTmp0);
 
         blkCnt--;
+    }
+
+    /* last block, without the pre-load */
+    {
+        vecSum0 = vhaddq(vecA, vecC);
+        vecDiff0 = vhsubq(vecA, vecC);
+
+        vecB = (q15x8_t) vldrwq_gather_base_s32(vecScGathAddr, 4);
+        vecD = (q15x8_t) vldrwq_gather_base_s32(vecScGathAddr, 12);
+
+        vecSum1 = vhaddq(vecB, vecD);
+        vecDiff1 = vhsubq(vecB, vecD);
+
+        vecTmp0 = vhaddq(vecSum0, vecSum1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 0, (int32x4_t) vecTmp0);
+
+        vecTmp0 = vhsubq(vecSum0, vecSum1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 4, (int32x4_t) vecTmp0);
+
+        vecTmp0 = MVE_CMPLX_ADD_FX_A_ixB(vecDiff0, vecDiff1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 8, (int32x4_t) vecTmp0);
+
+        vecTmp0 = MVE_CMPLX_SUB_FX_A_ixB(vecDiff0, vecDiff1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 12, (int32x4_t) vecTmp0);
     }
 }
 
