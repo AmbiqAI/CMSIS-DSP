@@ -116,7 +116,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_decimate_q15(
         if (i > 0U)
         {
             mve_pred16_t p0 = vctp16q(i);
-            vstrhq_p_s16(pStateCurntTmp, vldrhq_s16(pSrcTmp), p0);
+            vstrhq_p_s16(pStateCurntTmp, vldrhq_z_s16(pSrcTmp, p0), p0);
         }
 
         pSrc += (4 * S->M);
@@ -190,11 +190,12 @@ ARM_DSP_ATTRIBUTE void arm_fir_decimate_q15(
             pb += 8;
             /*
              * Read x[n-numTaps-1] sample for acc0
+             * (predicated: the last output's window ends with the state buffer)
              */
-            x0v = vld1q(px0);
-            x1v = vld1q(px1);
-            x2v = vld1q(px2);
-            x3v = vld1q(px3);
+            x0v = vldrhq_z_s16(px0, p0);
+            x1v = vldrhq_z_s16(px1, p0);
+            x2v = vldrhq_z_s16(px2, p0);
+            x3v = vldrhq_z_s16(px3, p0);
             px0 += 8;
             px1 += 8;
             px2 += 8;
@@ -312,7 +313,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_decimate_q15(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp16q(blkCnt);
-        vstrhq_p_s16(pStateCurnt, vldrhq_s16(pState), p0);
+        vstrhq_p_s16(pStateCurnt, vldrhq_z_s16(pState, p0), p0);
     }  
 }
 #else
