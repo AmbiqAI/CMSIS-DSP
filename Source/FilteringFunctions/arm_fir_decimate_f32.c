@@ -55,7 +55,7 @@
   In order to have an integer number of output samples <code>blockSize</code>
   must always be a multiple of the decimation factor <code>M</code>.
 
-  The library provides separate functions for Q15, Q31 and floating-point data types.
+  The library provides separate functions for Q15, Q31, half-precision, single-precision and double-precision floating-point data types.
 
   @par           Algorithm:
                    The FIR portion of the algorithm uses the standard form filter:
@@ -99,6 +99,7 @@
                    To place an instance structure into a const data section, the instance structure must be manually initialized.
                    The code below statically initializes each of the 3 different data type filter instance structures
   <pre>
+      arm_fir_decimate_instance_f16 S = {M, numTaps, pCoeffs, pState};
       arm_fir_decimate_instance_f32 S = {M, numTaps, pCoeffs, pState};
       arm_fir_decimate_instance_q31 S = {M, numTaps, pCoeffs, pState};
       arm_fir_decimate_instance_q15 S = {M, numTaps, pCoeffs, pState};
