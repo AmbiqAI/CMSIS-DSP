@@ -276,3 +276,7 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## f32 FIR decimator equivalence
+
+`mve_fir_decimate_f32_equivalence.c` is an equivalence regression for changes to `arm_fir_decimate_f32` meant to preserve output: it links the checkout's kernel and a reference copy of `arm_fir_decimate_f32.c` from another revision, compiled with `-Darm_fir_decimate_f32=arm_fir_decimate_f32_ref`, and compares outputs and the retained state bit for bit on pseudo-random data: 1–40 taps × decimation factor 1–8 × 1–12 outputs per call, two calls per case, 3,840 cases. `run_mve_fir_decimate_f32_equivalence.py --reference-source <file>` takes the options of the other runners, compiles without `-ffast-math`, and expects `PASS: 3840 MVE f32 decimator equivalence cases`. A reference that sums the four lanes pairwise instead of in order reports `FAIL: decimator output differs from the reference taps=4 M=1 outputs=4` under Arm GNU.
