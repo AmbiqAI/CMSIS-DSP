@@ -28,6 +28,24 @@ __version__ = re.search(
     io.open(version_path, encoding='utf_8_sig').read()
     ).group(1)
 
+# cmsisdsp.commit_hash is read from cmsisdsp/_build_info.py, written here from
+# the Git checkout the wrapper is built from. A source distribution carries the
+# file written when it was made; a tree with neither Git nor the file keeps the
+# fallback literal in cmsisdsp/__init__.py.
+def write_build_info():
+    try:
+        git = lambda *a: subprocess.run(["git", *a], cwd=here, check=True,
+                                        capture_output=True, text=True).stdout.strip()
+        commit = git("rev-parse", "HEAD")
+        dirty = git("status", "--porcelain", "--untracked-files=no") != ""
+    except (OSError, subprocess.CalledProcessError):
+        return
+    with open(os.path.join(PYTHON_MOD, "_build_info.py"), "w", encoding="utf-8") as f:
+        f.write("# Written by setup.py from the Git checkout; not under version control.\n")
+        f.write(f'commit_hash = "{commit}{"-dirty" if dirty else ""}"\n')
+
+write_build_info()
+
 
 includes = [os.path.join(ROOT,"Include"),os.path.join(ROOT,"PrivateInclude"),os.path.join("PythonWrapper","cmsisdsp_pkg","src")]
 
