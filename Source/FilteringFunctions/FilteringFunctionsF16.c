@@ -26,6 +26,8 @@
 
 #include "arm_fir_f16.c"
 #include "arm_fir_init_f16.c"
+#include "arm_fir_decimate_f16.c"
+#include "arm_fir_decimate_init_f16.c"
 #include "arm_biquad_cascade_df1_f16.c"
 #include "arm_biquad_cascade_df1_init_f16.c"
 #include "arm_biquad_cascade_df2T_f16.c"
