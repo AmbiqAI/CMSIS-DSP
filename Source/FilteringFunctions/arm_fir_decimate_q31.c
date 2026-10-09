@@ -178,11 +178,12 @@ ARM_DSP_ATTRIBUTE void arm_fir_decimate_q31(
             pb += 4;
             /*
              * Read x[n-numTaps-1] sample for acc0
+             * (predicated: the last output's window ends with the state buffer)
              */
-            x0v = vld1q(px0);
-            x1v = vld1q(px1);
-            x2v = vld1q(px2);
-            x3v = vld1q(px3);
+            x0v = vldrwq_z_s32(px0, p0);
+            x1v = vldrwq_z_s32(px1, p0);
+            x2v = vldrwq_z_s32(px2, p0);
+            x3v = vldrwq_z_s32(px3, p0);
             px0 += 4;
             px1 += 4;
             px2 += 4;
@@ -303,7 +304,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_decimate_q31(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp32q(blkCnt);
-        vstrwq_p_s32(pStateCurnt, vldrwq_s32(pState), p0);
+        vstrwq_p_s32(pStateCurnt, vldrwq_z_s32(pState, p0), p0);
     }
 }
 #else
