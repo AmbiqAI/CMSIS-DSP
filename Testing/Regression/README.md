@@ -52,3 +52,9 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## f16 companion
+
+`mve_matvec_tail_f16.c` applies the same MPU-guarded check to the f16 kernel: 1–7 rows and 1–17 columns, 119 cases, covering the 4/2/1-row paths and every tail length of an eight-lane vector. Each case runs the kernel on a matrix followed by readable padding that holds f16 +Inf, then on the same matrix ending at the guard; both outputs must equal the double-precision reference bit for bit (the inputs are multiples of 1/8 and 1/4, so every partial sum is exact in f16). A read of the padding multiplies Inf by a zeroed vector lane and gives NaN, so the padded run detects an over-read on a target without an MPU as well.
+
+`run_mve_matvec_tail_f16.py` takes the same dependency options as the f32 runner, plus `--compiler` (Arm GNU, or ATfE clang, which compiles with `--target=arm-none-eabihf` and links with Arm GNU) and `--opt O0|O1|O2|O3`; it expects `PASS: 119 MVE f16 matrix-tail cases`. The negative control passes the unpatched `arm_mat_vec_mult_f16.c` through `--matrix-source` and must report `FAIL: f16 matrix tail access rows=1 cols=1`.
