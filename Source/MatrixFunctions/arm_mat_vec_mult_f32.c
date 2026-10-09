@@ -156,10 +156,36 @@ ARM_DSP_ATTRIBUTE void arm_mat_vec_mult_f32(
         /*
          * Sum the partial parts
          */
+#if defined(ARM_DSP_BUILT_WITH_GCC)
+        /*
+         * GCC moves every lane of the four vecAddAcrossF32Mve reductions
+         * through a core register. Transposing the accumulators through
+         * memory instead computes output k as
+         * ((acck[0] + acck[1]) + acck[2]) + acck[3], the order of
+         * vecAddAcrossF32Mve, for the four rows in one vector.
+         */
+        {
+            float32x4x4_t accs;
+            float32_t transposed[16];
+            f32x4_t sums;
+
+            accs.val[0] = acc0;
+            accs.val[1] = acc1;
+            accs.val[2] = acc2;
+            accs.val[3] = acc3;
+            vst4q_f32(transposed, accs);
+            sums = vaddq(vld1q(transposed), vld1q(transposed + 4));
+            sums = vaddq(sums, vld1q(transposed + 8));
+            sums = vaddq(sums, vld1q(transposed + 12));
+            vst1q(px, sums);
+            px += 4;
+        }
+#else
         *px++ = vecAddAcrossF32Mve(acc0);
         *px++ = vecAddAcrossF32Mve(acc1);
         *px++ = vecAddAcrossF32Mve(acc2);
         *px++ = vecAddAcrossF32Mve(acc3);
+#endif
 
         pSrcA += numCols * 4;
         /*
