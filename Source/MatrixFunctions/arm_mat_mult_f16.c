@@ -226,157 +226,50 @@ __STATIC_FORCEINLINE arm_status arm_mat_mult_f16_4x4_mve(
     const arm_matrix_instance_f16 *pSrcB,
     arm_matrix_instance_f16 *pDst)
 {
-    /* offsetA allows to read and duplicate 2 successive column elements of A */
-    static const uint16_t offsetA[8] = { 0, 0, 0, 0, 4, 4, 4, 4 };
-    /* offsetB allows to read and duplicate 1 row of B */
-    static const uint16_t offsetB[8] = { 0, 1, 2, 3, 0, 1, 2, 3 };
-    uint16x8_t    vecOffsA, vecOffsB;
-    f16x8_t       vecInA, vecInB, vecDst0, vecDst1;
-    float16_t      *pOut = pDst->pData;  /* output data matrix pointer */
+    /*
+     * Rows of B are loaded contiguously into the low four lanes and
+     * multiplied by broadcast elements of A, as in arm_mat_mult_f32_4x4_mve;
+     * the products accumulate in the same order as the gather-based form:
+     * a(i,0) b(0,j), then fused a(i,1) b(1,j), a(i,2) b(2,j), a(i,3) b(3,j).
+     */
+    float16_t const *pSrBVec = pSrcB->pData;
+    float16_t const *pInA0 = pSrcA->pData;
+    float16_t const *pInA1 = pInA0 + 4;
+    float16_t const *pInA2 = pInA1 + 4;
+    float16_t const *pInA3 = pInA2 + 4;
+    float16_t      *pOut = pDst->pData;
+    f16x8_t vecMac0, vecMac1, vecMac2, vecMac3;
+    f16x8_t vecInB;
+    mve_pred16_t p0 = vctp16q(4);
 
-    /*
-     * load initial offsets
-     */
-    vecOffsA = vldrhq_u16((uint16_t const *) offsetA);
-    vecOffsB = vldrhq_u16((uint16_t const *) offsetB);
+    vecInB = vldrhq_z_f16(pSrBVec, p0);
+    vecMac0 = vmulq(vecInB, *pInA0++);
+    vecMac1 = vmulq(vecInB, *pInA1++);
+    vecMac2 = vmulq(vecInB, *pInA2++);
+    vecMac3 = vmulq(vecInB, *pInA3++);
 
-    /*
-     * load {a00 a00 a00 a00 a10 a10 a10 a10}
-     */
-    vecInA = vldrhq_gather_shifted_offset((float16_t const *) pSrcA->pData, vecOffsA);
-    /*
-     * load {b00 b01 b02 b03 b00 b01 b02 b03}
-     */
-    vecInB = vldrhq_gather_shifted_offset((float16_t const *) pSrcB->pData, vecOffsB);
-    /*
-     *  { a00 b00       a00 b01     a00 b02     a00 b03
-     *    a10 b00       a10 b01     a10 b02     a10 b03 }
-     */
-    vecDst0 = vmulq(vecInA, vecInB);
-    /*
-     * jump 2 x A rows (2nd half of matrix)
-     */
-    vecOffsA = vaddq_n_u16(vecOffsA, (uint16_t) 8);
-    /*
-     * load {a20 a20 a20 a20 a30 a30 a30 a30}
-     */
-    vecInA = vldrhq_gather_shifted_offset((float16_t const *) pSrcA->pData, vecOffsA);
-    /*
-     *  { a20 b00       a20 b01     a20 b02     a20 b03
-     *    a30 b00       a30 b01     a30 b02 +   a31 b12 }
-     */
-    vecDst1 = vmulq(vecInA, vecInB);
-    /*
-     * rewind back to top half of the A matrix (2nd column)
-     */
-    vecOffsA = vsubq(vecOffsA, (uint16_t) 7);
-    /*
-     * load {a01 a01 a01 a01 a11 a11 a11 a11}
-     */
-    vecInA = vldrhq_gather_shifted_offset((float16_t const *) pSrcA->pData, vecOffsA);
-    /*
-     * move to next B row
-     */
-    vecOffsB = vaddq_n_u16(vecOffsB, (uint16_t) 4);
-    /*
-     * load {b10, b11, b12, b13, b10, b11, b12, b13}
-     */
-    vecInB = vldrhq_gather_shifted_offset((float16_t const *) pSrcB->pData, vecOffsB);
-    /*
-     *  { a00 b00 + a01 b10         a00 b01 + a01 b11       a00 b02 + a01 b12       a00 b03 + a01 b13
-     *    a10 b00 + a11 b10         a10 b01 + a11 b11       a10 b02 + a11 b12       a10 b03 + a11 b13 }
-     */
-    vecDst0 = vfmaq(vecDst0, vecInA, vecInB);
-    /*
-     * jump 2 x A rows (2nd half of matrix)
-     */
-    vecOffsA = vaddq_n_u16(vecOffsA, (uint16_t) 8);
-    /*
-     * load {a21 a21 a21 a21 a31 a31 a31 a31}
-     */
-    vecInA = vldrhq_gather_shifted_offset((float16_t const *) pSrcA->pData, vecOffsA);
-    /*
-     *  {a20 b00 + a21 b10      a20 b01 + a21 b11       a20 b02 + a21 b12       a20 b03 + a21 b13
-     *   a30 b00 + a31 b10      a30 b01 + a31 b11       a30 b02 + a31 b12       a30 b03 + a31 b13 }
-     */
-    vecDst1 = vfmaq(vecDst1, vecInA, vecInB);
+    vecInB = vldrhq_z_f16(pSrBVec + 4, p0);
+    vecMac0 = vfmaq(vecMac0, vecInB, *pInA0++);
+    vecMac1 = vfmaq(vecMac1, vecInB, *pInA1++);
+    vecMac2 = vfmaq(vecMac2, vecInB, *pInA2++);
+    vecMac3 = vfmaq(vecMac3, vecInB, *pInA3++);
 
-    /*
-     * rewind back to top half of the A matrix (3rd column)
-     */
-    vecOffsA = vsubq(vecOffsA, (uint16_t) 7);
-    /*
-     * load {a02 a02 a02 a02 a12 a12 a12 a12}
-     */
-    vecInA = vldrhq_gather_shifted_offset((float16_t const *) pSrcA->pData, vecOffsA);
-    /*
-     * move to next B row
-     */
-    vecOffsB = vaddq_n_u16(vecOffsB, (uint16_t) 4);
-    /*
-     * load {b20, b21, b22, b23, b20, b21, b22, b23}
-     */
-    vecInB = vldrhq_gather_shifted_offset((float16_t const *) pSrcB->pData, vecOffsB);
-    /*
-     *  { a00 b00 + a01 b10 + a02 b20    a00 b01 + a01 b11 + a02 b21    a00 b02 + a01 b12 + a02 b22   a00 b03 + a01 b13 + a02 b23
-     *    a10 b00 + a11 b10 + a12 b20    a10 b01 + a11 b11 + a12 b21    a10 b02 + a11 b12 + a12 b22   a10 b03 + a11 b13 + a12 b23 }
-     */
-    vecDst0 = vfmaq(vecDst0, vecInA, vecInB);
-    /*
-     * jump 2 x A rows
-     */
-    vecOffsA = vaddq_n_u16(vecOffsA, (uint16_t) 8);
+    vecInB = vldrhq_z_f16(pSrBVec + 8, p0);
+    vecMac0 = vfmaq(vecMac0, vecInB, *pInA0++);
+    vecMac1 = vfmaq(vecMac1, vecInB, *pInA1++);
+    vecMac2 = vfmaq(vecMac2, vecInB, *pInA2++);
+    vecMac3 = vfmaq(vecMac3, vecInB, *pInA3++);
 
-    /*
-     * load {a22 a22 a22 a22 a32 a32 a32 a32}
-     */
-    vecInA = vldrhq_gather_shifted_offset((float16_t const *) pSrcA->pData, vecOffsA);
-    /*
-     *  {a20 b00 + a21 b10 + a22 b20   a20 b01 + a21 b11 + a22 b21  a20 b02 + a21 b12 + a22 b22    a20 b03 + a21 b13 + a22 b23
-     *   a30 b00 + a31 b10 + a32 b20   a30 b01 + a31 b11 + a32 b21  a30 b02 + a31 b12 + a32 b22    a30 b03 + a31 b13 + a32 b23 }
-     */
-    vecDst1 = vfmaq(vecDst1, vecInA, vecInB);
+    vecInB = vldrhq_z_f16(pSrBVec + 12, p0);
+    vecMac0 = vfmaq(vecMac0, vecInB, *pInA0++);
+    vecMac1 = vfmaq(vecMac1, vecInB, *pInA1++);
+    vecMac2 = vfmaq(vecMac2, vecInB, *pInA2++);
+    vecMac3 = vfmaq(vecMac3, vecInB, *pInA3++);
 
-    /*
-     * rewind back to top half of the A matrix (4th column)
-     */
-    vecOffsA = vsubq(vecOffsA, (uint16_t) 7);
-    /*
-     * load {a03 a03 a03 a03 a13 a13 a13 a13}
-     */
-    vecInA = vldrhq_gather_shifted_offset((float16_t const *) pSrcA->pData, vecOffsA);
-    /*
-     * move to next B row
-     */
-    vecOffsB = vaddq_n_u16(vecOffsB, (uint16_t) 4);
-    /*
-     * load {b30, b31, b32, b33, b30, b31, b32, b33}
-     */
-    vecInB = vldrhq_gather_shifted_offset((float16_t const *) pSrcB->pData, vecOffsB);
-    /*
-     * { a00 b00 +...+ a03 b30,    a00 b01 +...+ a03 b31,   a00 b02 +...+ a03 b32,   a00 b03 +...+ a03 b33
-     *   a10 b00 +...+ a13 b30,    a10 b01 +...+ a13 b31,   a10 b02 +...+ a13 b32,   a10 b03 +...+ a13 b33 }
-     */
-    vecDst0 = vfmaq(vecDst0, vecInA, vecInB);
-    /*
-     * jump 2 x A rows
-     */
-    vecOffsA = vaddq_n_u16(vecOffsA, (uint16_t) 8);
-    /*
-     * load {a23 a23 a23 a23 a33 a33 a33 a33}
-     */
-    vecInA = vldrhq_gather_shifted_offset((float16_t const *) pSrcA->pData, vecOffsA);
-    /*
-     *  {a20 b00 +...+ a23 b30,   a20 b01 +...+ a23 b31,   a20 b02 +...+ a23 b32,   a20 b03 +...+ a23 b33
-     *   a30 b00 +...+ a33 b30,   a30 b01 +...+ a33 b31,   a30 b02 +...+ a33 b32,   a30 b03 +...+ a33 b33 }
-     */
-    vecDst1 = vfmaq(vecDst1, vecInA, vecInB);
-
-    /*
-     * Store the result in the destination buffer
-     */
-    vst1q(pOut, vecDst0); pOut += 8;
-    vst1q(pOut, vecDst1);
+    vstrhq_p_f16(pOut, vecMac0, p0);
+    vstrhq_p_f16(pOut + 4, vecMac1, p0);
+    vstrhq_p_f16(pOut + 8, vecMac2, p0);
+    vstrhq_p_f16(pOut + 12, vecMac3, p0);
 
     return (ARM_MATH_SUCCESS);
 }
