@@ -720,6 +720,30 @@ group Root {
              }
            }
 
+           group DECIM {
+             class = DECIM 
+             folder = DECIM
+
+             suite DECIM F16 {
+                class = DECIMF16 
+                folder = DECIMF16
+
+                Pattern INPUT1_F16_ID : Input2_f16.txt 
+                Pattern COEFS1_F16_ID : Coefs2_f16.txt 
+
+                Pattern CONFIGSDECIMF16_ID : Configs2_u32.txt 
+   
+                Pattern REF1_DECIM_F16_ID : Reference2_f16.txt
+
+                Output  OUT_F16_ID : Output
+                Output  STATE_F16_ID : State
+
+                Functions {
+                 test_fir_decimate_f16:test_fir_decimate_f16
+                }
+             }
+           }
+
            group FIR {
              class = FIR 
              folder = FIR
