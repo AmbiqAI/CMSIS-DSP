@@ -90,7 +90,13 @@ ARM_DSP_ATTRIBUTE void arm_float_to_f16(
     if (blkCnt > 0)
     {
         mve_pred16_t p0 = vctp16q(blkCnt);
-        tmp = vld2q(pSrcVec);
+        uint32x4_t vecOffs = vidupq_n_u32(0U, 2);
+        /* vld2q has no predicated form: gather the even and odd source
+           elements under their own predicates (ceil(blkCnt/2) even
+           elements, floor(blkCnt/2) odd ones) so that only blkCnt
+           values are read. */
+        tmp.val[0] = vldrwq_gather_shifted_offset_z_f32(pSrcVec, vecOffs, vctp32q((blkCnt + 1) >> 1));
+        tmp.val[1] = vldrwq_gather_shifted_offset_z_f32(pSrcVec + 1, vecOffs, vctp32q(blkCnt >> 1));
         vecDst = vcvtbq_f16_f32(vecDst, tmp.val[0]);
         vecDst = vcvttq_f16_f32(vecDst, tmp.val[1]);
         vstrhq_p(pDst, vecDst, p0);
