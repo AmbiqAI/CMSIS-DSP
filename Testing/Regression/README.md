@@ -52,3 +52,9 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## Q15 and Q31 FIR decimator state and input
+
+`mve_fir_decimate_fixed_state.c` applies the decimator check to `arm_fir_decimate_q15` and `arm_fir_decimate_q31`: 1–20 taps, decimation factors 1–5 and 1–9 outputs per call, two consecutive calls per case, 900 cases per datatype. Each case runs three times: with every buffer in readable memory followed by nonzero padding, with the state buffer (`numTaps + blockSize − 1` samples) ending at an MPU-inaccessible region, and with the input block ending there. The three outputs must be identical and within one LSB of a 64-bit reference. It covers the over-reads both kernels had in the partial final tap block of the four-output loop and in the final state copy, and the Q15 kernel's over-read of the input when `4·M` is not a multiple of eight.
+
+`run_mve_fir_decimate_fixed_state.py` takes the options of the f32 decimator runner plus `--datatype q15|q31|all`, and expects `PASS: 900 MVE fixed-point decimator state cases` per datatype. The negative control passes the unpatched `arm_fir_decimate_<type>.c` through `--decimate-source` with `--datatype`; both report `FAIL: Q<n> decimator state access taps=1 M=1 outputs=4` (tap block). The patched sources with only the state-copy load unpredicated report `taps=2 M=1 outputs=1`, and the Q15 source with only the input-copy load unpredicated reports `FAIL: Q15 decimator input access taps=1 M=1 outputs=4`.
