@@ -58,3 +58,4 @@ uv.lock
 disasm_*
 disasm.s
 *.bat
+cmsisdsp/_build_info.py
