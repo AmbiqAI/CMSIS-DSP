@@ -263,10 +263,33 @@ ARM_DSP_ATTRIBUTE void arm_fir_decimate_f32(
         }
 
         /* reduction */
+#if defined(ARM_DSP_BUILT_WITH_GCC)
+        /*
+         * GCC moves every lane of the four vecAddAcrossF32Mve reductions
+         * through a core register. Transposing the accumulators through
+         * memory instead computes output k as
+         * ((acck[0] + acck[1]) + acck[2]) + acck[3], the order of
+         * vecAddAcrossF32Mve, for the four outputs in one vector.
+         */
+        {
+            float32x4x4_t accs;
+            float32_t transposed[16];
+
+            accs.val[0] = acc0v;
+            accs.val[1] = acc1v;
+            accs.val[2] = acc2v;
+            accs.val[3] = acc3v;
+            vst4q_f32(transposed, accs);
+            accv = vaddq(vld1q(transposed), vld1q(transposed + 4));
+            accv = vaddq(accv, vld1q(transposed + 8));
+            accv = vaddq(accv, vld1q(transposed + 12));
+        }
+#else
         accv[0] = vecAddAcrossF32Mve(acc0v);
         accv[1] = vecAddAcrossF32Mve(acc1v);
         accv[2] = vecAddAcrossF32Mve(acc2v);
         accv[3] = vecAddAcrossF32Mve(acc3v);
+#endif
 
         /*
          * Advance the state pointer by the decimation factor
