@@ -9,3 +9,4 @@ recursive-include Source *.h *.c *.cmake
 recursive-include Ne10 *.h *.c 
 recursive-include ComputeLibrary *.h *.c
 include cmake/CMSISDSPConfig.cmake.in
+include cmake/CMSISDSPVersion.cmake
