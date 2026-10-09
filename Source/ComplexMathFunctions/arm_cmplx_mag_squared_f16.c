@@ -61,14 +61,13 @@ ARM_DSP_ATTRIBUTE void arm_cmplx_mag_squared_f16(
     f16x8x2_t vecSrc;
     f16x8_t sum;
 
-    /* Compute 4 complex samples at a time */
-    while (blockSize > 0)
+    /* Compute 8 complex samples at a time */
+    while (blockSize >= 8)
     {
-        mve_pred16_t p = vctp16q(blockSize);
         vecSrc = vld2q(pSrc);
-        sum = vmulq_m(vuninitializedq_f16(),vecSrc.val[0], vecSrc.val[0],p);
-        sum = vfmaq_m(sum, vecSrc.val[1], vecSrc.val[1],p);
-        vstrhq_p_f16(pDst, sum,p);
+        sum = vmulq(vecSrc.val[0], vecSrc.val[0]);
+        sum = vfmaq(sum, vecSrc.val[1], vecSrc.val[1]);
+        vstrhq_f16(pDst, sum);
 
         pSrc += 16;
         pDst += 8;
@@ -77,6 +76,22 @@ ARM_DSP_ATTRIBUTE void arm_cmplx_mag_squared_f16(
          * Decrement the blockSize loop counter
          */
         blockSize-= 8;
+    }
+
+    /*
+     * tail: vld2q has no predicated form, so the real and imaginary
+     * parts are gathered under the tail predicate and only blockSize
+     * complex values are read.
+     */
+    if (blockSize > 0)
+    {
+        mve_pred16_t p = vctp16q(blockSize);
+        uint16x8_t vecOffs = vidupq_n_u16(0U, 2);
+        vecSrc.val[0] = vldrhq_gather_shifted_offset_z_f16(pSrc, vecOffs, p);
+        vecSrc.val[1] = vldrhq_gather_shifted_offset_z_f16(pSrc + 1, vecOffs, p);
+        sum = vmulq_m(vuninitializedq_f16(),vecSrc.val[0], vecSrc.val[0],p);
+        sum = vfmaq_m(sum, vecSrc.val[1], vecSrc.val[1],p);
+        vstrhq_p_f16(pDst, sum,p);
     }
 
 }

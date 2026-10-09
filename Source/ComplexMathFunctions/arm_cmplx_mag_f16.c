@@ -116,10 +116,15 @@ ARM_DSP_ATTRIBUTE void arm_cmplx_mag_f16(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp16q(blkCnt);
+        uint16x8_t vecOffs = vidupq_n_u16(0U, 2);
         q15x8_t newtonStartVec;
         f16x8_t sumHalf, invSqrt;
 
-        vecSrc = vld2q((float16_t const *)pSrc);
+        /* vld2q has no predicated form: gather the real and imaginary
+           parts under the tail predicate so that only blkCnt complex
+           values are read. */
+        vecSrc.val[0] = vldrhq_gather_shifted_offset_z_f16((float16_t const *)pSrc, vecOffs, p0);
+        vecSrc.val[1] = vldrhq_gather_shifted_offset_z_f16((float16_t const *)pSrc + 1, vecOffs, p0);
         sum = vmulq(vecSrc.val[0], vecSrc.val[0]);
         sum = vfmaq(sum, vecSrc.val[1], vecSrc.val[1]);
 
