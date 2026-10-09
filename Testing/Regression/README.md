@@ -52,3 +52,9 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## f32 FIR decimator state
+
+`mve_fir_decimate_f32_state.c` runs `arm_fir_decimate_f32` with its state buffer, of the documented length `numTaps + blockSize − 1`, ending at an MPU-inaccessible region: 1–20 taps, decimation factors 1–5, and 1–9 outputs per call (covering the four-output loop and the single-output loop), two consecutive calls per case, 900 cases. Each case also runs on a state buffer followed by readable +Inf padding; both outputs must equal the double-precision reference bit for bit (inputs and coefficients are chosen so every partial sum is exact in f32), with output canaries. The test covers both over-reads the kernel had: the state loads of the partial final tap block, and the load of the final state copy.
+
+`run_mve_fir_decimate_f32_state.py` takes the options of the f16 matrix-vector runner and expects `PASS: 900 MVE f32 decimator state cases`. The negative control passes the unpatched `arm_fir_decimate_f32.c` through `--decimate-source` and must report `FAIL: decimator state access taps=1 M=1 outputs=1` (the tap remainder); the same source with only the state-copy load unpredicated reports `taps=2 M=1 outputs=1`.
