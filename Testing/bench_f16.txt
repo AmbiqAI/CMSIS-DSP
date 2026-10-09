@@ -162,6 +162,35 @@ group Root {
 
            }
 
+           group Decimations / Interpolations {
+             class = DECIM 
+             folder = DECIM
+
+             suite Decimations / Interpolations F16 {
+                class = DECIMF16 
+                folder = DECIMF16
+
+                ParamList {
+                  NumTaps, NB, Factor
+                  Summary NumTaps, NB, Factor
+                  Names "Number of taps","Number of samples","Decimation factor"
+                  Formula "NumTaps * NB * Factor"
+                }
+
+                Pattern SAMPLES1_F16_ID : Samples1_f16.txt 
+                Pattern COEFS1_F16_ID : Coefs1_f16.txt 
+
+                Output  OUT_SAMPLES_F16_ID : Output
+                Output  STATE_F16_ID : State
+
+                Params PARAM_DECIM_ID : Params1.txt
+
+                Functions {
+                   Decimation:test_fir_decimate_f16 -> PARAM_DECIM_ID
+                }
+              }
+           }
+
            group Convolutions / Correlations {
              class = MISC 
              folder = MISC
