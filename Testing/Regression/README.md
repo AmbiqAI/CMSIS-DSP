@@ -52,3 +52,7 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## f32 matrix-vector equivalence
+
+`mve_matvec_f32_equivalence.c` is an equivalence regression for changes to `arm_mat_vec_mult_f32` meant to preserve output: it links the checkout's kernel and a reference copy of `arm_mat_vec_mult_f32.c` from another revision, compiled with `-Darm_mat_vec_mult_f32=arm_mat_vec_mult_f32_ref`, and compares outputs bit for bit on pseudo-random data: 1–13 rows × 1–40 columns, four draws each, 2,080 cases. `run_mve_matvec_f32_equivalence.py --reference-source <file>` compiles without `-ffast-math` and expects `PASS: 2080 MVE f32 matrix-vector equivalence cases`. A reference that sums the four lanes pairwise reports `FAIL: matrix-vector output differs from the reference rows=4 cols=4` under Arm GNU.
