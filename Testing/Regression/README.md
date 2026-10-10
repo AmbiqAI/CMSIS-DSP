@@ -52,3 +52,22 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## CFFT buffer bound (final radix-4 stage)
+
+`mve_cfft_overread.c` checks that the MVE complex FFTs (`arm_cfft_f32`,
+`arm_cfft_q31`, `arm_cfft_q15`, `arm_cfft_f16`; lengths 16 to 4096, forward
+and inverse) read nothing past the end of the in-place buffer: each transform
+runs on a buffer that ends at an MPU-inaccessible guard, and its output is
+compared with a double-precision radix-2 FFT of the same input, 72 cases.
+Before the guarded runs the test measures how far each transform reads above
+the buffer end (`OVERREAD` lines: the buffer is placed k words below the guard
+for k = 0..64 until no fault occurs). `run_mve_cfft_overread.py` builds with
+float16 enabled and expects `PASS: 72 MVE CFFT last-stage cases`.
+
+The negative control passes upstream copies of one or more `arm_cfft_<type>.c`
+through `--source`; each must report `FAIL: CFFT <type> forward length 16
+touched the guard` after `OVERREAD` lines of 56 bytes (f32, Q31) or 60 bytes
+(Q15, f16) at every length. Under Arm GNU 15.2.1 the numerical check fails
+through that compiler's writeback-gather defect (#10); the over-read probe
+still reports 0 bytes there.
