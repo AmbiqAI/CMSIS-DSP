@@ -181,7 +181,12 @@ static void _arm_radix4_butterfly_q31_mve(
     vecA = vldrwq_gather_base_wb_s32(&vecScGathAddr, 64);
     vecC = vldrwq_gather_base_s32(vecScGathAddr, 16);
 
-    blkCnt = (fftLen >> 3);
+    /*
+     * The transform length is at least 16, so there is at least one block.
+     * The last block is processed after the loop without the pre-load for a
+     * next iteration, which would read past the end of the buffer.
+     */
+    blkCnt = (fftLen >> 3) - 1U;
     while (blkCnt > 0U)
     {
         vecSum0 = vhaddq(vecA, vecC);
@@ -211,6 +216,30 @@ static void _arm_radix4_butterfly_q31_mve(
         vstrwq_scatter_base_s32(vecScGathAddr, -64 + 24, vecTmp0);
 
         blkCnt--;
+    }
+
+    /* last block, without the pre-load */
+    {
+        vecSum0 = vhaddq(vecA, vecC);
+        vecDiff0 = vhsubq(vecA, vecC);
+
+        vecB = vldrwq_gather_base_s32(vecScGathAddr, 8);
+        vecD = vldrwq_gather_base_s32(vecScGathAddr, 24);
+
+        vecSum1 = vhaddq(vecB, vecD);
+        vecDiff1 = vhsubq(vecB, vecD);
+
+        vecTmp0 = vhaddq(vecSum0, vecSum1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 0, vecTmp0);
+
+        vecTmp0 = vhsubq(vecSum0, vecSum1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 8, vecTmp0);
+
+        vecTmp0 = MVE_CMPLX_SUB_FX_A_ixB(vecDiff0, vecDiff1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 16, vecTmp0);
+
+        vecTmp0 = MVE_CMPLX_ADD_FX_A_ixB(vecDiff0, vecDiff1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 24, vecTmp0);
     }
 
     /*
@@ -431,7 +460,12 @@ static void _arm_radix4_butterfly_inverse_q31_mve(
     vecA = vldrwq_gather_base_wb_s32(&vecScGathAddr, 64);
     vecC = vldrwq_gather_base_s32(vecScGathAddr, 16);
 
-    blkCnt = (fftLen >> 3);
+    /*
+     * The transform length is at least 16, so there is at least one block.
+     * The last block is processed after the loop without the pre-load for a
+     * next iteration, which would read past the end of the buffer.
+     */
+    blkCnt = (fftLen >> 3) - 1U;
     while (blkCnt > 0U)
     {
         vecSum0 = vhaddq(vecA, vecC);
@@ -461,6 +495,30 @@ static void _arm_radix4_butterfly_inverse_q31_mve(
         vstrwq_scatter_base_s32(vecScGathAddr, -64 + 24, vecTmp0);
 
         blkCnt--;
+    }
+
+    /* last block, without the pre-load */
+    {
+        vecSum0 = vhaddq(vecA, vecC);
+        vecDiff0 = vhsubq(vecA, vecC);
+
+        vecB = vldrwq_gather_base_s32(vecScGathAddr, 8);
+        vecD = vldrwq_gather_base_s32(vecScGathAddr, 24);
+
+        vecSum1 = vhaddq(vecB, vecD);
+        vecDiff1 = vhsubq(vecB, vecD);
+
+        vecTmp0 = vhaddq(vecSum0, vecSum1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 0, vecTmp0);
+
+        vecTmp0 = vhsubq(vecSum0, vecSum1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 8, vecTmp0);
+
+        vecTmp0 = MVE_CMPLX_ADD_FX_A_ixB(vecDiff0, vecDiff1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 16, vecTmp0);
+
+        vecTmp0 = MVE_CMPLX_SUB_FX_A_ixB(vecDiff0, vecDiff1);
+        vstrwq_scatter_base_s32(vecScGathAddr, 24, vecTmp0);
     }
     /*
      * output is in 11.21(q21) format for the 1024 point
