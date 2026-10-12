@@ -102,7 +102,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_trans_q7(const arm_matrix_instance_q7 *pSrc
         if (blkCnt > 0U)
         {
             mve_pred16_t p0 = vctp16q(blkCnt);
-            vecIn = vldrbq_gather_offset_u16(pDataC, vecOffs);
+            vecIn = vldrbq_gather_offset_z_u16(pDataC, vecOffs, p0);
             vstrbq_p_u16(pDataDestR, vecIn, p0);
         }
         pDataSrc += 1;

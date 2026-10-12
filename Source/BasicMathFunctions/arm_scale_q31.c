@@ -102,7 +102,7 @@ ARM_DSP_ATTRIBUTE void arm_scale_q31(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp32q(blkCnt);
-        vecSrc = vld1q(pSrc);
+        vecSrc = vld1q_z(pSrc, p0);
         vecDst = vmulhq(vecSrc, vdupq_n_s32(scaleFract));
         vecDst = vqshlq_r(vecDst, shift + 1);
         vstrwq_p(pDst, vecDst, p0);

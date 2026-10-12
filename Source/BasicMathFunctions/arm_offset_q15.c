@@ -91,7 +91,7 @@ ARM_DSP_ATTRIBUTE void arm_offset_q15(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp16q(blkCnt);
-        vecSrc = vld1q(pSrc);
+        vecSrc = vld1q_z(pSrc, p0);
         vstrhq_p(pDst, vqaddq(vecSrc, offset), p0);
     }
 }

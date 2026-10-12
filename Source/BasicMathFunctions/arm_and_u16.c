@@ -91,8 +91,8 @@ ARM_DSP_ATTRIBUTE void arm_and_u16(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp16q(blkCnt);
-        vecSrcA = vld1q(pSrcA);
-        vecSrcB = vld1q(pSrcB);
+        vecSrcA = vld1q_z(pSrcA, p0);
+        vecSrcB = vld1q_z(pSrcB, p0);
         vstrhq_p(pDst, vandq_u16(vecSrcA, vecSrcB), p0);
     }
 #else
