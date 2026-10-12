@@ -114,7 +114,7 @@ ARM_DSP_ATTRIBUTE void arm_absmin_f32(
     {
         p0 = vctp32q(blkCnt);
 
-        vecSrc = vldrwq_f32(pSrcVec);  
+        vecSrc = vldrwq_z_f32(pSrcVec, p0);  
         pSrcVec += 4;
         vecSrc = vabsq(vecSrc);
         /*

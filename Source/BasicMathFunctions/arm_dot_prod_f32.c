@@ -107,8 +107,8 @@ ARM_DSP_ATTRIBUTE void arm_dot_prod_f32(
         /* C = A[0]* B[0] + A[1]* B[1] + A[2]* B[2] + .....+ A[blockSize-1]* B[blockSize-1] */
 
         mve_pred16_t p0 = vctp32q(blkCnt);
-        vecA = vld1q(pSrcA);
-        vecB = vld1q(pSrcB);
+        vecA = vld1q_z(pSrcA, p0);
+        vecB = vld1q_z(pSrcB, p0);
         vecSum = vfmaq_m(vecSum, vecA, vecB, p0);
     }
 

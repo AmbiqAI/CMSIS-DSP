@@ -89,7 +89,7 @@ ARM_DSP_ATTRIBUTE void arm_accumulate_f32(
         /* C = A[0]* B[0] + A[1]* B[1] + A[2]* B[2] + .....+ A[blockSize-1]* B[blockSize-1] */
 
         mve_pred16_t p0 = vctp32q(blkCnt);
-        vecA = vld1q(pSrc);
+        vecA = vld1q_z(pSrc, p0);
         vecSum = vaddq_m(vecSum,vecSum, vecA, p0);
     }
 

@@ -79,7 +79,7 @@ ARM_DSP_ATTRIBUTE void arm_not_u32(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp32q(blkCnt);
-        vecSrc = vld1q(pSrc);
+        vecSrc = vld1q_z(pSrc, p0);
         vstrwq_p(pDst, vmvnq_u32(vecSrc), p0);
     }
 #else
