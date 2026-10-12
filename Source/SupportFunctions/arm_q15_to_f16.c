@@ -92,7 +92,7 @@ ARM_DSP_ATTRIBUTE void arm_q15_to_f16(
     if (blkCnt > 0)
     {
         mve_pred16_t p0 = vctp16q(blkCnt);
-        vecDst = vld1q(pSrcVec);   pSrcVec += 8;
+        vecDst = vld1q_z(pSrcVec, p0);   pSrcVec += 8;
         vstrhq_p(pDst, vcvtq_n_f16_s16(vecDst, 15), p0);
     }
 }

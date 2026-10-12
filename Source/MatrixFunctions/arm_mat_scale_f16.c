@@ -111,7 +111,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_scale_f16(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp16q(blkCnt);
-        vecIn = vld1q(pInVec); 
+        vecIn = vld1q_z(pInVec, p0); 
         vecOut = vecIn * scale;
 
         vstrhq_p(pOut, vecOut, p0);

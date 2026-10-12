@@ -87,7 +87,7 @@ ARM_DSP_ATTRIBUTE void arm_negate_f16(
     {
       /* C = |A| */
       mve_pred16_t p0 = vctp16q(blkCnt);
-      vec1 = vld1q((float16_t const *) pSrc);
+      vec1 = vld1q_z((float16_t const *) pSrc, p0);
       vstrhq_p(pDst, vnegq(vec1), p0);
     }
 
