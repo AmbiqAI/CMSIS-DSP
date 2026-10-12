@@ -52,3 +52,26 @@ python3 Testing/Regression/run_mve_matvec_tail_fixed.py ... \
 
 which must report `FAIL: Q15 matrix tail access rows=1 cols=1`. Repeat for
 `q7` and `q31`.
+
+## FIR f32 state-bound regression
+
+`mve_fir_f32_state_bound.c` places the `arm_fir_f32` state buffer against an
+MPU guard for 1–20 taps and 1–12 samples per block (240 cases, covering the 1–4, 5–8, 9–12, 13–16, and 17+ tap paths) and, after a
+recovered MemManage fault, grows the buffer one element at a time until the
+kernel runs without touching the guard. It records for each case how many
+elements beyond the documented `numTaps + 2 * blockSize - 1` were touched
+and whether any were stored to. The pass condition is no stores past the
+documented length and no reads past `4 * ceil(numTaps / 4) + 2 * blockSize - 1`,
+the rounding the coefficient array already needs; outputs are checked against
+a double-precision reference in every case.
+
+```sh
+python3 Testing/Regression/run_mve_fir_f32_state_bound.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+The input block ends at a second guard, and the initializer must have
+cleared everything the kernel reads. For the negative control, pass the
+unpatched `arm_fir_f32.c` through `--fir-source`; its residual input copy
+reads past the input block, which no amount of state padding cures, so it
+must report `FAIL: numTaps=1 blockSize=1 still faults with 16 extra elements`.

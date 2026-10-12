@@ -69,7 +69,9 @@
                  used during the computation but which is not the state of the FIR.
                  The first blockSize samples are temporary data.
                  The remaining samples are the state of the FIR filter.
-                 So the state buffer has size <code> numTaps + 2 * blockSize - 1 </code>
+                 The vector kernel evaluates 4a taps (numTaps rounded up to a multiple
+                 of four, matching the coefficient array), so the state buffer has size
+                 <code> 4a + 2 * blockSize - 1 </code> and this function clears all of it.
 
  */
 
@@ -86,9 +88,11 @@ ARM_DSP_ATTRIBUTE void arm_fir_init_f32(
   /* Assign coefficient pointer */
   S->pCoeffs = pCoeffs;
 
-  /* Clear state buffer. The size is always (blockSize + numTaps - 1) */
+  /* Clear the state buffer; its length depends on the configuration. */
 #if defined(ARM_MATH_MVEF) && !defined(ARM_MATH_AUTOVECTORIZE)
-  memset(pState, 0, (numTaps + (blockSize - 1U) + blockSize) * sizeof(float32_t));
+  /* The vector kernel evaluates numTaps rounded up to a multiple of four
+     taps, so the state it reads extends that far; clear all of it. */
+  memset(pState, 0, (((numTaps + 3U) & ~3U) + (blockSize - 1U) + blockSize) * sizeof(float32_t));
 #else
   memset(pState, 0, (numTaps + (blockSize - 1U)) * sizeof(float32_t));
 #endif
