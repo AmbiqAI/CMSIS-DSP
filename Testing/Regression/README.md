@@ -276,3 +276,7 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## f16 FIR decimator
+
+`mve_fir_decimate_f16_state.c` checks `arm_fir_decimate_f16`, added by this fork, as the f32 decimator test checks `arm_fir_decimate_f32`: 1–20 taps, decimation factors 1–5, 1–9 outputs per call, two consecutive calls per case, 900 cases. Each case runs with the state buffer followed by readable f16 +Inf padding, with the state buffer ending at an MPU-inaccessible region, and with the input ending there; all outputs must equal the double-precision reference bit for bit (every partial sum is exact in f16), with output canaries. `run_mve_fir_decimate_f16_state.py` takes the options of the f32 runner and expects `PASS: 900 MVE f16 decimator state cases`. Variants of the kernel with one predicated load reverted to `vld1q` report `FAIL: decimator state access taps=1 M=1 outputs=4` (tap block), `taps=2 M=1 outputs=1` (state copy) and `FAIL: decimator input access taps=1 M=1 outputs=4` (input copy).
