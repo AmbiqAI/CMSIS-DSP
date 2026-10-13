@@ -276,3 +276,7 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## f16 matrix-product equivalence
+
+`mve_mat_mult_f16_equivalence.c` is an equivalence regression for changes to `arm_mat_mult_f16` meant to preserve output: it links the checkout's kernel and a reference copy of `arm_mat_mult_f16.c` from another revision, compiled with `-Darm_mat_mult_f16=arm_mat_mult_f16_ref`, and compares status and outputs bit for bit on pseudo-random f16 data: square sizes 1 to 9 (the 2x2, 3x3 and 4x4 special cases and their neighbours) and 135 rectangular shapes, 16 draws each. `run_mve_mat_mult_f16_equivalence.py --reference-source <file>` compiles without `-ffast-math` and expects `PASS: 144 MVE f16 matrix-product equivalence shapes`. A reference whose 4x4 case accumulates the last two rows of B in the other order reports `FAIL: matrix product differs from the reference 4x4 by 4x4` under Arm GNU and ATfE.
