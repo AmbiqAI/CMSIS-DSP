@@ -226,3 +226,20 @@ still reports 0 bytes there.
 `mve_fir_decimate_f32_state.c` runs `arm_fir_decimate_f32` with its state buffer, of the documented length `numTaps + blockSize − 1`, ending at an MPU-inaccessible region: 1–20 taps, decimation factors 1–5, and 1–9 outputs per call (covering the four-output loop and the single-output loop), two consecutive calls per case, 900 cases. Each case also runs on a state buffer followed by readable +Inf padding; both outputs must equal the double-precision reference bit for bit (inputs and coefficients are chosen so every partial sum is exact in f32), with output canaries. The test covers both over-reads the kernel had: the state loads of the partial final tap block, and the load of the final state copy.
 
 `run_mve_fir_decimate_f32_state.py` takes the options of the f16 matrix-vector runner and expects `PASS: 900 MVE f32 decimator state cases`. The negative control passes the unpatched `arm_fir_decimate_f32.c` through `--decimate-source` and must report `FAIL: decimator state access taps=1 M=1 outputs=1` (the tap remainder); the same source with only the state-copy load unpredicated reports `taps=2 M=1 outputs=1`.
+
+## Python wrapper commit hash
+
+`test_pythonwrapper_commit_hash.py` checks the commit that the Python wrapper
+reports as `cmsisdsp.commit_hash`, from fresh clones of one commit of this
+repository (`--commit`, default `HEAD`): a clean checkout reports the commit, a
+modified tracked file adds `-dirty`, untracked and ignored files do not, a
+tree without `.git` and without `cmsisdsp/_build_info.py` writes no file, and
+the checkout's sdist, unpacked inside an unrelated Git repository, keeps the
+commit it carries through `setup.py --name`. With `--wheel` it also builds a
+wheel from that nested sdist (which compiles the wrapper), checks the commit
+in the wheel, installs it into a directory on `PYTHONPATH`, and checks
+`cmsisdsp.commit_hash`, an `arm_add_f32` call, and the fallback literal once
+the installed `_build_info.py` is removed. The interpreter needs numpy,
+setuptools and `build`; it expects `PASS: Python wrapper commit-hash cases`.
+At a commit whose `setup.py` asks Git from the unpacked sdist, the nested case
+reports the parent repository's commit and fails.

@@ -23,8 +23,13 @@ __version__ = cmsisdsp.version.__version__
 cmsis_dsp_version="1.16.2"
 
 
-# CMSIS-DSP Commit hash used to build the wrapper
-commit_hash="1b2ba1d88ec21bf0bc4eeae694193aeb057fdcc2"
+# CMSIS-DSP Commit hash used to build the wrapper: written by setup.py from
+# the Git checkout into cmsisdsp/_build_info.py. The literal is the fallback
+# for a tree built without Git and without that file.
+try:
+    from cmsisdsp._build_info import commit_hash
+except ImportError:
+    commit_hash="1b2ba1d88ec21bf0bc4eeae694193aeb057fdcc2"
 
 # True if development version of CMSIS-DSP used
 # (So several CMSIS-DSP versions may have same version number hence the commit hash)
