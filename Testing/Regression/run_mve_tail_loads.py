@@ -77,6 +77,17 @@ GROUPS = {
             'SupportFunctions/arm_q15_to_f16.c',
         ],
     },
+    'remainder': {
+        'test': 'mve_tail_loads_remainder.c',
+        'expected': 'PASS: 112 MVE remainder tail-load cases',
+        'defines': [],
+        'sources': [
+            'ComplexMathFunctions/arm_cmplx_mag_f16.c',
+            'ComplexMathFunctions/arm_cmplx_mag_squared_f16.c',
+            'MatrixFunctions/arm_mat_add_f32.c', 'MatrixFunctions/arm_mat_sub_f32.c',
+            'SupportFunctions/arm_float_to_f16.c',
+        ],
+    },
 }
 
 here = Path(__file__).resolve().parent
@@ -91,7 +102,8 @@ parser.add_argument('--fvp-root', type=Path, required=True, help='Corstone-300 m
 parser.add_argument('--compiler', default='arm-none-eabi-gcc',
                     help='arm-none-eabi-gcc, or an ATfE clang (compiles with --target=arm-none-eabihf)')
 parser.add_argument('--linker', default='arm-none-eabi-gcc', help='Arm GNU driver used to link')
-parser.add_argument('--opt', choices=['O2', 'O3'], default='O3')
+parser.add_argument('--opt', choices=['O0', 'O1', 'O2', 'O3'], default='O3',
+                    help='O0 and O1 are for negative controls of kernels whose over-read a tail-predicated loop hides at O2/O3')
 parser.add_argument('--build-dir', type=Path, required=True)
 parser.add_argument('--source', type=Path, action='append', default=[],
                     help='Upstream kernel replacing the checkout file of the same name (negative control)')
