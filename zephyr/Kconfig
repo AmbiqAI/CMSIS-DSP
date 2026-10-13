@@ -46,6 +46,11 @@ config CMSIS_DSP_CUSTOM_CONFIG
 	  weak or put them in specific memory sections.
 	  ARM_DSP_TABLE_ATTRIBUTE can be used to put CMSIS DSP tables
 	  in specific memory sections.
+	  The module's generated arm_dsp_config.h includes this header with
+	  #include_next. Add its directory with zephyr_include_directories()
+	  and to no target's own include path: a target that has it on its own
+	  path finds this header first, skips the generated one, and compiles
+	  without the CMSIS-DSP feature definitions of the library.
 
 config CMSIS_DSP_MATRIXCHECK
 	bool "Matrix Check"
@@ -58,6 +63,13 @@ config CMSIS_DSP_AUTOVECTORIZE
 	help
 	  This option prefers autovectorizable code to one using C intrinsics
 	  in the DSP functions.
+	  It applies to the CMSIS-DSP library and to every source file that
+	  includes its headers, and not to other libraries in the image.
+	  A source file that includes arm_math.h before CMSIS-NN or heliaCORE
+	  headers also compiles those headers' inline helpers as scalar code;
+	  include those headers first, or in separate files. That costs speed
+	  and allows the helpers' documented scalar/MVE differences, without
+	  any layout or ABI mismatch.
 
 config CMSIS_DSP_FLOAT16
 	bool "Half-Precision (16-bit Float) Support"
@@ -66,6 +78,8 @@ config CMSIS_DSP_FLOAT16
 	help
 	  This option enables the half-precision (16-bit) floating-point
 	  operations support.
+	  It applies to the CMSIS-DSP library and to every source file that
+	  includes its headers, and not to other libraries in the image.
 
 config CMSIS_DSP_NE10_DSP_RIFFT_SCALING
 	bool "Scaling of RIFFT with Neon"
