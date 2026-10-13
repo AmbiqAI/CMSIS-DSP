@@ -253,9 +253,46 @@ extern "C"
    * @brief  Initialization function for the floating-point FIR filter.
    * @param[in,out] S          points to an instance of the floating-point FIR filter structure.
    * @param[in]     numTaps    Number of filter coefficients in the filter.
-   * @param[in]     pCoeffs    points to the filter coefficients.
-   * @param[in]     pState     points to the state buffer.
+   * @param[in]     pCoeffs    points to the filter coefficients in time-reversed order.
+   * @param[in]     pState     points to caller-owned state and working storage.
    * @param[in]     blockSize  number of samples that are processed at a time.
+   *
+   * @par State storage
+   * When @c ARM_MATH_MVEF is defined and @c ARM_MATH_AUTOVECTORIZE is not
+   * defined, @p pState must contain at least
+   * <code>4 * ((numTaps + 3) / 4) + 2 * blockSize - 1</code> float32_t
+   * elements, using integer division to round @p numTaps up to a multiple of
+   * four, the same rounding the coefficient array needs. The first
+   * @p blockSize elements are temporary working storage; the vector kernel
+   * evaluates the zero-padded taps and reads the state that far. This
+   * function clears that whole length. When the scalar implementation is
+   * selected, including @c ARM_MATH_MVEF together with
+   * @c ARM_MATH_AUTOVECTORIZE, the required and cleared length is
+   * <code>numTaps + blockSize - 1</code> float32_t elements. This note does
+   * not cover @c ARM_MATH_NEON builds: that implementation reads past
+   * <code>numTaps + blockSize - 1</code>, and no Neon-specific length is
+   * documented in this library. This function does not receive a capacity
+   * argument and cannot check whether the buffer is large enough.
+   *
+   * @par Helium coefficient storage
+   * Under the same MVE configuration, @p pCoeffs must contain
+   * <code>4 * ((numTaps + 3) / 4)</code> float32_t elements. Set trailing
+   * padding to zero before processing. Keep @p numTaps equal to the actual
+   * number of taps. This function does not allocate, extend, or zero-pad the
+   * coefficient array. The MVE kernel reads no input past the @p blockSize
+   * samples of each call and writes no state past
+   * <code>numTaps + 2 * blockSize - 1</code>.
+   *
+   * @par Portable allocation
+   * Code that must build in both configurations should allocate
+   * <code>4 * ((numTaps + 3) / 4) + 2 * blockSize - 1</code> state elements
+   * and pad the coefficient array to a multiple of four in both. The scalar
+   * implementation reads only the first <code>numTaps + blockSize - 1</code>
+   * state elements and the first @p numTaps coefficients, so the extra
+   * storage is unused there.
+   *
+   * @note These lengths are element counts, not byte counts. State and
+   * coefficient storage must remain valid while the filter instance uses it.
    */
   void arm_fir_init_f32(
         arm_fir_instance_f32 * S,
