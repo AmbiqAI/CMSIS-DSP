@@ -9,7 +9,17 @@
  * the test measures how far each transform reads above the buffer end, by
  * placing the buffer k words below the guard for k = 0..64 until no fault
  * occurs, and prints the extent (OVERREAD lines; 0 after the fix, 56 bytes
- * for upstream, 60 for Q15).
+ * for upstream, 60 for Q15). The guard covers the whole probe range plus one
+ * vector access, so a read anywhere in it faults, however sparse. Nonfinite
+ * f32 and f16 outputs fail before the error is computed, by their exponent
+ * bits, which -ffast-math does not optimize away.
+ *
+ * Negative controls, selected at compile time (run_mve_cfft_overread.py
+ * --control), each must make the run fail:
+ *   REGRESSION_SPARSE_READ_BYTES=n  after the f32 transform, one volatile
+ *                                   32-bit read n bytes past the buffer end
+ *   REGRESSION_NAN_F32              a quiet NaN in the first f32 output
+ *   REGRESSION_NAN_F16              a quiet NaN in the first f16 output
  */
 #include "ARMCM55.h"
 #include "dsp/transform_functions.h"
@@ -26,8 +36,10 @@
 #endif
 
 #define MAX_LEN 4096U
-#define GUARD_BYTES 32U
 #define PROBE_WORDS 64U
+/* Probe range plus the widest access (one 16-byte vector), rounded up to the
+ * 32-byte MPU granule. */
+#define GUARD_BYTES ((4U * PROBE_WORDS + 16U + 31U) & ~31U)
 
 extern void regression_console_init(void);
 
@@ -167,6 +179,7 @@ typedef struct
     int (*run)(void *buf, uint32_t len, unsigned inverse);
     double (*scale)(uint32_t len, unsigned inverse);
     double (*tolerance)(uint32_t len, double max_ref);
+    int (*nonfinite)(const void *buf, uint32_t i); /* NULL for fixed point */
 } transform_t;
 
 static int fill_f32(void *buf, uint32_t len)
@@ -180,12 +193,23 @@ static int fill_f32(void *buf, uint32_t len)
     return 0;
 }
 static double get_f32(const void *buf, uint32_t i) { return (double)((const float32_t *)buf)[i]; }
+/* All-ones exponent: infinity or NaN. */
+static int nonfinite_f32(const void *buf, uint32_t i)
+{
+    uint32_t bits;
+    memcpy(&bits, (const float32_t *)buf + i, sizeof(bits));
+    return (bits & 0x7f800000U) == 0x7f800000U;
+}
 static int run_f32(void *buf, uint32_t len, unsigned inverse)
 {
     arm_cfft_instance_f32 S;
     if (arm_cfft_init_f32(&S, (uint16_t)len) != ARM_MATH_SUCCESS)
         return 1;
     arm_cfft_f32(&S, buf, (uint8_t)inverse, 1U);
+#if defined(REGRESSION_SPARSE_READ_BYTES)
+    (void)*(volatile const uint32_t *)((uintptr_t)buf + 2U * len * sizeof(float32_t) +
+                                       REGRESSION_SPARSE_READ_BYTES);
+#endif
     return 0;
 }
 static double scale_float(uint32_t len, unsigned inverse) { (void)len; (void)inverse; return 1.0; }
@@ -202,6 +226,12 @@ static int fill_f16(void *buf, uint32_t len)
     return 0;
 }
 static double get_f16(const void *buf, uint32_t i) { return (double)((const float16_t *)buf)[i]; }
+static int nonfinite_f16(const void *buf, uint32_t i)
+{
+    uint16_t bits;
+    memcpy(&bits, (const float16_t *)buf + i, sizeof(bits));
+    return (bits & 0x7c00U) == 0x7c00U;
+}
 static int run_f16(void *buf, uint32_t len, unsigned inverse)
 {
     arm_cfft_instance_f16 S;
@@ -271,10 +301,10 @@ static double tolerance_q15(uint32_t len, double max_ref)
 }
 
 static const transform_t transforms[] = {
-    {"CFFT f32", sizeof(float32_t), fill_f32, get_f32, run_f32, scale_float, tolerance_f32},
-    {"CFFT Q31", sizeof(q31_t), fill_q31, get_q31, run_q31, scale_fixed, tolerance_q31},
-    {"CFFT Q15", sizeof(q15_t), fill_q15, get_q15, run_q15, scale_fixed, tolerance_q15},
-    {"CFFT f16", sizeof(float16_t), fill_f16, get_f16, run_f16, scale_float, tolerance_f16},
+    {"CFFT f32", sizeof(float32_t), fill_f32, get_f32, run_f32, scale_float, tolerance_f32, nonfinite_f32},
+    {"CFFT Q31", sizeof(q31_t), fill_q31, get_q31, run_q31, scale_fixed, tolerance_q31, NULL},
+    {"CFFT Q15", sizeof(q15_t), fill_q15, get_q15, run_q15, scale_fixed, tolerance_q15, NULL},
+    {"CFFT f16", sizeof(float16_t), fill_f16, get_f16, run_f16, scale_float, tolerance_f16, nonfinite_f16},
 };
 
 /* Buffer of 2*len elements ending k words below the guard. */
@@ -329,6 +359,28 @@ static int guarded_case(const transform_t *t, uint32_t len, unsigned inverse)
         printf("FAIL: %s init length %u\n", t->name, (unsigned)len);
         return 1;
     }
+#if defined(REGRESSION_NAN_F32)
+    if (t->nonfinite == nonfinite_f32)
+    {
+        const uint32_t qnan = 0x7fc00000U;
+        memcpy(buf, &qnan, sizeof(qnan));
+    }
+#endif
+#if defined(REGRESSION_NAN_F16)
+    if (t->nonfinite == nonfinite_f16)
+    {
+        const uint16_t qnan = 0x7e00U;
+        memcpy(buf, &qnan, sizeof(qnan));
+    }
+#endif
+    if (t->nonfinite)
+        for (uint32_t i = 0; i < 2U * len; ++i)
+            if (t->nonfinite(buf, i))
+            {
+                printf("FAIL: %s %s length %u output %u is not finite\n", t->name,
+                       inverse ? "inverse" : "forward", (unsigned)len, (unsigned)i);
+                return 1;
+            }
     double scale = t->scale(len, inverse), max_ref = 0.0, max_err = 0.0;
     for (uint32_t i = 0; i < len; ++i)
     {

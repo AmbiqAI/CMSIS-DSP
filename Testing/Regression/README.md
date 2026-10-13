@@ -193,8 +193,20 @@ runs on a buffer that ends at an MPU-inaccessible guard, and its output is
 compared with a double-precision radix-2 FFT of the same input, 72 cases.
 Before the guarded runs the test measures how far each transform reads above
 the buffer end (`OVERREAD` lines: the buffer is placed k words below the guard
-for k = 0..64 until no fault occurs). `run_mve_cfft_overread.py` builds with
-float16 enabled and expects `PASS: 72 MVE CFFT last-stage cases`.
+for k = 0..64 until no fault occurs). The guard spans that 256-byte probe
+range plus one 16-byte vector access, rounded to the 32-byte MPU granule (288
+bytes), so a read anywhere in it faults however sparse. f32 and f16 outputs
+whose exponent bits are all ones (infinity or NaN) fail before the error is
+computed; the bit test holds under `-ffast-math`. `run_mve_cfft_overread.py`
+builds with float16 enabled and expects `PASS: 72 MVE CFFT last-stage cases`.
+
+`--control` builds one of the test's own negative controls, and the run then
+succeeds only if the control fails as stated: `sparse-read-32` and
+`sparse-read-256` add one volatile 32-bit read 32 or 256 bytes past the f32
+buffer after the transform (`FAIL: CFFT f32 forward length 16 touched the
+guard`, with `OVERREAD` 36 bytes, or beyond the probe range, for f32);
+`nan-f32` and `nan-f16` write a quiet NaN into the first output (`FAIL: CFFT
+<type> forward length 16 output 0 is not finite`).
 
 The negative control passes upstream copies of one or more `arm_cfft_<type>.c`
 through `--source`; each must report `FAIL: CFFT <type> forward length 16

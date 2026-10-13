@@ -8,6 +8,8 @@ links with an Arm GNU toolchain. Float16 is enabled, so the f16 transform is
 covered. For the negative control, pass unmodified upstream copies of one or
 more of the four arm_cfft_<type>.c files through --source; each replaces the
 checkout's file of the same name and must make the run fail at the guard.
+--control builds one of the test's own negative controls instead; the run
+then succeeds only if the control's expected failure appears.
 """
 import argparse
 import os
@@ -26,6 +28,15 @@ SHARED = ['TransformFunctions/arm_cfft_init_f32.c', 'TransformFunctions/arm_cfft
           'CommonTables/arm_const_structs_f16.c', 'CommonTables/arm_mve_tables_f16.c',
           'BasicMathFunctions/arm_shift_q31.c', 'BasicMathFunctions/arm_shift_q15.c']
 EXPECTED = 'PASS: 72 MVE CFFT last-stage cases'
+# Negative controls: compile-time define and the failure each must produce.
+CONTROLS = {
+    'sparse-read-32': ('-DREGRESSION_SPARSE_READ_BYTES=32',
+                       'FAIL: CFFT f32 forward length 16 touched the guard'),
+    'sparse-read-256': ('-DREGRESSION_SPARSE_READ_BYTES=256',
+                        'FAIL: CFFT f32 forward length 16 touched the guard'),
+    'nan-f32': ('-DREGRESSION_NAN_F32', 'FAIL: CFFT f32 forward length 16 output 0 is not finite'),
+    'nan-f16': ('-DREGRESSION_NAN_F16', 'FAIL: CFFT f16 forward length 16 output 0 is not finite'),
+}
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--cmsis-core', type=Path, required=True, help='CMSIS/Core directory')
@@ -39,6 +50,8 @@ parser.add_argument('--opt', choices=['O2', 'O3'], default='O3')
 parser.add_argument('--build-dir', type=Path, required=True)
 parser.add_argument('--source', type=Path, action='append', default=[],
                     help='Upstream arm_cfft_<type>.c replacing the checkout file of the same name (negative control)')
+parser.add_argument('--control', choices=sorted(CONTROLS),
+                    help="Build one of the test's negative controls; succeeds only if it fails as expected")
 args = parser.parse_args()
 repo = Path(__file__).resolve().parents[2]
 here = Path(__file__).resolve().parent
@@ -57,6 +70,8 @@ cflags = ['-mcpu=cortex-m55', '-mthumb', '-mfloat-abi=hard', f'-{args.opt}', '-f
           '-flax-vector-conversions', '-ffunction-sections', '-fdata-sections', '-DARMCM55']
 if is_clang:
     cflags = ['--target=arm-none-eabihf'] + cflags
+if args.control:
+    cflags += [CONTROLS[args.control][0]]
 for include in [repo / 'Include', repo / 'PrivateInclude', args.cmsis_core / 'Include', device / 'Include']:
     cflags += ['-I' + str(include.resolve())]
 objects = []
@@ -87,5 +102,10 @@ log = result.stdout + result.stderr
 (build / 'run.log').write_text(log)
 print(log)
 # The UART shutdown path returns zero even when the test reports failure.
-if result.returncode or 'FAIL:' in log or EXPECTED not in log:
+if args.control:
+    if EXPECTED in log or CONTROLS[args.control][1] not in log:
+        print(f'control {args.control} did not fail as expected')
+        raise SystemExit(1)
+    print(f'control {args.control} failed as expected')
+elif result.returncode or 'FAIL:' in log or EXPECTED not in log:
     raise SystemExit(1)
