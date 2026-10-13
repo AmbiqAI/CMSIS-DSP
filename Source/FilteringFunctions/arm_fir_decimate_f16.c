@@ -62,6 +62,13 @@
                    half-precision inputs, provided that no partial sum exceeds the half-precision range (65504)
                    and that no product falls below the normal range (6.1e-5); with 32 taps the bound is
                    <code>0.0164</code> times the sum of the absolute products.
+
+  @par           Compilers
+                   For a Cortex-M target without MVE (for example <code>-mcpu=cortex-m55+nomve</code>),
+                   Arm GNU 14.2.1 and 14.3.1 compile the scalar implementation without a diagnostic, but load
+                   and store <code>__fp16</code> values with Neon lane instructions (<code>vld1.16</code>,
+                   <code>vst1.16</code>), which are undefined on M-profile: the code takes a UsageFault when it runs.
+                   This affects every half-precision source in that configuration, not this function only.
  */
 
 #if defined(ARM_MATH_MVE_FLOAT16) && !defined(ARM_MATH_AUTOVECTORIZE)

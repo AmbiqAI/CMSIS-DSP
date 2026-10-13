@@ -97,7 +97,7 @@
                    Use of the initialization function is optional.
                    However, if the initialization function is used, then the instance structure cannot be placed into a const data section.
                    To place an instance structure into a const data section, the instance structure must be manually initialized.
-                   The code below statically initializes each of the 3 different data type filter instance structures
+                   The code below statically initializes each of the 4 different data type filter instance structures
   <pre>
       arm_fir_decimate_instance_f16 S = {M, numTaps, pCoeffs, pState};
       arm_fir_decimate_instance_f32 S = {M, numTaps, pCoeffs, pState};
