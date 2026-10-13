@@ -31,11 +31,19 @@ __version__ = re.search(
 # cmsisdsp.commit_hash is read from cmsisdsp/_build_info.py, written here from
 # the Git checkout the wrapper is built from. A source distribution carries the
 # file written when it was made; a tree with neither Git nor the file keeps the
-# fallback literal in cmsisdsp/__init__.py.
+# fallback literal in cmsisdsp/__init__.py. Git is asked only about this
+# repository's own checkout (a .git directory, or a .git file for a worktree or
+# submodule, whose top level is this directory): an unpacked source
+# distribution inside another repository keeps its carried file, as
+# cmake/CMSISDSPVersion.cmake keeps its fallback version.
 def write_build_info():
+    if not (here / ".git").exists():
+        return
     try:
         git = lambda *a: subprocess.run(["git", *a], cwd=here, check=True,
                                         capture_output=True, text=True).stdout.strip()
+        if pathlib.Path(git("rev-parse", "--show-toplevel")).resolve() != here:
+            return
         commit = git("rev-parse", "HEAD")
         dirty = git("status", "--porcelain", "--untracked-files=no") != ""
     except (OSError, subprocess.CalledProcessError):
