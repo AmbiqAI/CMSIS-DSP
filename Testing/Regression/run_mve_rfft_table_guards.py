@@ -7,6 +7,13 @@ import os
 from pathlib import Path
 import subprocess
 
+# Negative controls (regression_checks.h): compile-time define for each; a
+# control run succeeds only if the test reports a failure.
+CONTROLS = {
+    'sparse-read-32': '-DREGRESSION_SPARSE_READ_BYTES=32',
+    'sparse-read-far': '-DREGRESSION_SPARSE_READ_FAR',
+}
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--cmsis-core', type=Path, required=True, help='CMSIS/Core directory')
 parser.add_argument('--cortex-dfp', type=Path, required=True)
@@ -16,6 +23,8 @@ parser.add_argument('--compiler', default='arm-none-eabi-gcc')
 parser.add_argument('--build-dir', type=Path, required=True)
 parser.add_argument('--tables-source', type=Path, help='Optional upstream tables for negative control')
 parser.add_argument('--tables-include', type=Path, help='Matching upstream Include directory')
+parser.add_argument('--control', choices=sorted(CONTROLS),
+                    help='Build a negative control instead; the run then succeeds only if the test fails')
 args = parser.parse_args()
 repo = Path(__file__).resolve().parents[2]
 here = Path(__file__).resolve().parent
@@ -27,6 +36,8 @@ elf = build / 'mve_rfft_table_guards.elf'
 cmd = [args.compiler, '-mcpu=cortex-m55', '-mthumb', '-mfloat-abi=hard',
        '-O3', '-ffast-math', '-flax-vector-conversions', '-ffunction-sections',
        '-fdata-sections', '-DARMCM55', '-DDISABLEFLOAT16']
+if args.control:
+    cmd += [CONTROLS[args.control]]
 for include in [args.tables_include or repo / 'Include', repo / 'Include', repo / 'PrivateInclude', args.cmsis_core / 'Include', device / 'Include']:
     cmd += ['-I' + str(include.resolve())]
 cmd += [str(here / 'mve_rfft_table_guards.c'), str(here / 'corstone300_console.c'),
@@ -51,5 +62,10 @@ log = result.stdout + result.stderr
 (build / 'run.log').write_text(log)
 print(log)
 # The UART shutdown path returns zero even when the test reports failure.
-if result.returncode or 'FAIL:' in log or 'PASS: 36 MVE RFFT table-guard cases' not in log:
+if args.control:
+    if 'FAIL:' not in log or 'PASS: 36 MVE RFFT table-guard cases' in log:
+        print(f'control {args.control} did not fail as expected')
+        raise SystemExit(1)
+    print(f'control {args.control} failed as expected')
+elif result.returncode or 'FAIL:' in log or 'PASS: 36 MVE RFFT table-guard cases' not in log:
     raise SystemExit(1)

@@ -21,18 +21,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "regression_checks.h"
+
 #if !defined(ARM_MATH_MVEI) || defined(ARM_MATH_AUTOVECTORIZE)
 #error This regression requires the handwritten MVE integer kernels.
 #endif
 
 #define BLOCK_BYTES 512U
-#define GUARD_BYTES 32U
+/* Each guard covers a whole source block plus one vector access, so a read
+ * anywhere within one block of a source end faults (regression_checks.h). */
+#define GUARD_BYTES REGRESSION_GUARD_BYTES(BLOCK_BYTES)
 #define PAD_BYTES 64U
 #define OUT_BYTES 512U
 
 extern void regression_console_init(void);
 
-/* Two source blocks, each followed by its own 32-byte guard. */
+/* Two source blocks, each followed by its own guard. */
 static unsigned char arena[2U * (BLOCK_BYTES + GUARD_BYTES)] __ALIGNED(32);
 #define GUARD_A ((uintptr_t)arena + BLOCK_BYTES)
 #define GUARD_B ((uintptr_t)arena + 2U * BLOCK_BYTES + GUARD_BYTES)
@@ -70,6 +74,14 @@ static void protect_guards(void)
     ARM_MPU_SetRegion(2, ARM_MPU_RBAR(GUARD_B + GUARD_BYTES, ARM_MPU_SH_NON, 0, 1, 0),
                      ARM_MPU_RLAR(UINT32_MAX, 0));
     ARM_MPU_Enable(0);
+}
+
+/* Ends a guarded call; a read control (regression_checks.h) reads past the
+ * first source block before the guards are lifted. */
+static void unguard_buffers(void)
+{
+    REGRESSION_CONTROL_READ_ABOVE(GUARD_A, GUARD_BYTES);
+    ARM_MPU_Disable();
 }
 
 /* Fill both copies of the sources: |a| values are distinct within a vector. */
@@ -140,7 +152,7 @@ static double saturate(double x, double limit)
         CALL(pa, pb, dp);                                                      \
         protect_guards();                                                      \
         CALL(a, b, dg);                                                        \
-        ARM_MPU_Disable();                                                     \
+        unguard_buffers();                                                     \
         if (check_outputs(sizeof(T), n))                                       \
             return 1;                                                          \
         for (unsigned i = 0; i < n; ++i)                                       \
@@ -161,7 +173,7 @@ static double saturate(double x, double limit)
         CALL(pa, pb, n, rp);                                                   \
         protect_guards();                                                      \
         CALL(a, b, n, rg);                                                     \
-        ARM_MPU_Disable();                                                     \
+        unguard_buffers();                                                     \
         if (check_outputs(sizeof(R), 1))                                       \
             return 1;                                                          \
         if (check_near((double)*rg, (REF), (TOL), 0))                          \
@@ -194,7 +206,7 @@ static double saturate(double x, double limit)
             }                                                                  \
             protect_guards();                                                  \
             arm_status status = CALL(A, B, D);                                 \
-            ARM_MPU_Disable();                                                 \
+            unguard_buffers();                                                 \
             if (status != ARM_MATH_SUCCESS)                                    \
             {                                                                  \
                 printf("FAIL: %s status rows=%u cols=%u\n", NAME, rows, cols); \
@@ -347,7 +359,7 @@ static int run_mat_trans_q7(void)
             }
             protect_guards();
             arm_status status = arm_mat_trans_q7(&A, &D);
-            ARM_MPU_Disable();
+            unguard_buffers();
             if (status != ARM_MATH_SUCCESS)
             {
                 printf("FAIL: arm_mat_trans_q7 status rows=%u cols=%u\n", rows, cols);

@@ -21,19 +21,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "regression_checks.h"
+
 #if !defined(ARM_MATH_MVE_FLOAT16) || defined(ARM_MATH_AUTOVECTORIZE)
 #error This regression requires the handwritten MVE float16 kernels.
 #endif
 
 #define MAX_N 16U
 #define BLOCK_BYTES 512U
-#define GUARD_BYTES 32U
+/* Each guard covers a whole source block plus one vector access, so a read
+ * anywhere within one block of a source end faults (regression_checks.h). */
+#define GUARD_BYTES REGRESSION_GUARD_BYTES(BLOCK_BYTES)
 #define CANARY_F16 12345.0f16
 #define CANARY_F32 12345.0f
 
 extern void regression_console_init(void);
 
-/* Two source blocks, each followed by its own 32-byte guard. */
+/* Two source blocks, each followed by its own guard. */
 static unsigned char arena[2U * (BLOCK_BYTES + GUARD_BYTES)] __ALIGNED(32);
 #define GUARD_A ((uintptr_t)arena + BLOCK_BYTES)
 #define GUARD_B ((uintptr_t)arena + 2U * BLOCK_BYTES + GUARD_BYTES)
@@ -68,6 +72,14 @@ static void protect_guards(void)
     ARM_MPU_SetRegion(2, ARM_MPU_RBAR(GUARD_B + GUARD_BYTES, ARM_MPU_SH_NON, 0, 1, 0),
                      ARM_MPU_RLAR(UINT32_MAX, 0));
     ARM_MPU_Enable(0);
+}
+
+/* Ends a guarded call; a read control (regression_checks.h) reads past the
+ * first source block before the guards are lifted. */
+static void unguard_buffers(void)
+{
+    REGRESSION_CONTROL_READ_ABOVE(GUARD_A, GUARD_BYTES);
+    ARM_MPU_Disable();
 }
 
 /* Values are quarter multiples with magnitude at most 4, exact in half
@@ -145,6 +157,7 @@ static int is_finite_f32(float32_t x)
 
 static int check_value_h(float16_t got, double reference, double tolerance, unsigned index)
 {
+    REGRESSION_CONTROL_NAN_F16(&got); /* NaN control; no-op otherwise */
     if (!is_finite_f16(got) || fabs((double)got - reference) > tolerance)
     {
         printf("FAIL: %s numerical result n=%u index=%u got=%g expected=%g\n",
@@ -156,6 +169,7 @@ static int check_value_h(float16_t got, double reference, double tolerance, unsi
 
 static int check_value_f(float32_t got, double reference, unsigned index)
 {
+    REGRESSION_CONTROL_NAN_F32(&got); /* NaN control; no-op otherwise */
     if (!is_finite_f32(got) || (double)got != reference)
     {
         printf("FAIL: %s numerical result n=%u index=%u got=%g expected=%g\n",
@@ -180,7 +194,7 @@ static int run_complex(void)
         clear_out();
         protect_guards();
         arm_cmplx_mag_f16(c, out_h + 1, n);
-        ARM_MPU_Disable();
+        unguard_buffers();
         if (check_canaries_h(n))
             return 1;
         for (unsigned i = 0; i < n; ++i)
@@ -196,7 +210,7 @@ static int run_complex(void)
         clear_out();
         protect_guards();
         arm_cmplx_mag_squared_f16(c, out_h + 1, n);
-        ARM_MPU_Disable();
+        unguard_buffers();
         if (check_canaries_h(n))
             return 1;
         for (unsigned i = 0; i < n; ++i)
@@ -223,7 +237,7 @@ static int run_float_to_f16(void)
         clear_out();
         protect_guards();
         arm_float_to_f16(a, out_h + 1, n);
-        ARM_MPU_Disable();
+        unguard_buffers();
         if (check_canaries_h(n))
             return 1;
         for (unsigned i = 0; i < n; ++i)
@@ -251,7 +265,7 @@ static int run_float_to_f16(void)
             clear_out();                                                       \
             protect_guards();                                                  \
             arm_status status = KERNEL_CALL;                                   \
-            ARM_MPU_Disable();                                                 \
+            unguard_buffers();                                                 \
             if (status != ARM_MATH_SUCCESS)                                    \
             {                                                                  \
                 printf("FAIL: %s status rows=%u cols=%u\n", NAME, rows, cols); \

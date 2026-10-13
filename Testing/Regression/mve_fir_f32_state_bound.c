@@ -15,7 +15,10 @@
  * access faults; the input block ends at a second guard. A MemManage fault is recovered by rewriting the stacked
  * return address, so one run measures every case. Elements in the extra
  * region are canaries, so stores and loads past the documented length are
- * distinguished.
+ * distinguished. Each guard covers the largest state (documented length plus
+ * MAX_EXTRA) or input plus one vector access, so a read anywhere within that
+ * distance of the buffer end faults; nonfinite outputs fail by their bits
+ * (regression_checks.h).
  */
 #include "ARMCM55.h"
 #include "dsp/filtering_functions.h"
@@ -24,6 +27,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "regression_checks.h"
 
 #if !defined(ARM_MATH_MVEF) || defined(ARM_MATH_AUTOVECTORIZE)
 #error This measurement requires the handwritten MVE float kernels.
@@ -36,7 +41,9 @@
 #define MAX_BLOCK 12U
 #endif
 #define MAX_EXTRA 16U
-#define GUARD_BYTES 32U
+#define STATE_SPAN ((MAX_TAPS + 2U * MAX_BLOCK - 1U + MAX_EXTRA) * sizeof(float32_t))
+#define INPUT_SPAN (2U * MAX_BLOCK * sizeof(float32_t))
+#define GUARD_BYTES REGRESSION_GUARD_BYTES(STATE_SPAN > INPUT_SPAN ? STATE_SPAN : INPUT_SPAN)
 #define CANARY 12345.0f
 
 extern void regression_console_init(void);
@@ -88,7 +95,7 @@ static void protect_tails(uintptr_t guard_a, uintptr_t guard_b)
     }
     ARM_MPU_SetMemAttr(0, ARM_MPU_ATTR(ARM_MPU_ATTR_NON_CACHEABLE,
                                      ARM_MPU_ATTR_NON_CACHEABLE));
-    /* Map everything except the two aligned 32-byte guards. No background map. */
+    /* Map everything except the two aligned guards. No background map. */
     ARM_MPU_SetRegion(0, ARM_MPU_RBAR(0, ARM_MPU_SH_NON, 0, 1, 0),
                      ARM_MPU_RLAR(lo - 1U, 0));
     ARM_MPU_SetRegion(1, ARM_MPU_RBAR(lo + GUARD_BYTES, ARM_MPU_SH_NON, 0, 1, 0),
@@ -137,7 +144,9 @@ static int run_case(unsigned numTaps, unsigned blockSize, unsigned extra, int *s
             for (unsigned i = 0; i < MAX_BLOCK + 2; ++i)
                 output[i] = CANARY;
             arm_fir_f32(&S, input + block * blockSize, output + 1, blockSize);
+            REGRESSION_CONTROL_READ_ABOVE(end, GUARD_BYTES);
             ARM_MPU_Disable();
+            REGRESSION_CONTROL_NAN_F32(&output[1]);
             if (output[0] != CANARY || output[blockSize + 1] != CANARY)
             {
                 printf("FAIL: output canary numTaps=%u blockSize=%u\n", numTaps, blockSize);
@@ -153,7 +162,8 @@ static int run_case(unsigned numTaps, unsigned blockSize, unsigned extra, int *s
                     if (idx >= 0)
                         reference += (double)coeffs[numTaps - 1U - k] * (double)input[idx];
                 }
-                if (fabs((double)output[n + 1] - reference) > 1e-5)
+                if (regression_nonfinite_f32(&output[n + 1]) ||
+                    fabs((double)output[n + 1] - reference) > 1e-5)
                 {
                     printf("FAIL: numerical result numTaps=%u blockSize=%u extra=%u n=%u\n",
                            numTaps, blockSize, extra, n);

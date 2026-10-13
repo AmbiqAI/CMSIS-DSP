@@ -15,6 +15,14 @@ import os
 from pathlib import Path
 import subprocess
 
+# Negative controls (regression_checks.h): compile-time define for each; a
+# control run succeeds only if the test reports a failure.
+CONTROLS = {
+    'sparse-read-32': '-DREGRESSION_SPARSE_READ_BYTES=32',
+    'sparse-read-far': '-DREGRESSION_SPARSE_READ_FAR',
+    'nan': '-DREGRESSION_NAN_OUTPUT',
+}
+
 GROUPS = {
     'f32': {
         'test': 'mve_tail_loads_f32.c',
@@ -107,6 +115,8 @@ parser.add_argument('--opt', choices=['O0', 'O1', 'O2', 'O3'], default='O3',
 parser.add_argument('--build-dir', type=Path, required=True)
 parser.add_argument('--source', type=Path, action='append', default=[],
                     help='Upstream kernel replacing the checkout file of the same name (negative control)')
+parser.add_argument('--control', choices=sorted(CONTROLS),
+                    help='Build a negative control instead; the run then succeeds only if the test fails')
 args = parser.parse_args()
 group = GROUPS[args.group]
 if args.group not in available:
@@ -125,6 +135,8 @@ sources += [here / group['test'], here / 'corstone300_console.c']
 is_clang = 'clang' in Path(args.compiler).name
 cflags = ['-mcpu=cortex-m55', '-mthumb', '-mfloat-abi=hard', f'-{args.opt}', '-ffast-math',
           '-flax-vector-conversions', '-ffunction-sections', '-fdata-sections', '-DARMCM55']
+if args.control:
+    cflags += [CONTROLS[args.control]]
 cflags += group['defines']
 if is_clang:
     cflags = ['--target=arm-none-eabihf'] + cflags
@@ -158,5 +170,10 @@ log = result.stdout + result.stderr
 (build / 'run.log').write_text(log)
 print(log)
 # The UART shutdown path returns zero even when the test reports failure.
-if result.returncode or 'FAIL:' in log or group['expected'] not in log:
+if args.control:
+    if 'FAIL:' not in log or group['expected'] in log:
+        print(f'control {args.control} did not fail as expected')
+        raise SystemExit(1)
+    print(f'control {args.control} failed as expected')
+elif result.returncode or 'FAIL:' in log or group['expected'] not in log:
     raise SystemExit(1)

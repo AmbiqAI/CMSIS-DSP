@@ -7,6 +7,13 @@ import os
 from pathlib import Path
 import subprocess
 
+# Negative controls (regression_checks.h): compile-time define for each; a
+# control run succeeds only if the test reports a failure.
+CONTROLS = {
+    'sparse-read-32': '-DREGRESSION_SPARSE_READ_BYTES=32',
+    'sparse-read-far': '-DREGRESSION_SPARSE_READ_FAR',
+}
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--cmsis-core', type=Path, required=True, help='CMSIS/Core directory')
 parser.add_argument('--cortex-dfp', type=Path, required=True)
@@ -18,6 +25,8 @@ parser.add_argument('--datatype', choices=['q7', 'q15', 'q31', 'all'], default='
                     help='Compile and run one kernel only (default: all three)')
 parser.add_argument('--matrix-source', type=Path,
                     help='Optional upstream source for the selected datatype, for the negative control')
+parser.add_argument('--control', choices=sorted(CONTROLS),
+                    help='Build a negative control instead; the run then succeeds only if the test fails')
 args = parser.parse_args()
 if args.matrix_source and args.datatype == 'all':
     parser.error('--matrix-source requires --datatype q7, q15, or q31')
@@ -33,6 +42,8 @@ elf = build / 'mve_matvec_tail_fixed.elf'
 cmd = [args.compiler, '-mcpu=cortex-m55', '-mthumb', '-mfloat-abi=hard',
        '-O3', '-ffast-math', '-flax-vector-conversions', '-ffunction-sections',
        '-fdata-sections', '-DARMCM55', '-DDISABLEFLOAT16']
+if args.control:
+    cmd += [CONTROLS[args.control]]
 cmd += [f'-DMATVEC_TEST_{t.upper()}={int(t in types)}' for t in ('q7', 'q15', 'q31')]
 for include in [repo / 'Include', repo / 'PrivateInclude', args.cmsis_core / 'Include', device / 'Include']:
     cmd += ['-I' + str(include.resolve())]
@@ -58,5 +69,10 @@ log = result.stdout + result.stderr
 print(log)
 # The UART shutdown path returns zero even when the test reports failure.
 expected = f'PASS: {119 * len(types)} MVE fixed-point matrix-tail cases'
-if result.returncode or 'FAIL:' in log or expected not in log:
+if args.control:
+    if 'FAIL:' not in log or expected in log:
+        print(f'control {args.control} did not fail as expected')
+        raise SystemExit(1)
+    print(f'control {args.control} failed as expected')
+elif result.returncode or 'FAIL:' in log or expected not in log:
     raise SystemExit(1)

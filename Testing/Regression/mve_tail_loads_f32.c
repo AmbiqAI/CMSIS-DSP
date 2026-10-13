@@ -20,19 +20,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "regression_checks.h"
+
 #if !defined(ARM_MATH_MVEF) || !defined(ARM_MATH_MVEI) || defined(ARM_MATH_AUTOVECTORIZE)
 #error This regression requires the handwritten MVE kernels.
 #endif
 
 #define MAX_N 8U
 #define BLOCK_BYTES 512U
-#define GUARD_BYTES 32U
+/* Each guard covers a whole source block plus one vector access, so a read
+ * anywhere within one block of a source end faults (regression_checks.h). */
+#define GUARD_BYTES REGRESSION_GUARD_BYTES(BLOCK_BYTES)
 #define CANARY 12345.0f
 #define CANARY_U 0x5a5a5a5aU
 
 extern void regression_console_init(void);
 
-/* Two source blocks, each followed by its own 32-byte guard. */
+/* Two source blocks, each followed by its own guard. */
 static unsigned char arena[2U * (BLOCK_BYTES + GUARD_BYTES)] __ALIGNED(32);
 #define GUARD_A ((uintptr_t)arena + BLOCK_BYTES)
 #define GUARD_B ((uintptr_t)arena + 2U * BLOCK_BYTES + GUARD_BYTES)
@@ -66,6 +70,14 @@ static void protect_guards(void)
     ARM_MPU_SetRegion(2, ARM_MPU_RBAR(GUARD_B + GUARD_BYTES, ARM_MPU_SH_NON, 0, 1, 0),
                      ARM_MPU_RLAR(UINT32_MAX, 0));
     ARM_MPU_Enable(0);
+}
+
+/* Ends a guarded call; a read control (regression_checks.h) reads past the
+ * first source block before the guards are lifted. */
+static void unguard_buffers(void)
+{
+    REGRESSION_CONTROL_READ_ABOVE(GUARD_A, GUARD_BYTES);
+    ARM_MPU_Disable();
 }
 
 /* Sources of n elements ending at the guards. |a| values are distinct so the
@@ -133,6 +145,7 @@ static int is_finite_f32(float32_t x)
 
 static int check_value(float32_t got, double reference, unsigned index)
 {
+    REGRESSION_CONTROL_NAN_F32(&got); /* NaN control; no-op otherwise */
     if (!is_finite_f32(got) || fabs((double)got - reference) > 1e-5)
     {
         printf("FAIL: %s numerical result n=%u index=%u\n", current_name, current_n, index);
@@ -155,7 +168,7 @@ static unsigned cases;
         clear_out();                                                           \
         protect_guards();                                                      \
         KERNEL_CALL;                                                           \
-        ARM_MPU_Disable();                                                     \
+        unguard_buffers();                                                     \
         if (check_canaries(n))                                                 \
             return 1;                                                          \
         for (unsigned i = 0; i < n; ++i)                                       \
@@ -175,7 +188,7 @@ static unsigned cases;
         clear_out();                                                           \
         protect_guards();                                                      \
         KERNEL_CALL;                                                           \
-        ARM_MPU_Disable();                                                     \
+        unguard_buffers();                                                     \
         if (check_canaries(n))                                                 \
             return 1;                                                          \
         for (unsigned i = 0; i < n; ++i)                                       \
@@ -228,7 +241,7 @@ static int run_reductions(void)
         clear_out();
         protect_guards();
         arm_dot_prod_f32(a, b, n, out + 1);
-        ARM_MPU_Disable();
+        unguard_buffers();
         if (check_canaries(1) || check_value(out[1], dot, 0))
             return 1;
         ++cases;
@@ -237,7 +250,7 @@ static int run_reductions(void)
         clear_out();
         protect_guards();
         arm_accumulate_f32(a, n, out + 1);
-        ARM_MPU_Disable();
+        unguard_buffers();
         if (check_canaries(1) || check_value(out[1], sum, 0))
             return 1;
         ++cases;
@@ -246,7 +259,7 @@ static int run_reductions(void)
         clear_out();
         protect_guards();
         arm_mse_f32(a, b, n, out + 1);
-        ARM_MPU_Disable();
+        unguard_buffers();
         if (check_canaries(1) || check_value(out[1], mse, 0))
             return 1;
         ++cases;
@@ -255,7 +268,7 @@ static int run_reductions(void)
         clear_out();
         protect_guards();
         arm_absmin_f32(a, n, out + 1, out_u + 1);
-        ARM_MPU_Disable();
+        unguard_buffers();
         if (check_canaries(1) || check_value(out[1], absmin, 0))
             return 1;
         if (out_u[1] != absmin_index)
@@ -286,11 +299,11 @@ static int run_reductions(void)
             protect_guards();                                                  \
             if ((KERNEL_CALL) != ARM_MATH_SUCCESS)                             \
             {                                                                  \
-                ARM_MPU_Disable();                                             \
+                unguard_buffers();                                             \
                 printf("FAIL: %s status rows=%u cols=%u\n", NAME, rows, cols); \
                 return 1;                                                      \
             }                                                                  \
-            ARM_MPU_Disable();                                                 \
+            unguard_buffers();                                                 \
             if (check_canaries(n))                                             \
                 return 1;                                                      \
             for (unsigned i = 0; i < n; ++i)                                   \

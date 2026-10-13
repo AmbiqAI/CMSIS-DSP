@@ -11,6 +11,10 @@
  * 64 bytes below each block, which here is the guard, and corrupts the
  * output. Arm GNU Toolchain 15.2.Rel1 does so at every optimization level;
  * 14.x does not.
+ *
+ * The guard covers one full buffer (2 * MAX_LEN words) plus one vector access
+ * below the buffer, so a read anywhere within that distance below it faults
+ * (regression_checks.h).
  */
 #include "ARMCM55.h"
 #include "dsp/transform_functions.h"
@@ -19,12 +23,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "regression_checks.h"
+
 #if !defined(ARM_MATH_MVEI) || defined(ARM_MATH_AUTOVECTORIZE)
 #error This regression requires the handwritten MVE integer kernels.
 #endif
 
 #define MAX_LEN 1024U
-#define GUARD_BYTES 32U
+#define GUARD_BYTES REGRESSION_GUARD_BYTES(2U * MAX_LEN * sizeof(q31_t))
 
 extern void regression_console_init(void);
 /* Guard, then the buffer, then readable canary padding: the miscompiled
@@ -86,6 +92,7 @@ static int run_case(uint32_t len, unsigned inverse, unsigned *checks)
     current_inverse = inverse;
     protect_guard((uintptr_t)lo_guard);
     arm_cfft_q31(&S, buf, (uint8_t)inverse, 1U);
+    REGRESSION_CONTROL_READ_BELOW(buf, GUARD_BYTES);
     ARM_MPU_Disable();
     for (uint32_t i = 0; i < PAD_WORDS; ++i)
     {

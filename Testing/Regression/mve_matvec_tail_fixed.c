@@ -3,6 +3,8 @@
  */
 /* Cortex-M55 regression: Q7/Q15/Q31 matrix storage ends at an inaccessible
  * MPU region. Companion to mve_matvec_tail.c for the fixed-point kernels.
+ * The guard covers the largest matrix (7 x 17 Q31) plus one vector access,
+ * so a read anywhere within that distance of the matrix end faults.
  */
 #include "ARMCM55.h"
 #include "dsp/matrix_functions.h"
@@ -10,13 +12,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "regression_checks.h"
+
 #if !defined(ARM_MATH_MVEI) || defined(ARM_MATH_AUTOVECTORIZE)
 #error This regression requires the handwritten MVE integer kernels.
 #endif
 
 #define MAX_ROWS 7U
 #define MAX_COLS 17U
-#define GUARD_BYTES 32U
+#define SPAN_BYTES 512U /* MAX_ROWS * MAX_COLS Q31 elements, rounded up */
+#define GUARD_BYTES REGRESSION_GUARD_BYTES(MAX_ROWS * MAX_COLS * sizeof(q31_t))
 
 /* Datatypes under test, selectable per build so that a negative control can
  * link one unmodified upstream kernel while the others are absent. */
@@ -31,7 +36,8 @@
 #endif
 
 extern void regression_console_init(void);
-static unsigned char arena[512 + GUARD_BYTES] __ALIGNED(32);
+/* [matrix space | guard] */
+static unsigned char arena[SPAN_BYTES + GUARD_BYTES] __ALIGNED(32);
 static volatile unsigned current_bits, current_rows, current_cols;
 
 void MemManage_Handler(void)
@@ -51,7 +57,7 @@ static void protect_tail(uintptr_t guard)
     }
     ARM_MPU_SetMemAttr(0, ARM_MPU_ATTR(ARM_MPU_ATTR_NON_CACHEABLE,
                                      ARM_MPU_ATTR_NON_CACHEABLE));
-    /* Map everything except the aligned 32-byte guard. No background map. */
+    /* Map everything except the aligned guard. No background map. */
     ARM_MPU_SetRegion(0, ARM_MPU_RBAR(0, ARM_MPU_SH_NON, 0, 1, 0),
                      ARM_MPU_RLAR(guard - 1U, 0));
     ARM_MPU_SetRegion(1, ARM_MPU_RBAR(guard + GUARD_BYTES, ARM_MPU_SH_NON, 0, 1, 0),
@@ -92,6 +98,7 @@ static int run_##T(unsigned *checks)                                           \
             arm_mat_vec_mult_##T(&plain, vector_##T, plain_##T + 1);           \
             protect_tail((uintptr_t)end);                                      \
             arm_mat_vec_mult_##T(&guarded, vector_##T, guarded_##T + 1);       \
+            REGRESSION_CONTROL_READ_ABOVE(end, GUARD_BYTES);                   \
             ARM_MPU_Disable();                                                 \
             if (guarded_##T[0] != (T##_t)0x2a || guarded_##T[rows + 1] != (T##_t)0x2a) \
             {                                                                  \
