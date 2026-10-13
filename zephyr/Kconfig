@@ -50,7 +50,10 @@ config CMSIS_DSP_CUSTOM_CONFIG
 	  #include_next. Add its directory with zephyr_include_directories()
 	  and to no target's own include path: a target that has it on its own
 	  path finds this header first, skips the generated one, and compiles
-	  without the CMSIS-DSP feature definitions of the library.
+	  without the CMSIS-DSP feature definitions of the library. The library
+	  itself then fails to compile ("arm_dsp_config.h: No such file or
+	  directory"), because the generated header's #include_next finds no
+	  user header on the library's include path.
 
 config CMSIS_DSP_MATRIXCHECK
 	bool "Matrix Check"
