@@ -283,6 +283,46 @@ static void arm_biquad_cas_df1_32x64_q31_scalar(const arm_biquad_cas_df1_32x64_i
 
 }
 
+typedef struct
+{
+    q63_t Yn1, Yn2;
+    q31_t Xn1, Xn2;
+} arm_biquad_cas_df1_32x64_tail_t;
+
+/*
+ * Outputs n0 to blockSize - 1 of one stage of arm_biquad_cas_df1_32x64_q31,
+ * one at a time. Each output is the stage's 64-bit accumulation, which is
+ * exact, so the result equals the vector loop's. Xn2 and Xn1 are the inputs
+ * at n0 - 2 and n0 - 1, which an in-place call has already overwritten; each
+ * input is read before its output is written. Kept out of line so that the
+ * loop compiles as before.
+ */
+__attribute__((noinline)) static arm_biquad_cas_df1_32x64_tail_t arm_biquad_cas_df1_32x64_tail_q31(
+    const q31_t * pIn, q31_t * pOut, uint32_t n0, uint32_t blockSize, q31_t Xn2, q31_t Xn1,
+    q63_t Yn1, q63_t Yn2, q31_t b0, q31_t b1, q31_t b2, q31_t a1, q31_t a2, int32_t shift)
+{
+    arm_biquad_cas_df1_32x64_tail_t t;
+
+    for (uint32_t n = n0; n < blockSize; n++)
+    {
+        q31_t   Xn = pIn[n];
+        q63_t   acc = mult32x64(Yn1, a1);
+
+        acc += mult32x64(Yn2, a2);
+        Yn2 = Yn1;
+        Yn1 = acc + (q63_t) Xn2 * b2 + (q63_t) Xn1 * b1 + (q63_t) Xn * b0;
+        Yn1 = lsll(Yn1, shift);
+        pOut[n] = (q31_t) (Yn1 >> 32);
+        Xn2 = Xn1;
+        Xn1 = Xn;
+    }
+    t.Yn1 = Yn1;
+    t.Yn2 = Yn2;
+    t.Xn1 = Xn1;
+    t.Xn2 = Xn2;
+    return t;
+}
+
 ARM_DSP_ATTRIBUTE void arm_biquad_cas_df1_32x64_q31(
   const arm_biquad_cas_df1_32x64_ins_q31 * S,
   const q31_t * pSrc,
@@ -343,9 +383,10 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cas_df1_32x64_q31(
           hist[5] = pIn[2];
   
           const q31_t  *pIn1 = hist;
-          q31x4_t vecIn0 = *(q31x4_t *) & pIn[0];
-          q31x4_t vecIn1 = *(q31x4_t *) & pIn[1];
-          q31x4_t vecIn2 = *(q31x4_t *) & pIn[2];
+          /* A load at x[k] serves the output k + 3; lanes past the block are not used */
+          q31x4_t vecIn0 = vldrwq_z_s32(&pIn[0], vctp32q(blockSize));
+          q31x4_t vecIn1 = vldrwq_z_s32(&pIn[1], vctp32q(blockSize - 1U));
+          q31x4_t vecIn2 = vldrwq_z_s32(&pIn[2], vctp32q(blockSize - 2U));
   
           i = 3;
           do
@@ -368,7 +409,11 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cas_df1_32x64_q31(
           sample = blockSize - 3;
           pIn1 = pIn + 3;
   
-          i = sample / 4;
+          /*
+           * The last group of four outputs and the remaining outputs are computed
+           * by arm_biquad_cas_df1_32x64_tail_q31, whose loads stay in the block.
+           */
+          i = (sample / 4U > 0U) ? sample / 4U - 1U : 0U;
           while (i > 0U)
           {
   
@@ -420,88 +465,18 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cas_df1_32x64_q31(
               i--;
           }
           /*
-           * save input state
+           * Remaining outputs, and the input state
            */
-          Xn2 = vecIn[2];
-          Xn1 = vecIn[3];
-  
-          int       loopRemainder = blockSize - 3 - 4 * ((blockSize - 3) / 4);
-          if (loopRemainder == 1)
           {
-              /*
-               * remainder
-               */
-              acc = mult32x64(Yn1, a1);
-              acc += mult32x64(Yn2, a2);
-              Yn2 = Yn1;
-              Yn1 = acc;
-              Yn1 = vmlaldavaq(Yn1, vecIn0, vecCoef);
-              Yn1 = lsll(Yn1, shift);
-              *pOut++ = (q31_t) (Yn1 >> 32);
-              /*
-               * save input state
-               */
-              Xn2 = vecIn0[2];
-              Xn1 = vecIn0[3];
-  
+              uint32_t n0 = (uint32_t) (pOut - pDst);
+              arm_biquad_cas_df1_32x64_tail_t t = arm_biquad_cas_df1_32x64_tail_q31(
+                  pIn, pDst, n0, blockSize, vecIn0[1], vecIn0[2], Yn1, Yn2, b0, b1, b2, a1, a2, shift);
+              Yn1 = t.Yn1;
+              Yn2 = t.Yn2;
+              Xn1 = t.Xn1;
+              Xn2 = t.Xn2;
           }
-          else if (loopRemainder == 2)
-          {
-              acc = mult32x64(Yn1, a1);
-              acc += mult32x64(Yn2, a2);
-              Yn2 = Yn1;
-              Yn1 = acc;
-              Yn1 = vmlaldavaq(Yn1, vecIn0, vecCoef);
-              Yn1 = lsll(Yn1, shift);
-              *pOut++ = (q31_t) (Yn1 >> 32);
-  
-              acc = mult32x64(Yn1, a1);
-              acc += mult32x64(Yn2, a2);
-              Yn2 = Yn1;
-              Yn1 = acc;
-              Yn1 = vmlaldavaq(Yn1, vecIn1, vecCoef);
-              Yn1 = lsll(Yn1, shift);
-              *pOut++ = (q31_t) (Yn1 >> 32);
-              /*
-               * save input state
-               */
-              Xn2 = vecIn1[2];
-              Xn1 = vecIn1[3];
-  
-          }
-          else if (loopRemainder == 3)
-          {
-              acc = mult32x64(Yn1, a1);
-              acc += mult32x64(Yn2, a2);
-              Yn2 = Yn1;
-              Yn1 = acc;
-              Yn1 = vmlaldavaq(Yn1, vecIn0, vecCoef);
-              Yn1 = lsll(Yn1, shift);
-              *pOut++ = (q31_t) (Yn1 >> 32);
-  
-              acc = mult32x64(Yn1, a1);
-              acc += mult32x64(Yn2, a2);
-              Yn2 = Yn1;
-              Yn1 = acc;
-              Yn1 = vmlaldavaq(Yn1, vecIn1, vecCoef);
-              Yn1 = lsll(Yn1, shift);
-              *pOut++ = (q31_t) (Yn1 >> 32);
-  
-              acc = mult32x64(Yn1, a1);
-              acc += mult32x64(Yn2, a2);
-              Yn2 = Yn1;
-              Yn1 = acc;
-              Yn1 = vmlaldavaq(Yn1, vecIn2, vecCoef);
-              Yn1 = lsll(Yn1, shift);
-              *pOut++ = (q31_t) (Yn1 >> 32);
-              /*
-               * save input state
-               */
-              Xn2 = vecIn2[2];
-              Xn1 = vecIn2[3];
-  
-          }
-  
+
           /*
            * The first stage output is given as input to the second stage.
            */

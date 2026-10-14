@@ -180,7 +180,8 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cascade_df1_q31(
          */
 
         /* 2 first elements are garbage, will be updated with history */
-        inVec0 = vld1q(pIn - 2);
+        /* Lanes 0 and 1 are replaced with the history; load lanes 2 and 3 only */
+        inVec0 = vld1q_z(pIn - 2, 0xFF00);
 
         inVec0[0] = pState[1];
         inVec0[1] = pState[0];
@@ -201,7 +202,7 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cascade_df1_q31(
         out1 = (q31_t) ((acc >> 32) & 0xffffffff);
 
 
-        inVec0 = vld1q(pIn);
+        inVec0 = vld1q_z(pIn, vctp32q(blockSize));
         pIn += 2;
 
         /*
@@ -212,6 +213,14 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cascade_df1_q31(
          * First part of the processing with loop unrolling.
          * Compute 4 outputs at a time.
          */
+        /*
+         * The last iteration can load past the block; it loads under the
+         * length predicate. Its loads start ((blockSize - 2) & 3) + 4 and
+         * ((blockSize - 2) & 3) + 2 samples before the end of the block, and
+         * the loads after the loop (blockSize - 2) & 3 samples before it.
+         */
+        uint32_t            lastSample = (sample > 0U) ? 1U : 0U;
+        sample -= lastSample;
         while (sample > 0U) {
 
             stateVec[3] = out1;
@@ -277,6 +286,70 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cascade_df1_q31(
 
             sample--;
         }
+        if (lastSample > 0U) {
+
+            stateVec[3] = out1;
+
+            *pOut++ = out;
+            *pOut++ = out1;
+
+            /*
+             * in         { x0  x1  x2  x3 }
+             *                    x
+             * b0Coeffs   { b2  b1  b0  0  }
+             */
+            acc = vrmlaldavhq(b0Coeffs, inVec0);
+            /*
+             * out         { 0   0   yn2 yn1 }
+             *                    x
+             * a0Coeffs    { 0   0   a2  a1  }
+             */
+            acc = vrmlaldavhaq(acc, a0Coeffs, stateVec);
+            acc = lsll(acc, shift);
+            out = (q31_t) ((acc >> 32) & 0xffffffff);
+
+            stateVec[2] = out;
+
+            /*
+             * in         { x0  x1  x2  x3 }
+             *                    x
+             * b0Coeffs   {  0  b2  b1  b0 }
+             */
+            acc = vrmlaldavhq(b1Coeffs, inVec0);
+            /*
+             * out         { 0   0   y0  yn1 }
+             *                    x
+             * a0Coeffs    { 0   0   a1  a2  }
+             */
+            acc = vrmlaldavhaq(acc, a1Coeffs, stateVec);
+            acc = lsll(acc, shift);
+            out1 = (q31_t) ((acc >> 32) & 0xffffffff);
+
+            stateVec[3] = out1;
+
+            inVec0 = vld1q_z(pIn, vctp32q(((blockSize - 2U) & 3U) + 4U));
+            pIn += 2;
+
+            /* unrolled part */
+            *pOut++ = out;
+            *pOut++ = out1;
+
+            acc = vrmlaldavhq(b0Coeffs, inVec0);
+            acc = vrmlaldavhaq(acc, a0Coeffs, stateVec);
+            acc = lsll(acc, shift);
+            out = (q31_t) ((acc >> 32) & 0xffffffff);
+
+            stateVec[2] = out;
+
+            acc = vrmlaldavhq(b1Coeffs, inVec0);
+            acc = vrmlaldavhaq(acc, a1Coeffs, stateVec);
+            acc = lsll(acc, shift);
+            out1 = (q31_t) ((acc >> 32) & 0xffffffff);
+
+            inVec0 = vld1q_z(pIn, vctp32q(((blockSize - 2U) & 3U) + 2U));
+            pIn += 2;
+
+        }
 
         *pOut++ = out;
         *pOut++ = out1;
@@ -310,7 +383,7 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cascade_df1_q31(
 
             stateVec[3] = out1;
 
-            inVec0 = vld1q(pIn);
+            inVec0 = vld1q_z(pIn, vctp32q((blockSize - 2U) & 3U));
             pIn += 2;
 
             *pOut++ = out;
