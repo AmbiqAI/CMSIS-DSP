@@ -184,6 +184,46 @@ compile their predicated `do`/`while` bodies to tail-predicated
 compilers, where the unpredicated load is emitted as written; the runner's
 `O0` and `O1` levels exist for such controls.
 
+## Predicated tail loads, matrix kernels
+
+The Helium matrix kernels below loaded the final partial block of a row,
+column or reflector with an unpredicated whole-vector load or gather and
+applied the tail predicate only to the arithmetic or store that follows, so
+they read up to one vector minus one element past an operand:
+
+- `arm_mat_trans` and `arm_mat_cmplx_trans` (f16, f32, q15, q31), through the
+  tail gathers of the transpose helpers in `Include/arm_helium_utils.h`; the
+  Q15 and Q7 multiplies and `arm_mat_mult_opt_q31` transpose B through them;
+- `arm_mat_cmplx_mult` (f16, f32, q31: A; q15: B), `arm_mat_mult_q31` (A);
+- `arm_mat_mult_opt_q31`, `arm_mat_mult_q15` and `arm_mat_mult_q7` (A and the
+  transposed B in `pState`), whose two-row loop also loaded a whole vector of
+  A ahead of use, past a row shorter than half a vector;
+- the 2 x 2, 3 x 3 and 4 x 4 specializations of these products, which loaded
+  whole A rows beyond the matrix size;
+- `arm_mat_qr_f32` and `arm_mat_qr_f16` (R, Q, the temporaries; f16 also
+  loaded eight Householder coefficients where four are used).
+
+Each final block is now loaded under the predicate that already governs it.
+In the two-row loops the first load of A is predicated by the row length;
+the loads ahead of use inside the loop end within the next row and are
+unchanged. The
+`pState` scratch of `arm_mat_mult_q15`, `arm_mat_mult_q7` and
+`arm_mat_mult_opt_q31` holds the transpose of B, `numRowsB * numColsB`
+elements; the declarations in `Include/dsp/matrix_functions.h` now state it.
+
+`mve_tail_loads_matrix.c` runs each case first with every operand followed by
+readable padding and then once per operand with that operand ending at an
+MPU guard (inputs, outputs and scratch alike); every operand must equal the
+padded run byte for byte, and the padded run is checked against a
+double-precision reference. Transposes of 1 to 17 by 1 to 17; products of
+1 to 5 rows of A by 1 to 17 columns of A by 1 to 5 columns of B, and the
+square sizes 2, 3 and 4; QR of n x n matrices, n = 1 to 12: 3040 cases.
+`run_mve_tail_loads.py --group matrix` builds without `DISABLEFLOAT16` and
+expects `PASS: 3040 MVE matrix tail-load cases`. For the negative control,
+pass an unchanged kernel, or the unchanged `arm_helium_utils.h` for the
+transposes, through `--source`; the run must report
+`FAIL: <kernel> tail access <rows>x<cols>x<cols of B> operand <i>`.
+
 ## CFFT buffer bound (final radix-4 stage)
 
 `mve_cfft_overread.c` checks that the MVE complex FFTs (`arm_cfft_f32`,
