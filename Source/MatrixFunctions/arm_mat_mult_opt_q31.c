@@ -98,8 +98,8 @@ __STATIC_INLINE arm_status arm_mat_mult_opt_q31_2x2_mve(
     vecB = vldrwq_gather_shifted_offset_z_s32(pInB, vecColBOffs, p0);
 
     /* load A rows */
-    vecA0 = vldrwq_s32(pInA0);
-    vecA1 = vldrwq_s32(pInA1);
+    vecA0 = vldrwq_z_s32(pInA0, p0);
+    vecA1 = vldrwq_z_s32(pInA1, p0);
 
     acc0 = vrmlaldavhq(vecA0, vecB);
     acc1 = vrmlaldavhq(vecA1, vecB);
@@ -156,11 +156,11 @@ __STATIC_INLINE arm_status arm_mat_mult_opt_q31_3x3_mve(
 
     vecB = vldrwq_gather_shifted_offset_z_s32(pInB, vecColBOffs, p0);
 
-    vecA = vldrwq_s32(pInA0);
+    vecA = vldrwq_z_s32(pInA0, p0);
     acc0 = vrmlaldavhq(vecA, vecB);
-    vecA = vldrwq_s32(pInA1);
+    vecA = vldrwq_z_s32(pInA1, p0);
     acc1 = vrmlaldavhq(vecA, vecB);
-    vecA = vldrwq_s32(pInA2);
+    vecA = vldrwq_z_s32(pInA2, p0);
     acc2 = vrmlaldavhq(vecA, vecB);
 
     acc0 = asrl(acc0, 23);
@@ -177,11 +177,11 @@ __STATIC_INLINE arm_status arm_mat_mult_opt_q31_3x3_mve(
 
     vecB = vldrwq_gather_shifted_offset_z_s32(pInB, vecColBOffs, p0);
 
-    vecA = vldrwq_s32(pInA0);
+    vecA = vldrwq_z_s32(pInA0, p0);
     acc0 = vrmlaldavhq(vecA, vecB);
-    vecA = vldrwq_s32(pInA1);
+    vecA = vldrwq_z_s32(pInA1, p0);
     acc1 = vrmlaldavhq(vecA, vecB);
-    vecA = vldrwq_s32(pInA2);
+    vecA = vldrwq_z_s32(pInA2, p0);
     acc2 = vrmlaldavhq(vecA, vecB);
 
     acc0 = asrl(acc0, 23);
@@ -198,11 +198,11 @@ __STATIC_INLINE arm_status arm_mat_mult_opt_q31_3x3_mve(
 
     vecB = vldrwq_gather_shifted_offset_z_s32(pInB, vecColBOffs, p0);
 
-    vecA = vldrwq_s32(pInA0);
+    vecA = vldrwq_z_s32(pInA0, p0);
     acc0 = vrmlaldavhq(vecA, vecB);
-    vecA = vldrwq_s32(pInA1);
+    vecA = vldrwq_z_s32(pInA1, p0);
     acc1 = vrmlaldavhq(vecA, vecB);
-    vecA = vldrwq_s32(pInA2);
+    vecA = vldrwq_z_s32(pInA2, p0);
     acc2 = vrmlaldavhq(vecA, vecB);
 
     acc0 = asrl(acc0, 23);
@@ -452,7 +452,9 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_mult_opt_q31(
                 acc3 = 0LL;
 
                 /* load scheduling */
-                vecA = vld1q(pSrcAVec);
+                /* With no full block the first load covers the whole row; the loads
+                 * ahead of use in the loop stay within the next row. */
+                vecA = vld1q_z(pSrcAVec, vctp32q(numColsA));
                 pSrcAVec += 4;
 
                 blkCnt = (numColsA / 4);
@@ -479,13 +481,12 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_mult_opt_q31(
                 blkCnt = (numColsA & 3);
                 if (blkCnt > 0U) {
                     mve_pred16_t    p0 = vctp32q(blkCnt);
-                    vecB = vld1q(pSrcBVec);
+                    vecB = vld1q_z(pSrcBVec, p0);
                     acc0 = vrmlaldavhaq_p(acc0, vecA, vecB, p0);
-                    vecA2 = vld1q(pSrcA2Vec);
+                    vecA2 = vld1q_z(pSrcA2Vec, p0);
                     acc1 = vrmlaldavhaq_p(acc1, vecA2, vecB, p0);
-                    vecB2 = vld1q(pSrcB2Vec);
+                    vecB2 = vld1q_z(pSrcB2Vec, p0);
                     acc2 = vrmlaldavhaq_p(acc2, vecA, vecB2, p0);
-                    vecA = vld1q(pSrcAVec);
                     acc3 = vrmlaldavhaq_p(acc3, vecA2, vecB2, p0);
                 }
 
@@ -562,8 +563,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_mult_opt_q31(
                 blkCnt = (numColsA & 3);
                 if (blkCnt > 0U) {
                     mve_pred16_t    p0 = vctp32q(blkCnt);
-                    vecA = vld1q(pSrcAVec);
-                    vecB = vld1q(pSrcBVec);
+                    vecA = vld1q_z(pSrcAVec, p0);
+                    vecB = vld1q_z(pSrcBVec, p0);
                     acc0 = vrmlaldavhaq_p(acc0, vecA, vecB, p0);
                 }
 
@@ -625,8 +626,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_mult_opt_q31(
                 blkCnt = (numColsA & 3);
                 if (blkCnt > 0U) {
                     mve_pred16_t    p0 = vctp32q(blkCnt);
-                    vecA = vld1q(pSrcAVec);
-                    vecB = vld1q(pSrcBVec);
+                    vecA = vld1q_z(pSrcAVec, p0);
+                    vecB = vld1q_z(pSrcBVec, p0);
                     acc0 = vrmlaldavhaq_p(acc0, vecA, vecB, p0);
                 }
 

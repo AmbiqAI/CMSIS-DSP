@@ -93,8 +93,8 @@ __STATIC_FORCEINLINE arm_status arm_mat_mult_q7_2x2_mve(
 
     vecB = vldrbq_gather_offset_z(pInB, vecColBOffs, p0);
 
-    vecA0 = vldrbq_s8(pInA0);
-    vecA1 = vldrbq_s8(pInA1);
+    vecA0 = vldrbq_z_s8(pInA0, p0);
+    vecA1 = vldrbq_z_s8(pInA1, p0);
 
     acc0 = vmladavq_s8(vecA0, vecB);
     acc1 = vmladavq_s8(vecA1, vecB);
@@ -144,9 +144,9 @@ __STATIC_FORCEINLINE arm_status arm_mat_mult_q7_3x3_mve(
 
     vecB = vldrbq_gather_offset_z(pInB, vecColBOffs, p0);
 
-    vecA0 = vldrbq_s8(pInA0);
-    vecA1 = vldrbq_s8(pInA1);
-    vecA2 = vldrbq_s8(pInA2);
+    vecA0 = vldrbq_z_s8(pInA0, p0);
+    vecA1 = vldrbq_z_s8(pInA1, p0);
+    vecA2 = vldrbq_z_s8(pInA2, p0);
 
     acc0 = vmladavq_s8(vecA0, vecB);
     acc1 = vmladavq_s8(vecA1, vecB);
@@ -214,10 +214,10 @@ __STATIC_FORCEINLINE arm_status arm_mat_mult_q7_4x4_mve(
 
     vecB = vldrbq_gather_offset_z(pInB, vecColBOffs, p0);
 
-    vecA0 = vldrbq_s8(pInA0);
-    vecA1 = vldrbq_s8(pInA1);
-    vecA2 = vldrbq_s8(pInA2);
-    vecA3 = vldrbq_s8(pInA3);
+    vecA0 = vldrbq_z_s8(pInA0, p0);
+    vecA1 = vldrbq_z_s8(pInA1, p0);
+    vecA2 = vldrbq_z_s8(pInA2, p0);
+    vecA3 = vldrbq_z_s8(pInA3, p0);
 
     acc0 = vmladavq_s8(vecA0, vecB);
     acc1 = vmladavq_s8(vecA1, vecB);
@@ -394,7 +394,9 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_mult_q7(
             acc2 = 0L;
             acc3 = 0L;
 
-            vecA = vld1q(pSrcAVec);  
+            /* With no full block the first load covers the whole row; the loads
+             * ahead of use in the loop stay within the next row. */
+            vecA = vld1q_z(pSrcAVec, vctp8q(numColsA));
             pSrcAVec += 16;
 
             blkCnt = numColsA >> 4;
@@ -423,13 +425,12 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_mult_q7(
             if (blkCnt > 0U)
             {
                 mve_pred16_t p0 = vctp8q(blkCnt);
-                vecB = vld1q(pSrcBVec);
+                vecB = vld1q_z(pSrcBVec, p0);
                 acc0 = vmladavaq_p_s8(acc0, vecA, vecB, p0);
-                vecA2 = vld1q(pSrcA2Vec);
+                vecA2 = vld1q_z(pSrcA2Vec, p0);
                 acc1 = vmladavaq_p_s8(acc1, vecA2, vecB, p0);
-                vecB2 = vld1q(pSrcB2Vec);
+                vecB2 = vld1q_z(pSrcB2Vec, p0);
                 acc2 = vmladavaq_p_s8(acc2, vecA, vecB2, p0);
-                vecA = vld1q(pSrcAVec);
                 acc3 = vmladavaq_p_s8(acc3, vecA2, vecB2, p0);
             }
 
@@ -502,8 +503,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_mult_q7(
             if (blkCnt > 0U)
             {
                 mve_pred16_t p0 = vctp8q(blkCnt);
-                vecA = vld1q(pSrcAVec);
-                vecB = vld1q(pSrcBVec);
+                vecA = vld1q_z(pSrcAVec, p0);
+                vecB = vld1q_z(pSrcBVec, p0);
                 acc0 = vmladavaq_p_s8(acc0, vecA, vecB, p0);
             }
 
@@ -568,8 +569,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_mult_q7(
             if (blkCnt > 0U)
             {
                 mve_pred16_t p0 = vctp8q(blkCnt);
-                vecA = vld1q(pSrcAVec);
-                vecB = vld1q(pSrcBVec);
+                vecA = vld1q_z(pSrcAVec, p0);
+                vecB = vld1q_z(pSrcBVec, p0);
                 acc0 = vmladavaq_p_s8(acc0, vecA, vecB, p0);
             }
 

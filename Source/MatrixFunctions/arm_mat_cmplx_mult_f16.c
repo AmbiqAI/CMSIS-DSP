@@ -164,9 +164,9 @@ __STATIC_FORCEINLINE arm_status arm_mat_cmplx_mult_f16_3x3_mve(
 
     pInB = (float16_t const *)pSrcB->pData;
 
-    vecA0 = vldrhq_f16(pInA0);
-    vecA1 = vldrhq_f16(pInA1);
-    vecA2 = vldrhq_f16(pInA2);
+    vecA0 = vldrhq_z_f16(pInA0, p0);
+    vecA1 = vldrhq_z_f16(pInA1, p0);
+    vecA2 = vldrhq_z_f16(pInA2, p0);
 
     vecB = vldrhq_gather_shifted_offset_z(pInB, vecColBOffs0, p0);
 
@@ -544,19 +544,19 @@ if ((pSrcA->numCols != pSrcB->numRows) ||
                  */
                 vecOffs = vaddq_n_u16(vecOffs, (uint16_t) (numColsB * 4 * CMPLX_DIM));
 
-                vecA = vld1q(pSrcA0Vec);
+                vecA = vld1q_z(pSrcA0Vec, p0);
                 acc0 = vcmlaq(acc0, vecA, vecB);
                 acc0 = vcmlaq_rot90(acc0, vecA, vecB);
 
-                vecA = vld1q(pSrcA1Vec);
+                vecA = vld1q_z(pSrcA1Vec, p0);
                 acc1 = vcmlaq(acc1, vecA, vecB);
                 acc1 = vcmlaq_rot90(acc1, vecA, vecB);
 
-                vecA = vld1q(pSrcA2Vec);
+                vecA = vld1q_z(pSrcA2Vec, p0);
                 acc2 = vcmlaq(acc2, vecA, vecB);
                 acc2 = vcmlaq_rot90(acc2, vecA, vecB);
 
-                vecA = vld1q(pSrcA3Vec);
+                vecA = vld1q_z(pSrcA3Vec, p0);
                 acc3 = vcmlaq(acc3, vecA, vecB);
                 acc3 = vcmlaq_rot90(acc3, vecA, vecB);
 
@@ -664,7 +664,7 @@ if ((pSrcA->numCols != pSrcB->numRows) ||
 
                 vecB = vldrhq_gather_shifted_offset_z(pInB, vecOffs, p0);
                
-                vecA = vld1q(pSrcA0Vec);
+                vecA = vld1q_z(pSrcA0Vec, p0);
                 acc0 = vcmlaq(acc0, vecA, vecB);
                 acc0 = vcmlaq_rot90(acc0, vecA, vecB);
 

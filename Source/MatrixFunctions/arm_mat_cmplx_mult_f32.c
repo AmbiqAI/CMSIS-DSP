@@ -181,15 +181,15 @@ __STATIC_INLINE arm_status arm_mat_cmplx_mult_f32_3x3_mve(
 
     vecB = vldrwq_gather_shifted_offset_z(pInB, vecColBOffs1, p0);
 
-    vecA = vldrwq_f32(&pInA0[4]);
+    vecA = vldrwq_z_f32(&pInA0[4], p0);
     acc0 = vcmlaq(acc0, vecA, vecB);
     acc0 = vcmlaq_rot90(acc0, vecA, vecB);
 
-    vecA = vldrwq_f32(&pInA1[4]);
+    vecA = vldrwq_z_f32(&pInA1[4], p0);
     acc1 = vcmlaq(acc1, vecA, vecB);
     acc1 = vcmlaq_rot90(acc1, vecA, vecB);
 
-    vecA = vldrwq_f32(&pInA2[4]);
+    vecA = vldrwq_z_f32(&pInA2[4], p0);
     acc2 = vcmlaq(acc2, vecA, vecB);
     acc2 = vcmlaq_rot90(acc2, vecA, vecB);
 
@@ -223,15 +223,15 @@ __STATIC_INLINE arm_status arm_mat_cmplx_mult_f32_3x3_mve(
 
      vecB = vldrwq_gather_shifted_offset_z(pInB, vecColBOffs1, p0);
 
-    vecA = vldrwq_f32(&pInA0[4]);
+    vecA = vldrwq_z_f32(&pInA0[4], p0);
     acc0 = vcmlaq(acc0, vecA, vecB);
     acc0 = vcmlaq_rot90(acc0, vecA, vecB);
 
-    vecA = vldrwq_f32(&pInA1[4]);
+    vecA = vldrwq_z_f32(&pInA1[4], p0);
     acc1 = vcmlaq(acc1, vecA, vecB);
     acc1 = vcmlaq_rot90(acc1, vecA, vecB);
 
-    vecA = vldrwq_f32(&pInA2[4]);
+    vecA = vldrwq_z_f32(&pInA2[4], p0);
     acc2 = vcmlaq(acc2, vecA, vecB);
     acc2 = vcmlaq_rot90(acc2, vecA, vecB);
 
@@ -265,15 +265,15 @@ __STATIC_INLINE arm_status arm_mat_cmplx_mult_f32_3x3_mve(
 
      vecB = vldrwq_gather_shifted_offset_z(pInB, vecColBOffs1, p0);
 
-    vecA = vldrwq_f32(&pInA0[4]);
+    vecA = vldrwq_z_f32(&pInA0[4], p0);
     acc0 = vcmlaq(acc0, vecA, vecB);
     acc0 = vcmlaq_rot90(acc0, vecA, vecB);
 
-    vecA = vldrwq_f32(&pInA1[4]);
+    vecA = vldrwq_z_f32(&pInA1[4], p0);
     acc1 = vcmlaq(acc1, vecA, vecB);
     acc1 = vcmlaq_rot90(acc1, vecA, vecB);
 
-    vecA = vldrwq_f32(&pInA2[4]);
+    vecA = vldrwq_z_f32(&pInA2[4], p0);
     acc2 = vcmlaq(acc2, vecA, vecB);
     acc2 = vcmlaq_rot90(acc2, vecA, vecB);
 
@@ -681,16 +681,16 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_cmplx_mult_f32(
                  */
                 vecOffs = vecOffs + (uint32_t) (numColsB * 2 * CMPLX_DIM);
 
-                vecA = vld1q(pSrcA0Vec);
+                vecA = vld1q_z(pSrcA0Vec, p0);
                 acc0 = vcmlaq(acc0, vecA, vecB);
                 acc0 = vcmlaq_rot90(acc0, vecA, vecB);
-                vecA = vld1q(pSrcA1Vec);
+                vecA = vld1q_z(pSrcA1Vec, p0);
                 acc1 = vcmlaq(acc1, vecA, vecB);
                 acc1 = vcmlaq_rot90(acc1, vecA, vecB);
-                vecA = vld1q(pSrcA2Vec);
+                vecA = vld1q_z(pSrcA2Vec, p0);
                 acc2 = vcmlaq(acc2, vecA, vecB);
                 acc2 = vcmlaq_rot90(acc2, vecA, vecB);
-                vecA = vld1q(pSrcA3Vec);
+                vecA = vld1q_z(pSrcA3Vec, p0);
                 acc3 = vcmlaq(acc3, vecA, vecB);
                 acc3 = vcmlaq_rot90(acc3, vecA, vecB);
 
@@ -800,7 +800,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_cmplx_mult_f32(
 
                 vecB = vldrwq_gather_shifted_offset_z(pInB, vecOffs, p0);
                
-                vecA = vld1q(pSrcA0Vec);
+                vecA = vld1q_z(pSrcA0Vec, p0);
                 acc0 = vcmlaq(acc0, vecA, vecB);
                 acc0 = vcmlaq_rot90(acc0, vecA, vecB);
 
