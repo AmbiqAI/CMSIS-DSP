@@ -276,3 +276,27 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## Predicated tail loads, SVM and Bayes kernels
+
+The MVE `arm_svm_polynomial_predict`, `arm_svm_rbf_predict` and
+`arm_svm_sigmoid_predict` (f32 and f16) loaded a whole vector of dual
+coefficients for their last 1 to 3 support vectors (f32) or last 1, 2 or 4
+(f16) and applied the predicate only to the accumulation, so they read up to
+3 (f32) or 7 (f16) coefficients past the array. `arm_gaussian_naive_bayes_predict`
+(f32 and f16) loaded the last partial block of the input, theta and sigma
+whole and predicated only the accumulations, reading up to 3 (f32) or 7 (f16)
+elements past them. These loads now use the predicate of the accumulation;
+the results are unchanged.
+
+`mve_tail_loads_ml.c` places each operand in turn at the end of an
+MPU-guarded block: the support vectors, dual coefficients and input of the
+three SVMs (1 to 9 support vectors by dimension 1 to 17) and the input,
+theta, sigma and class priors of the Bayes predictor (1 to 5 classes by
+dimension 1 to 17), f32 and f16. Each guarded call must give the result of a
+call on padded operands (the SVM class; the Bayes class index and every
+class probability, bit for bit), which is also checked against a
+double-precision reference where the decision is clear: 616 cases.
+`run_mve_tail_loads.py --group ml` builds it without `DISABLEFLOAT16`; the
+negative control through `--source` must report
+`FAIL: <kernel> tail access`. The `nan` control does not apply to this group.
