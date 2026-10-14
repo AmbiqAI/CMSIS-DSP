@@ -60,6 +60,66 @@
 
 #if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
 
+/*
+ * Blocks of 0 to 3 samples: the main kernel computes four outputs before its
+ * loop. Each output here is the same dot product and rounding shift as in
+ * the main kernel, so a signal processed in short blocks gives the same
+ * output as in longer ones.
+ */
+__attribute__((noinline)) static void arm_biquad_cascade_df1_short_q15(
+  const arm_biquad_casd_df1_inst_q15 * S,
+  const q15_t * pSrc,
+        q15_t * pDst,
+        uint32_t blockSize)
+{
+    const q15_t    *pIn = pSrc;
+    q15_t          *pState = S->pState;
+    const q15_t    *pCoeffs = S->pCoeffs;
+    uint32_t        stages = S->numStages;
+    int             shift = (15 - S->postShift) - 32;
+
+    do {
+        /* { b2  b1  b0  0  0  0  a2  a1 } and { x[n-2]  x[n-1]  x[n]  0  0  0  y[n-2]  y[n-1] } */
+        q15x8_t         coeffs = vdupq_n_s16(0);
+        q15x8_t         inVec = vdupq_n_s16(0);
+
+        coeffs[0] = pCoeffs[3];
+        coeffs[1] = pCoeffs[2];
+        coeffs[2] = pCoeffs[0];
+        coeffs[6] = pCoeffs[5];
+        coeffs[7] = pCoeffs[4];
+        inVec[0] = pState[1];
+        inVec[1] = pState[0];
+        inVec[6] = pState[3];
+        inVec[7] = pState[2];
+
+        for (uint32_t n = 0; n < blockSize; n++) {
+            int64_t         acc;
+            q31_t           out;
+
+            inVec[2] = pIn[n];
+            acc = vmlaldavq(coeffs, inVec);
+            acc = sqrshrl_sat48(acc, shift);
+            out = (q31_t) ((acc >> 32) & 0xffffffff);
+            pDst[n] = (q15_t) out;
+            inVec[0] = inVec[1];
+            inVec[1] = inVec[2];
+            inVec[6] = inVec[7];
+            inVec[7] = (q15_t) out;
+        }
+
+        pState[0] = inVec[1];
+        pState[1] = inVec[0];
+        pState[2] = inVec[7];
+        pState[3] = inVec[6];
+        pState += 4;
+        pCoeffs += 6;
+        /* Later stages run in place in the output buffer. */
+        pIn = pDst;
+    }
+    while (--stages);
+}
+
 ARM_DSP_ATTRIBUTE void arm_biquad_cascade_df1_q15(
   const arm_biquad_casd_df1_inst_q15 * S,
   const q15_t * pSrc,
@@ -77,6 +137,11 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cascade_df1_q15(
     int64_t         acc;
     const q15_t     *pCoeffs = S->pCoeffs;       /*  coeff pointer initialization  */
     q31_t           out, out1;
+
+    if (blockSize < 4U) {
+        arm_biquad_cascade_df1_short_q15(S, pSrc, pDst, blockSize);
+        return;
+    }
 
     shift = (15 - postShift) - 32;
 

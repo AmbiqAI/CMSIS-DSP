@@ -59,6 +59,69 @@
  */
 #if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
 
+/*
+ * Blocks of 0 or 1 sample: the main kernel computes two outputs before its loop.
+ * Each output here is the same pair of rounding multiply-accumulates and
+ * shift as in the main kernel, so a signal processed in such blocks gives the
+ * same output as in longer ones.
+ */
+__attribute__((noinline)) static void arm_biquad_cascade_df1_short_q31(
+  const arm_biquad_casd_df1_inst_q31 * S,
+  const q31_t * pSrc,
+        q31_t * pDst,
+        uint32_t blockSize)
+{
+    const q31_t    *pIn = pSrc;
+    q31_t          *pState = S->pState;
+    const q31_t    *pCoeffs = S->pCoeffs;
+    uint32_t        stages = S->numStages;
+    int             shift = (S->postShift + 1 + 8);
+
+    do {
+        /* { b2  b1  b0  0 } x { x[n-2]  x[n-1]  x[n]  0 } and { 0  0  a2  a1 } x { 0  0  y[n-2]  y[n-1] } */
+        q31x4_t         bCoeffs = vdupq_n_s32(0);
+        q31x4_t         aCoeffs = vdupq_n_s32(0);
+        q31x4_t         inVec = vdupq_n_s32(0);
+        q31x4_t         stateVec = vdupq_n_s32(0);
+
+        bCoeffs[0] = pCoeffs[2];
+        bCoeffs[1] = pCoeffs[1];
+        bCoeffs[2] = pCoeffs[0];
+        aCoeffs[2] = pCoeffs[4];
+        aCoeffs[3] = pCoeffs[3];
+        inVec[0] = pState[1];
+        inVec[1] = pState[0];
+        stateVec[2] = pState[3];
+        stateVec[3] = pState[2];
+
+        for (uint32_t n = 0; n < blockSize; n++) {
+            int64_t         acc;
+            q31_t           out;
+
+            inVec[2] = pIn[n];
+            acc = vrmlaldavhq(bCoeffs, inVec);
+            acc = vrmlaldavhaq(acc, aCoeffs, stateVec);
+            acc = lsll(acc, shift);
+            out = (q31_t) ((acc >> 32) & 0xffffffff);
+            pDst[n] = out;
+            inVec[0] = inVec[1];
+            inVec[1] = inVec[2];
+            stateVec[2] = stateVec[3];
+            stateVec[3] = out;
+        }
+
+        pState[0] = inVec[1];
+        pState[1] = inVec[0];
+        pState[2] = stateVec[3];
+        pState[3] = stateVec[2];
+        pState += 4;
+        pCoeffs += 5;
+        /* Later stages run in place in the output buffer. */
+        pIn = pDst;
+    }
+    while (--stages);
+}
+
 ARM_DSP_ATTRIBUTE void arm_biquad_cascade_df1_q31(
   const arm_biquad_casd_df1_inst_q31 * S,
   const q31_t * pSrc,
@@ -78,6 +141,11 @@ ARM_DSP_ATTRIBUTE void arm_biquad_cascade_df1_q31(
     const q31_t          *pCoeffs = S->pCoeffs;       /*  coeff pointer initialization  */
     q31_t           out, out1;
 
+
+    if (blockSize < 2U) {
+        arm_biquad_cascade_df1_short_q31(S, pSrc, pDst, blockSize);
+        return;
+    }
 
     shift = (postShift + 1 + 8);
 
