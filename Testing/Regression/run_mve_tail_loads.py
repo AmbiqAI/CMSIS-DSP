@@ -8,7 +8,8 @@ links with an Arm GNU toolchain, so that one runner serves both compiler
 families. A group is available when its test file mve_tail_loads_<group>.c
 is present next to this runner; the groups arrive in separate pull requests. For the negative control, pass unmodified upstream copies of one
 or more kernels through --source; each replaces the checkout's file of the
-same name.
+same name. A group's listed headers (the matrix group's arm_helium_utils.h)
+can be replaced the same way.
 """
 import argparse
 import os
@@ -96,6 +97,27 @@ GROUPS = {
             'SupportFunctions/arm_float_to_f16.c',
         ],
     },
+    'matrix': {
+        'test': 'mve_tail_loads_matrix.c',
+        'expected': 'PASS: 3040 MVE matrix tail-load cases',
+        'defines': [],
+        'headers': ['arm_helium_utils.h'],
+        'sources': [
+            'BasicMathFunctions/arm_dot_prod_f16.c', 'BasicMathFunctions/arm_dot_prod_f32.c',
+            'BasicMathFunctions/arm_scale_f16.c', 'BasicMathFunctions/arm_scale_f32.c',
+            'MatrixFunctions/arm_householder_f16.c', 'MatrixFunctions/arm_householder_f32.c',
+            'MatrixFunctions/arm_mat_cmplx_mult_f16.c', 'MatrixFunctions/arm_mat_cmplx_mult_f32.c',
+            'MatrixFunctions/arm_mat_cmplx_mult_q15.c', 'MatrixFunctions/arm_mat_cmplx_mult_q31.c',
+            'MatrixFunctions/arm_mat_cmplx_trans_f16.c', 'MatrixFunctions/arm_mat_cmplx_trans_f32.c',
+            'MatrixFunctions/arm_mat_cmplx_trans_q15.c', 'MatrixFunctions/arm_mat_cmplx_trans_q31.c',
+            'MatrixFunctions/arm_mat_mult_opt_q31.c', 'MatrixFunctions/arm_mat_mult_q15.c',
+            'MatrixFunctions/arm_mat_mult_q31.c', 'MatrixFunctions/arm_mat_mult_q7.c',
+            'MatrixFunctions/arm_mat_qr_f16.c', 'MatrixFunctions/arm_mat_qr_f32.c',
+            'MatrixFunctions/arm_mat_trans_f16.c', 'MatrixFunctions/arm_mat_trans_f32.c',
+            'MatrixFunctions/arm_mat_trans_q15.c', 'MatrixFunctions/arm_mat_trans_q31.c',
+            'MatrixFunctions/arm_mat_trans_q7.c',
+        ],
+    },
 }
 
 here = Path(__file__).resolve().parent
@@ -127,10 +149,16 @@ build = args.build_dir.resolve()
 build.mkdir(parents=True, exist_ok=True)
 device = args.cortex_dfp.resolve() / 'Device/ARMCM55'
 replacements = {s.name: s.resolve() for s in args.source}
-unknown = set(replacements) - {Path(s).name for s in group['sources']}
+unknown = set(replacements) - {Path(s).name for s in group['sources']} - set(group.get('headers', []))
 if unknown:
     parser.error(f'--source names not in group {args.group}: {sorted(unknown)}')
 sources = [replacements.get(Path(s).name, repo / 'Source' / s) for s in group['sources']]
+# A replaced header is found first through an include directory of its own.
+header_dir = build / 'replaced-headers'
+header_dir.mkdir(exist_ok=True)
+for name in group.get('headers', []):
+    if name in replacements:
+        (header_dir / name).write_bytes(replacements[name].read_bytes())
 sources += [here / group['test'], here / 'corstone300_console.c']
 is_clang = 'clang' in Path(args.compiler).name
 cflags = ['-mcpu=cortex-m55', '-mthumb', '-mfloat-abi=hard', f'-{args.opt}', '-ffast-math',
@@ -140,7 +168,7 @@ if args.control:
 cflags += group['defines']
 if is_clang:
     cflags = ['--target=arm-none-eabihf'] + cflags
-for include in [repo / 'Include', repo / 'PrivateInclude', args.cmsis_core / 'Include', device / 'Include']:
+for include in [header_dir, repo / 'Include', repo / 'PrivateInclude', args.cmsis_core / 'Include', device / 'Include']:
     cflags += ['-I' + str(include.resolve())]
 objects = []
 for source in sources:
