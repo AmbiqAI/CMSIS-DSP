@@ -5,7 +5,10 @@
  * buffers end at an MPU-inaccessible region. Each kernel's final partial
  * block is loaded with the tail predicate, so a block of n elements reads
  * exactly n elements from every source. Covers the 45 fixed-point kernels of
- * the predicated tail-load change at block sizes 1 to two full vectors.
+ * the predicated tail-load change at block sizes 1 to two full vectors, and
+ * arm_absmin, arm_absmin_no_idx, arm_min_no_idx and arm_max_no_idx (q7, q15,
+ * q31) at the same sizes and, for q7, at 255, 256, 257 and 300 elements (the
+ * block path above 256 elements of arm_absmin_q7).
  *
  * Each case runs the kernel twice: on sources followed by readable nonzero
  * padding and on the same sources ending at the guards. The outputs must be
@@ -220,6 +223,39 @@ static double saturate(double x, double limit)
             ++cases;                                                           \
         }
 
+/* Statistics kernels: one value (and, for arm_absmin_T, an index) from n
+ * elements, for n = 1..NMAX and the NEXTRA lengths in EXTRA. The index must
+ * point to an element with the returned absolute value; which of several
+ * equal minima it names is not checked. */
+#define STATS_CASES(T, NAME, UNIT, NMAX, EXTRA, NEXTRA, CALL, REF, WITH_INDEX)   \
+    for (unsigned j = 0; j < (NMAX) + (NEXTRA); ++j)                           \
+    {                                                                          \
+        unsigned n = j < (NMAX) ? j + 1U : (EXTRA)[j - (NMAX)];                \
+        FILL_SOURCES(T, UNIT, n)                                               \
+        T *rp = (T *)out_plain + 1, *rg = (T *)out_guarded + 1;                \
+        uint32_t ip = 0, ig = 0;                                               \
+        current_name = NAME;                                                   \
+        current_n = n;                                                         \
+        clear_outputs();                                                       \
+        CALL(pa, n, rp, &ip);                                                  \
+        protect_guards();                                                      \
+        CALL(a, n, rg, &ig);                                                   \
+        unguard_buffers();                                                     \
+        if (check_outputs(sizeof(T), 1))                                       \
+            return 1;                                                          \
+        if (check_near((double)*rg, (REF), 0.0, 0))                            \
+            return 1;                                                          \
+        if ((WITH_INDEX) && (ig != ip || ig >= n || fabs((double)a[ig]) != (double)*rg)) \
+        {                                                                      \
+            printf("FAIL: %s index n=%u\n", NAME, n);                          \
+            return 1;                                                          \
+        }                                                                      \
+        ++cases;                                                               \
+    }
+
+static const unsigned no_extra[1] = {0};
+static const unsigned q7_extra[] = {255, 256, 257, 300};
+
 /* Kernel adapters, so the case macros can take a uniform call shape. */
 #define CALL_abs(T, TAG) static void call_abs_##T(const T *x, const T *y, T *d) { (void)y; arm_abs_##TAG(x, d, current_n); }
 #define CALL_negate(T, TAG) static void call_negate_##T(const T *x, const T *y, T *d) { (void)y; arm_negate_##TAG(x, d, current_n); }
@@ -253,6 +289,24 @@ static double mse_ref_##T(const T *x, const T *y, unsigned n)                  \
         s += d * d;                                                            \
     }                                                                          \
     return s / (double)n;                                                      \
+}                                                                              \
+static double absmin_ref_##T(const T *x, unsigned n)                       \
+{                                                                              \
+    double m = fabs((double)x[0]);                                             \
+    for (unsigned i = 1; i < n; ++i) if (fabs((double)x[i]) < m) m = fabs((double)x[i]); \
+    return m;                                                                  \
+}                                                                              \
+static double min_ref_##T(const T *x, unsigned n)                              \
+{                                                                              \
+    double m = (double)x[0];                                                   \
+    for (unsigned i = 1; i < n; ++i) if ((double)x[i] < m) m = (double)x[i];   \
+    return m;                                                                  \
+}                                                                              \
+static double max_ref_##T(const T *x, unsigned n)                              \
+{                                                                              \
+    double m = (double)x[0];                                                   \
+    for (unsigned i = 1; i < n; ++i) if ((double)x[i] > m) m = (double)x[i];   \
+    return m;                                                                  \
 }
 DEFINE_REFS(q7_t)
 DEFINE_REFS(q15_t)
@@ -260,11 +314,15 @@ DEFINE_REFS(q31_t)
 
 /* Signed types: LIMIT is the positive saturation value, UNIT the data step,
  * NMAX two full vectors, SCALE_DIV the divisor of arm_scale_T's product. */
-#define DEFINE_SIGNED(T, TAG, LIMIT, UNIT, NMAX, SCALE_DIV, DOT_T, DOT_DIV)     \
+#define DEFINE_SIGNED(T, TAG, LIMIT, UNIT, NMAX, SCALE_DIV, DOT_T, DOT_DIV, EXTRA, NEXTRA) \
 CALL_abs(T, TAG) CALL_negate(T, TAG) CALL_offset(T, TAG, 3 * (UNIT)) CALL_scale(T, TAG, (LIMIT) / 2 + 1) \
 CALL_shift(T, TAG) CALL_add(T, TAG) CALL_sub(T, TAG) CALL_mult(T, TAG)          \
 static void call_dot_##T(const T *x, const T *y, unsigned n, DOT_T *r) { arm_dot_prod_##TAG(x, y, n, r); } \
 static void call_mse_##T(const T *x, const T *y, unsigned n, T *r) { arm_mse_##TAG(x, y, n, r); } \
+static void call_absmin_##T(const T *x, unsigned n, T *r, uint32_t *i) { arm_absmin_##TAG(x, n, r, i); } \
+static void call_absmin_no_idx_##T(const T *x, unsigned n, T *r, uint32_t *i) { (void)i; arm_absmin_no_idx_##TAG(x, n, r); } \
+static void call_min_no_idx_##T(const T *x, unsigned n, T *r, uint32_t *i) { (void)i; arm_min_no_idx_##TAG(x, n, r); } \
+static void call_max_no_idx_##T(const T *x, unsigned n, T *r, uint32_t *i) { (void)i; arm_max_no_idx_##TAG(x, n, r); } \
 static int run_##T(void)                                                       \
 {                                                                              \
     const double limit = (double)(LIMIT);                                      \
@@ -282,6 +340,10 @@ static int run_##T(void)                                                       \
                     dot_ref_##T(a, b, n) / (DOT_DIV), (double)n + 2.0)       \
     REDUCTION_CASES(T, T, "arm_mse_" #TAG, UNIT, NMAX, call_mse_##T,             \
                     mse_ref_##T(a, b, n) * 4.0 / (limit + 1.0), 4.0)               \
+    STATS_CASES(T, "arm_absmin_" #TAG, UNIT, NMAX, EXTRA, NEXTRA, call_absmin_##T, absmin_ref_##T(a, n), 1) \
+    STATS_CASES(T, "arm_absmin_no_idx_" #TAG, UNIT, NMAX, EXTRA, NEXTRA, call_absmin_no_idx_##T, absmin_ref_##T(a, n), 0) \
+    STATS_CASES(T, "arm_min_no_idx_" #TAG, UNIT, NMAX, EXTRA, NEXTRA, call_min_no_idx_##T, min_ref_##T(a, n), 0) \
+    STATS_CASES(T, "arm_max_no_idx_" #TAG, UNIT, NMAX, EXTRA, NEXTRA, call_max_no_idx_##T, max_ref_##T(a, n), 0) \
     return 0;                                                                  \
 }
 
@@ -289,9 +351,9 @@ static int run_##T(void)                                                       \
 /* Element types: q7 16 lanes, q15 8, q31 4; two full vectors each.
  * arm_scale_T scales by fract / 2^BITS and shifts left by shift (q31: >> 32, << shift + 1).
  * arm_dot_prod_q7/q15 accumulate the raw products; arm_dot_prod_q31 shifts each by 14. */
-DEFINE_SIGNED(q7_t, q7, 127, 8, 32, 128.0, q31_t, 1.0)
-DEFINE_SIGNED(q15_t, q15, 32767, 2048, 16, 32768.0, q63_t, 1.0)
-DEFINE_SIGNED(q31_t, q31, 2147483647, 134217728, 8, 2147483648.0, q63_t, 16384.0)
+DEFINE_SIGNED(q7_t, q7, 127, 8, 32, 128.0, q31_t, 1.0, q7_extra, 4U)
+DEFINE_SIGNED(q15_t, q15, 32767, 2048, 16, 32768.0, q63_t, 1.0, no_extra, 0U)
+DEFINE_SIGNED(q31_t, q31, 2147483647, 134217728, 8, 2147483648.0, q63_t, 16384.0, no_extra, 0U)
 
 /* Bitwise kernels, exact comparison with the reference expression. */
 #define DEFINE_BITWISE(T, TAG, NMAX)                                           \

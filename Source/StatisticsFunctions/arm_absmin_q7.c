@@ -104,11 +104,11 @@ static void arm_small_blk_absmin_q7(
     blkCnt = blockSize & 0xF;
     if (blkCnt > 0U)
     {
-        vecSrc = vld1q(pSrcVec); 
+        p0 = vctp8q(blkCnt);
+        vecSrc = vld1q_z(pSrcVec, p0);
         pSrcVec += 16;
         vecSrc = vabsq(vecSrc);
 
-        p0 = vctp8q(blkCnt);
         /*
          * Get current min per lane and current index per lane
          * when a min is selected
