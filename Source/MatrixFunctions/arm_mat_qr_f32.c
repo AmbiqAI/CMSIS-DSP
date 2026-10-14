@@ -217,7 +217,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f32(
       if (blkCnt > 0)
       {
           mve_pred16_t p0 = vctp32q(blkCnt);
-          v1 = vld1q_f32(pa);
+          v1 = vld1q_z_f32(pa, p0);
           v2 = vmulq_n_f32(v1,temp);
           vst1q_p_f32(pdst,v2,p0);
 
@@ -271,18 +271,18 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f32(
           {
               mve_pred16_t p0 = vctp32q(blkCnt2);
 
-              v1 = vld1q_f32(pdst);
+              v1 = vld1q_z_f32(pdst, p0);
 
-              v2 = vld1q_f32(pa0);
+              v2 = vld1q_z_f32(pa0, p0);
               v1 = vfmaq_n_f32(v1,v2,vgetq_lane(vtemp,0));
 
-              v2 = vld1q_f32(pa1);
+              v2 = vld1q_z_f32(pa1, p0);
               v1 = vfmaq_n_f32(v1,v2,vgetq_lane(vtemp,1));
 
-              v2 = vld1q_f32(pa2);
+              v2 = vld1q_z_f32(pa2, p0);
               v1 = vfmaq_n_f32(v1,v2,vgetq_lane(vtemp,2));
 
-              v2 = vld1q_f32(pa3);
+              v2 = vld1q_z_f32(pa3, p0);
               v1 = vfmaq_n_f32(v1,v2,vgetq_lane(vtemp,3));
 
               vst1q_p_f32(pdst,v1,p0);
@@ -323,8 +323,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f32(
           if (blkCnt2 > 0)
           {
               mve_pred16_t p0 = vctp32q(blkCnt2);
-              v1 = vld1q_f32(pa);
-              v2 = vld1q_f32(pdst);
+              v1 = vld1q_z_f32(pa, p0);
+              v2 = vld1q_z_f32(pdst, p0);
               v2 = vfmaq_n_f32(v2,v1,temp);
               vst1q_p_f32(pdst,v2,p0);
 
@@ -361,8 +361,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f32(
         {
             mve_pred16_t p0 = vctp32q(blkCnt2);
 
-            v1 = vld1q_f32(pa);
-            v2 = vld1q_f32(ptemp);
+            v1 = vld1q_z_f32(pa, p0);
+            v2 = vld1q_z_f32(ptemp, p0);
             v1 = vfmaq_n_f32(v1,v2,f);
             vst1q_p_f32(pa,v1,p0);
 
@@ -438,7 +438,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f32(
        {
            mve_pred16_t p0 = vctp32q(blkCnt2);
 
-           v1 = vld1q_f32(pa);
+           v1 = vld1q_z_f32(pa, p0);
            v1 = vmulq_n_f32(v1, temp);
            vst1q_p_f32(pdst,v1,p0);
 
@@ -492,18 +492,18 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f32(
            {
                mve_pred16_t p0 = vctp32q(blkCnt2);
 
-               v1 = vld1q_f32(pdst);
+               v1 = vld1q_z_f32(pdst, p0);
 
-               v2 = vld1q_f32(pa0);
+               v2 = vld1q_z_f32(pa0, p0);
                v1 = vfmaq_n_f32(v1, v2, vgetq_lane(vtemp,0));
 
-               v2 = vld1q_f32(pa1);
+               v2 = vld1q_z_f32(pa1, p0);
                v1 = vfmaq_n_f32(v1, v2, vgetq_lane(vtemp,1));
 
-               v2 = vld1q_f32(pa2);
+               v2 = vld1q_z_f32(pa2, p0);
                v1 = vfmaq_n_f32(v1, v2, vgetq_lane(vtemp,2));
 
-               v2 = vld1q_f32(pa3);
+               v2 = vld1q_z_f32(pa3, p0);
                v1 = vfmaq_n_f32(v1, v2, vgetq_lane(vtemp,3));
 
                vst1q_p_f32(pdst,v1,p0);
@@ -546,8 +546,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f32(
            if (blkCnt2 > 0)
            {
                mve_pred16_t p0 = vctp32q(blkCnt2);
-               v1 = vld1q_f32(pdst);
-               v2 = vld1q_f32(pa);
+               v1 = vld1q_z_f32(pdst, p0);
+               v2 = vld1q_z_f32(pa, p0);
                v1 = vfmaq_n_f32(v1, v2, temp);
                vst1q_p_f32(pdst,v1,p0);
 
@@ -584,8 +584,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f32(
            {
                mve_pred16_t p0 = vctp32q(blkCnt2);
 
-               v1 = vld1q_f32(pa);
-               v2 = vld1q_f32(ptemp);
+               v1 = vld1q_z_f32(pa, p0);
+               v2 = vld1q_z_f32(ptemp, p0);
                v1 = vfmaq_n_f32(v1,v2,f);
                vst1q_p_f32(pa,v1,p0);
 
