@@ -451,6 +451,39 @@ __attribute__((noinline)) static void arm_fir_q31_29_32_tail_mve(
     }
 }
 
+/*
+ * Last group of four outputs of the second pass of arm_fir_q31_29_32_mve:
+ * the last tap vector is loaded for the real taps only, so that no sample
+ * past the state is read when numTaps is below 32. Kept out of line so that
+ * the kernel's loops compile as before.
+ */
+__attribute__((noinline)) static void arm_fir_q31_29_32_last_mve(
+    const q31_t * pCoeffs,
+    const q31_t * pSamples,
+    const q63_t * pAccu,
+    q31_t * pOutput,
+    uint32_t numTaps)
+{
+    mve_pred16_t    pTaps = vctp32q(numTaps - 28);
+    q31x4_t         vecCoeffs = vld1q(pCoeffs + 4 * 7);
+    q31x4_t         vecIn0;
+    q63_t           acc0 = pAccu[0], acc1 = pAccu[1], acc2 = pAccu[2], acc3 = pAccu[3];
+
+    vecIn0 = vldrwq_z_s32(&pSamples[0], pTaps);
+    acc0 = vrmlaldavhaq(acc0, vecIn0, vecCoeffs);
+    vecIn0 = vldrwq_z_s32(&pSamples[1], pTaps);
+    acc1 = vrmlaldavhaq(acc1, vecIn0, vecCoeffs);
+    vecIn0 = vldrwq_z_s32(&pSamples[2], pTaps);
+    acc2 = vrmlaldavhaq(acc2, vecIn0, vecCoeffs);
+    vecIn0 = vldrwq_z_s32(&pSamples[3], pTaps);
+    acc3 = vrmlaldavhaq(acc3, vecIn0, vecCoeffs);
+
+    pOutput[0] = asrl(acc0, 23);
+    pOutput[1] = asrl(acc1, 23);
+    pOutput[2] = asrl(acc2, 23);
+    pOutput[3] = asrl(acc3, 23);
+}
+
 __attribute__((noinline)) static void arm_fir_q31_29_32_mve(const arm_fir_instance_q31 * S,
     const q31_t * __restrict pSrc, 
     q31_t * __restrict pDst,
@@ -595,7 +628,12 @@ __attribute__((noinline)) static void arm_fir_q31_29_32_mve(const arm_fir_instan
     pSamples = pState + (MAX_VECT_BATCH * 4);
 
 
-    blkCnt = blockSize >> 2;
+    /*
+     * The last group's padded taps would read past the state when numTaps is
+     * below 32; it runs after the loop with the last tap vector loaded for the
+     * real taps only.
+     */
+    blkCnt = (blockSize >> 2) - 1;
     while (blkCnt > 0) {
         q31x4_t         vecIn0;
 
@@ -629,6 +667,8 @@ __attribute__((noinline)) static void arm_fir_q31_29_32_mve(const arm_fir_instan
          */
         blkCnt--;
     }
+    arm_fir_q31_29_32_last_mve(pCoeffs, pSamples, arm_fir_partial_accu_ptr, pOutput, numTaps);
+    pOutput += 4;
 
     /* Remaining blockSize mod 4 outputs */
     if (blockSize & 3)
