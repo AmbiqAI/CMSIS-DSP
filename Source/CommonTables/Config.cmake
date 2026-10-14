@@ -17,8 +17,9 @@ if (NEON OR NEONEXPERIMENTAL)
     target_sources(CMSISDSP PRIVATE "CommonTables/arm_neon_tables_f16.c")
 endif()
 
-if (HELIUM OR MVEF)
-    target_sources(CMSISDSP PRIVATE "CommonTables/arm_mve_tables.c")
-    target_sources(CMSISDSP PRIVATE "CommonTables/arm_mve_tables_f16.c")
-endif()
+# The Helium kernels follow the compiler (__ARM_FEATURE_MVE), not the HELIUM
+# or MVEF options, so their tables are always compiled; both files are empty
+# without the MVE definitions.
+target_sources(CMSISDSP PRIVATE "CommonTables/arm_mve_tables.c")
+target_sources(CMSISDSP PRIVATE "CommonTables/arm_mve_tables_f16.c")
 
