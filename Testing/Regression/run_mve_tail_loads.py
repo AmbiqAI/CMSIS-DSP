@@ -85,6 +85,18 @@ GROUPS = {
             'SupportFunctions/arm_q15_to_f16.c',
         ],
     },
+    'conv': {
+        'test': 'mve_tail_loads_conv.c',
+        'expected': 'PASS: 8736 MVE convolution and correlation tail-load cases',
+        'defines': [],
+        'sources': [
+            'FilteringFunctions/arm_conv_f32.c', 'FilteringFunctions/arm_conv_q15.c',
+            'FilteringFunctions/arm_conv_q31.c', 'FilteringFunctions/arm_conv_q7.c',
+            'FilteringFunctions/arm_correlate_f16.c', 'FilteringFunctions/arm_correlate_f32.c',
+            'FilteringFunctions/arm_correlate_q15.c', 'FilteringFunctions/arm_correlate_q31.c',
+            'FilteringFunctions/arm_correlate_q7.c',
+        ],
+    },
     'remainder': {
         'test': 'mve_tail_loads_remainder.c',
         'expected': 'PASS: 112 MVE remainder tail-load cases',

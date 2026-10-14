@@ -276,3 +276,30 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## Predicated tail loads, convolution and correlation
+
+The MVE convolution and correlation kernels (`arm_conv_q7/q15/q31/f32`,
+`arm_correlate_q7/q15/q31/f32/f16`) compute each output with a macro from
+`PrivateInclude/arm_vec_filtering.h` (the f16 correlation macros are in
+`arm_correlate_f16.c`). The final partial block of each macro loaded whole
+vectors, contiguous or gathered backward, and applied the tail predicate only
+to the multiply-accumulate, so a call read up to one vector minus one element
+past the end of a source and, through the backward gathers of the
+convolutions, up to that many before its start. Each tail load now uses the
+predicate of the accumulations that consume it (where one vector feeds two
+accumulations with predicates for k and k + 1 lanes, the k + 1 predicate).
+
+`mve_tail_loads_conv.c` runs the nine kernels for both source lengths from 1
+to two full vectors plus two, at three full vectors plus one and at 61, in
+every combination: with the sources followed and preceded by readable
+padding, with both sources ending at an MPU guard, and with both starting
+right after one. The guarded outputs must equal the padded output bit for bit
+and a double-precision reference (fixed point within 1 LSB, floating point
+within a relative bound); 8736 cases. `run_mve_tail_loads.py --group conv`
+expects `PASS: 8736 MVE convolution and correlation tail-load cases`. For the
+negative control, save one unpatched kernel together with the unpatched
+`PrivateInclude/arm_vec_filtering.h` in one directory outside the checkout and
+pass the kernel through `--source` (its `#include "arm_vec_filtering.h"`
+finds the header beside it first); the run must report
+`FAIL: <kernel> tail access srcALen=1 srcBLen=1 (sources end at a guard)`.
