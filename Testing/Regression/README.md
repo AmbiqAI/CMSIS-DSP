@@ -276,3 +276,39 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## FIR q15 and q7 state bound (general kernels)
+
+The Helium `arm_fir_q15` above 32 taps and `arm_fir_q7` above 64 taps use a
+general kernel that copied 8 (q15) or 16 (q7) input samples into the state for
+each 4 outputs and advanced by as many, so a block wrote about
+numTaps - 1 + 2 * blockSize (q15) or numTaps - 1 + 4 * blockSize (q7) state
+samples and read the input as far past blockSize; its remainder step copied a
+whole vector more, and the final history copy read numTaps samples where
+numTaps - 1 are kept. Arm documents numTaps + blockSize - 1 state samples (for
+q15 without `ARM_MATH_LOOPUNROLL`, numTaps + blockSize with it). The main loop
+now advances by 4 and runs only over the blocks whose input copy and
+zero-padded taps stay within blockSize and that length; the last outputs are
+computed with the input copy and the last block of taps under the tail
+predicate, in an out-of-line routine that also copies numTaps - 1 history
+samples.
+
+`mve_fir_q15_q7_state_bound.c` places the state, sized to numTaps +
+blockSize - 1, and each input block against MPU guards, filters two
+consecutive blocks, and compares every output bit for bit with an integer
+reference that follows Arm's documented scaling (the full-precision sum,
+shifted right by 15 or 7 and saturated): q15 at 34 to 48 taps (even) and q7
+at 65 to 80 taps, block sizes 1 to 24 and 61 to 67, small and full-scale
+coefficients. 1488 cases; built without `ARM_MATH_LOOPUNROLL`. `--opt` sets
+the optimization level (default `O3`); `--control sparse-read-32` and
+`--control sparse-read-far` are the read controls of `regression_checks.h`.
+
+```sh
+python3 Testing/Regression/run_mve_fir_q15_q7_state_bound.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding `arm_fir_q15.c` and
+`arm_fir_q7.c` of `ambiq/2026.10.0` through `--fir-source-dir`; the run must
+report `FAIL: 1488 of 1488 MVE FIR q15/q7 state-bound cases`, and with only
+the q7 kernel unchanged `FAIL: 992 of 1488 MVE FIR q15/q7 state-bound cases`.
