@@ -82,7 +82,7 @@ static void arm_small_blk_absmin_q7(
     {
         vecSrc = vld1q(pSrcVec); 
         pSrcVec += 16;
-        vecSrc = vabsq(vecSrc);
+        vecSrc = vqabsq(vecSrc);
         /*
          * Get current min per lane and current index per lane
          * when a min is selected
@@ -106,7 +106,7 @@ static void arm_small_blk_absmin_q7(
     {
         vecSrc = vld1q(pSrcVec); 
         pSrcVec += 16;
-        vecSrc = vabsq(vecSrc);
+        vecSrc = vqabsq(vecSrc);
 
         p0 = vctp8q(blkCnt);
         /*
