@@ -62,6 +62,14 @@
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c[i]);                        \
         }
 
+/* The same taps with every load under the tail predicate p0. */
+#define FIR_F16_CORE_Z(pSamples, c, NB_TAPS, p0)                           \
+        vecAcc0 = vdupq_n_f16(0.0f16);                                     \
+        for (int i = 0; i < NB_TAPS; i++) {                                \
+            vecIn0 = vldrhq_z_f16(&pSamples[i], p0);                       \
+            vecAcc0 = vfmaq(vecAcc0, vecIn0, c[i]);                        \
+        }
+
 #define NB_TAPS 4
 __STATIC_INLINE void arm_fir_f16_1_4_mve(const arm_fir_instance_f16 * S, 
     const float16_t * __restrict pSrc, 
@@ -121,11 +129,11 @@ __STATIC_INLINE void arm_fir_f16_1_4_mve(const arm_fir_instance_f16 * S,
     {
         mve_pred16_t    p0 = vctp16q(blkCnt);
 
-        vst1q(pStateCur, vld1q(pTempSrc));
+        vstrhq_p_f16(pStateCur, vldrhq_z_f16(pTempSrc, p0), p0);
         pStateCur += 8;
         pTempSrc += 8;
 
-        FIR_F16_CORE(pSamples, c, NB_TAPS);
+        FIR_F16_CORE_Z(pSamples, c, NB_TAPS, p0);
 
         vstrhq_p_f16(pOutput, vecAcc0, p0);
     }
@@ -211,11 +219,11 @@ __STATIC_INLINE void arm_fir_f16_5_8_mve(const arm_fir_instance_f16 * S,
     {
         mve_pred16_t    p0 = vctp16q(blkCnt);
 
-        vst1q(pStateCur, vld1q(pTempSrc));
+        vstrhq_p_f16(pStateCur, vldrhq_z_f16(pTempSrc, p0), p0);
         pStateCur += 8;
         pTempSrc += 8;
 
-        FIR_F16_CORE(pSamples, c, NB_TAPS);
+        FIR_F16_CORE_Z(pSamples, c, NB_TAPS, p0);
 
         vstrhq_p_f16(pOutput, vecAcc0, p0);
     }
@@ -241,6 +249,44 @@ __STATIC_INLINE void arm_fir_f16_5_8_mve(const arm_fir_instance_f16 * S,
 
 }
 #undef NB_TAPS
+
+/*
+ * Final tap group of the general kernel: the coefficient array is zero-padded
+ * to a multiple of four taps, and for the last outputs of a block the padded
+ * taps would read past the state. The loop over the group runs over the
+ * FIR_F16_FULL_BLOCKS vectors whose padded taps stay within the state; the
+ * remaining outputs, at most two vectors, use the real taps only, in the
+ * same order, under the tail predicate.
+ */
+#define FIR_F16_FULL_BLOCKS(blockSize, padded)                             \
+        ((blockSize) > (padded) ? ((blockSize) - (padded)) >> 3 : 0U)
+
+__attribute__((noinline)) static void arm_fir_f16_last_mve(
+    const float16_t * pSamples,
+    const float16_t * pAccu,
+    float16_t * pOutput,
+    const float16_t * pCoeffs,
+    int32_t numTaps,
+    uint32_t cnt)
+{
+    while (cnt > 0U) {
+        mve_pred16_t    p0 = vctp16q(cnt);
+        float16x8_t     vecIn0;
+        float16x8_t     vecAcc0;
+
+        vecIn0 = vldrhq_z_f16(pSamples, p0);
+        vecAcc0 = vmulq(vecIn0, pCoeffs[0]);
+        for (int32_t i = 1; i < numTaps; i++) {
+            vecIn0 = vldrhq_z_f16(&pSamples[i], p0);
+            vecAcc0 = vfmaq(vecAcc0, vecIn0, pCoeffs[i]);
+        }
+        vstrhq_p_f16(pOutput, vecAcc0 + vldrhq_z_f16(pAccu, p0), p0);
+        pSamples += 8;
+        pAccu += 8;
+        pOutput += 8;
+        cnt = cnt > 8U ? cnt - 8U : 0U;
+    }
+}
 
 ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S, 
   const float16_t * pSrc, 
@@ -275,7 +321,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S,
     int             cnt = blockSize;
     do {
         mve_pred16_t    p0 = vctp16q(cnt);
-        vstrhq_p_f16(pTempDest, vld1q(pTempSrc), p0);
+        vstrhq_p_f16(pTempDest, vldrhq_z_f16(pTempSrc, p0), p0);
         pTempDest += 8;
         pTempSrc += 8;
         cnt -= 8;
@@ -328,21 +374,21 @@ ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S,
         mve_pred16_t p0 = vctp16q(cnt);
 
 
-        vecIn0 = vld1q(pSamples);
+        vecIn0 = vldrhq_z_f16(pSamples, p0);
         vecAcc0 = vmulq(vecIn0, c0);
-        vecIn0 = vld1q(&pSamples[1]);
+        vecIn0 = vldrhq_z_f16(&pSamples[1], p0);
         vecAcc0 = vfmaq(vecAcc0, vecIn0, c1);
-        vecIn0 = vld1q(&pSamples[2]);
+        vecIn0 = vldrhq_z_f16(&pSamples[2], p0);
         vecAcc0 = vfmaq(vecAcc0, vecIn0, c2);
-        vecIn0 = vld1q(&pSamples[3]);
+        vecIn0 = vldrhq_z_f16(&pSamples[3], p0);
         vecAcc0 = vfmaq(vecAcc0, vecIn0, c3);
-        vecIn0 = vld1q(&pSamples[4]);
+        vecIn0 = vldrhq_z_f16(&pSamples[4], p0);
         vecAcc0 = vfmaq(vecAcc0, vecIn0, c4);
-        vecIn0 = vld1q(&pSamples[5]);
+        vecIn0 = vldrhq_z_f16(&pSamples[5], p0);
         vecAcc0 = vfmaq(vecAcc0, vecIn0, c5);
-        vecIn0 = vld1q(&pSamples[6]);
+        vecIn0 = vldrhq_z_f16(&pSamples[6], p0);
         vecAcc0 = vfmaq(vecAcc0, vecIn0, c6);
-        vecIn0 = vld1q(&pSamples[7]);
+        vecIn0 = vldrhq_z_f16(&pSamples[7], p0);
         vecAcc0 = vfmaq(vecAcc0, vecIn0, c7);
         vstrhq_p_f16(partial_accu_ptr, vecAcc0,p0);
     }
@@ -397,21 +443,21 @@ ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S,
 
             mve_pred16_t p0 = vctp16q(cnt);
 
-            vecIn0 = vld1q(pSamples);
+            vecIn0 = vldrhq_z_f16(pSamples, p0);
             vecAcc0 = vmulq(vecIn0, c0);
-            vecIn0 = vld1q(&pSamples[1]);
+            vecIn0 = vldrhq_z_f16(&pSamples[1], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c1);
-            vecIn0 = vld1q(&pSamples[2]);
+            vecIn0 = vldrhq_z_f16(&pSamples[2], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c2);
-            vecIn0 = vld1q(&pSamples[3]);
+            vecIn0 = vldrhq_z_f16(&pSamples[3], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c3);
-            vecIn0 = vld1q(&pSamples[4]);
+            vecIn0 = vldrhq_z_f16(&pSamples[4], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c4);
-            vecIn0 = vld1q(&pSamples[5]);
+            vecIn0 = vldrhq_z_f16(&pSamples[5], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c5);
-            vecIn0 = vld1q(&pSamples[6]);
+            vecIn0 = vldrhq_z_f16(&pSamples[6], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c6);
-            vecIn0 = vld1q(&pSamples[7]);
+            vecIn0 = vldrhq_z_f16(&pSamples[7], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c7);
             vecAcc0 += vld1q_f16(partial_accu_ptr);
             vstrhq_p_f16(partial_accu_ptr, vecAcc0,p0);
@@ -422,6 +468,9 @@ ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S,
     }
 
     pSamples = pState + sample_offset;
+
+    /* Coefficients of the final tap group, for the remaining outputs. */
+    const float16_t *pLastCoeffs = pCoeffs;
 
     if (localTaps > 4) {
         c0 = *pCoeffs++;
@@ -435,7 +484,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S,
         pOutput = pDst;
 
         partial_accu_ptr = S->pState;
-        cnt = blockSize >> 3;
+        cnt = FIR_F16_FULL_BLOCKS(blockSize, 8U - (uint32_t)localTaps);
         while (cnt > 0) {
             float16x8_t     vecAcc0;
             float16x8_t     vecIn0;
@@ -463,35 +512,6 @@ ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S,
             partial_accu_ptr += 8;
             pOutput += 8;
         }
-
-        cnt = blockSize & 7;
-        if (cnt > 0) {
-            float16x8_t     vecAcc0;
-            float16x8_t     vecIn0;
-
-            mve_pred16_t p0 = vctp16q(cnt);
-
-            vecIn0 = vld1q(pSamples);
-            vecAcc0 = vmulq(vecIn0, c0);
-            vecIn0 = vld1q(&pSamples[1]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c1);
-            vecIn0 = vld1q(&pSamples[2]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c2);
-            vecIn0 = vld1q(&pSamples[3]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c3);
-            vecIn0 = vld1q(&pSamples[4]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c4);
-            vecIn0 = vld1q(&pSamples[5]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c5);
-            vecIn0 = vld1q(&pSamples[6]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c6);
-            vecIn0 = vld1q(&pSamples[7]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c7);
-            float16x8_t     pap = vld1q_f16(partial_accu_ptr);
-            vstrhq_p_f16(pOutput, vecAcc0 + pap, p0);
-            pOutput += cnt;
-        }
-
     } else {
         c0 = *pCoeffs++;
         c1 = *pCoeffs++;
@@ -500,7 +520,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S,
         pOutput = pDst;
 
         partial_accu_ptr = S->pState;
-        cnt = blockSize >> 3;
+        cnt = FIR_F16_FULL_BLOCKS(blockSize, 4U - (uint32_t)localTaps);
         while (cnt > 0) {
             float16x8_t     vecAcc0;
             float16x8_t     vecIn0;
@@ -520,27 +540,14 @@ ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S,
             partial_accu_ptr += 8;
             pOutput += 8;
         }
-
-        cnt = blockSize & 7;
-        if (cnt > 0) {
-            float16x8_t     vecAcc0;
-            float16x8_t     vecIn0;
-
-            mve_pred16_t p0 = vctp16q(cnt);
-
-            vecIn0 = vld1q(pSamples);
-            vecAcc0 = vmulq(vecIn0, c0);
-            vecIn0 = vld1q(&pSamples[1]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c1);
-            vecIn0 = vld1q(&pSamples[2]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c2);
-            vecIn0 = vld1q(&pSamples[3]);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c3);
-            float16x8_t     pap = vld1q_f16(partial_accu_ptr);
-            vstrhq_p_f16(pOutput, vecAcc0 + pap, p0);
-            pOutput += cnt;
-        }
     }
+
+    /*
+     * Remaining outputs: their padded taps would read past the state, so they
+     * use the real taps only, under the tail predicate.
+     */
+    arm_fir_f16_last_mve(pSamples, partial_accu_ptr, pOutput, pLastCoeffs, localTaps,
+                         blockSize - (uint32_t)(pOutput - pDst));
 
     /*
      * Copy the samples back into the history buffer start
@@ -548,17 +555,17 @@ ARM_DSP_ATTRIBUTE void arm_fir_f16(const arm_fir_instance_f16 * S,
     pTempSrc = &pState[blockSize];
     pTempDest = pState;
 
-    blkCnt = numTaps >> 3;
+    blkCnt = (numTaps - 1U) >> 3;
     while (blkCnt > 0U) {
         vst1q(pTempDest, vld1q(pTempSrc));
         pTempSrc += 8;
         pTempDest += 8;
         blkCnt--;
     }
-    blkCnt = numTaps & 7;
+    blkCnt = (numTaps - 1U) & 7;
     if (blkCnt > 0U) {
         mve_pred16_t    p0 = vctp16q(blkCnt);
-        vstrhq_p_f16(pTempDest, vld1q(pTempSrc), p0);
+        vstrhq_p_f16(pTempDest, vldrhq_z_f16(pTempSrc, p0), p0);
     }
 }
 
