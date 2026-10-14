@@ -339,3 +339,19 @@ For the negative control, pass a directory holding the previous
 `arm_fir_q31.c` through `--fir-source-dir`; the run must report
 `FAIL: 144 of 192 MVE FIR q31 29-32 tap remainder cases`, the first failure
 an output that was not written.
+
+## FIR q31 at 29 to 32 taps: padded taps
+
+The 29 to 32 tap kernel adds the last tap vector (taps 28 to 31, zero-padded
+past numTaps) in a second pass. For numTaps of 29 to 31 the loads of its last
+group of four outputs reached up to three samples past the documented state
+`numTaps + 8 * ceil(blockSize / 4) + blockSize - 1`. That group now runs in a
+separate routine that loads the last tap vector for the real taps only; the
+other groups read within the state and are unchanged.
+
+`run_mve_fir_q31_state_bound.py --max-block 40` runs the state-bound
+regression at block sizes 1 to 40, which reaches this kernel (used from
+blockSize 32): 1600 cases. The buffers before the guards grow with the block
+size. For the negative control, pass the previous `arm_fir_q31.c` through
+`--fir-source` with `--max-block 40`; the run must report
+`FAIL: 15 of 1600 MVE FIR q31 state-bound cases exceed the contract`.
