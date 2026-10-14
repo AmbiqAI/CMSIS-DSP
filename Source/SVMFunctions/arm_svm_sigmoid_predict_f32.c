@@ -231,7 +231,7 @@ ARM_DSP_ATTRIBUTE void arm_svm_sigmoid_predict_f32(
         vtmp = vsetq_lane(vecAddAcrossF32Mve(acc1), vtmp, 1);
 
         vSum =
-            vfmaq_m_f32(vSum, vld1q(pDualCoef),
+            vfmaq_m_f32(vSum, vld1q_z(pDualCoef, vctp32q(2)),
                         vtanhq_f32(vaddq_n_f32(vmulq_n_f32(vtmp, S->gamma), S->coef0)),
                         vctp32q(2));
 
@@ -290,7 +290,7 @@ ARM_DSP_ATTRIBUTE void arm_svm_sigmoid_predict_f32(
         vtmp = vsetq_lane(vecAddAcrossF32Mve(acc0), vtmp, 0);
 
         vSum =
-            vfmaq_m_f32(vSum, vld1q(pDualCoef),
+            vfmaq_m_f32(vSum, vld1q_z(pDualCoef, vctp32q(1)),
                         vtanhq_f32(vaddq_n_f32(vmulq_n_f32(vtmp, S->gamma), S->coef0)),
                         vctp32q(1));
     }
