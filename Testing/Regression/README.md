@@ -276,3 +276,32 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## FIR q15 and q7 remainder outputs (general kernels)
+
+The Helium `arm_fir_q15` above 32 taps and `arm_fir_q7` above 64 taps use a
+general kernel whose last blockSize mod 4 outputs are computed separately.
+For remainders 2 and 3 those outputs loaded the input at offsets 2 and 4
+(q15) or 4 and 8 (q7) instead of 1 and 2, and the q15 remainder of 3 shifted
+its accumulators twice (`asrl` by 15 before `MVE_ASRL_SAT16`), so its outputs
+were wrong. The offsets are now 1 and 2 and the extra shift is removed.
+
+`mve_fir_q15_q7_remainder.c` filters two consecutive blocks and compares
+every output bit for bit with an integer reference that follows Arm's
+documented scaling (the full-precision sum, shifted right by 15 or 7 and
+saturated): q15 at 34 to 48 taps (even, as Arm requires) and q7 at 65 to 80
+taps, block sizes 1 to 24 and 61 to 67, with small and with full-scale
+coefficients. 1488 cases; `--opt` sets the optimization level (default
+`O3`). The state buffers are larger than Arm's documented length, because
+these general kernels copy input into the state ahead of use, which this
+regression does not test.
+
+```sh
+python3 Testing/Regression/run_mve_fir_q15_q7_remainder.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding `arm_fir_q15.c` and
+`arm_fir_q7.c` of `ambiq/2026.10.0` through `--fir-source-dir`; the run must
+report `FAIL: 751 of 1488 MVE FIR q15/q7 remainder cases`, and with only the
+q7 kernel unchanged `FAIL: 501 of 1488 MVE FIR q15/q7 remainder cases`.
