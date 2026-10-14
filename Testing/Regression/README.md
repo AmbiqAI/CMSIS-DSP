@@ -321,3 +321,35 @@ followed by `FAIL: 1 of 20 kernels`.
 ## GCC 15.0–15.2 `__QSUB`/`__QADD` workaround canary
 
 `gcc15_qsub_ifcvt_canary.c` is the reproducer of GCC PR rtl-optimization/122170: the ACLE `__qsub` builtin under a condition, compiled without the workaround in `Include/arm_math_types.h`. Arm GNU 15.2.1 stops on it with an internal compiler error in RTL pass `ce1` at `-O1` and above on any core with the DSP extension; Arm GNU 14.3.1, 15.3.1 and ATfE 22.1.0 compile it. `run_gcc15_qsub_ifcvt_canary.py --compiler <gcc or clang> --cmsis-core <CMSIS-Core directory> [--cpu cortex-m4]` finds whether the compiler is in the workaround's range from the marker `ARM_MATH_GCC15_QSUB_WORKAROUND` in the `-dM -E` output of `arm_math_types.h`, which the block defines for that range with CMSIS-Core 6 and 5.x alike. It compiles the canary at `-O1`, `-O2`, `-O3` and `-Os`, and requires the crash at every level exactly when the marker is defined. It then compiles the six Q31 sources that crashed (`arm_abs_q31.c`, `arm_atan2_q31.c`, `arm_absmax_q31.c`, `arm_absmin_q31.c`, `arm_absmax_no_idx_q31.c`, `arm_absmin_no_idx_q31.c`) and the three `FASTBUILD` aggregates that include them at the same levels with `-DARM_MATH_LOOPUNROLL`, with soft float and with hard float; on a core with MVE, hard float builds the Helium kernels, and a third configuration adds `ARM_MATH_AUTOVECTORIZE`. It expects `PASS: canary agrees with the workaround gate at 4 levels; 72 source compilations succeed` for Cortex-M4 and `108` for Cortex-M55. A compiler inside the gate that compiles the canary reports `narrow the gate`; one outside it that crashes reports `widen the gate`. Workflow `gcc15-qsub-ifcvt.yml` runs it for Cortex-M4 and Cortex-M55 under Arm GNU 14.3.1, 15.2.1, 15.3.1 and ATfE 22.1.0 on every pull request that changes `Include/` or `Source/`, against CMSIS_6 from its default branch.
+
+## LDL^t f32 bounds
+
+The MVE `arm_mat_ldlt_f32` updated the trailing rows in groups of four
+(`w`, `w + 1`, `w + 2`, `w + 3`) while `w < n`, so for `n - k - 1` not a
+multiple of four the last group loaded, updated and stored up to three rows
+past the end of L, the work matrix, and read their column-`k` entries: up to
+`3 * n` elements past L. The group loop now runs while all four rows are
+below `n`, and the single-row loop after it updates the rest; L, D and the
+permutation are bit-identical to the previous kernel's in-bounds results.
+
+`mve_mat_ldlt_f32_bounds.c` places A, L, D and the permutation vector each
+against an MPU guard for sizes 1 to 16, 17, 20, 23, 24, 31, 32 and 33, with
+a positive definite, an indefinite (diagonally dominant) and a
+rank-deficient input (69 cases); a MemManage fault reports the operand and
+the offset past its end. Results must be finite with permutation entries
+below `n`; the positive definite and indefinite results are checked against
+`P A P^t = L D L^t` in double precision. The rank-deficient inputs exercise
+the zeroing of the columns after the last pivot; their reconstruction is not
+checked, because every `arm_mat_ldlt_f32` path and `arm_mat_ldlt_f64` leave
+the last nonzero pivot out of D when they stop early. `--opt` sets the
+optimization level (default `O3`).
+
+```sh
+python3 Testing/Regression/run_mve_mat_ldlt_f32_bounds.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass the previous `arm_mat_ldlt_f32.c` through
+`--ldlt-source`; it must report `FAIL: arm_mat_ldlt_f32 positive-definite n=2
+access 0 bytes past L` (ATfE 22.1.0 at `-O2` faults 8 bytes past L). The
+runner also takes `--control sparse-read-32`, `sparse-read-far` and `nan`.
