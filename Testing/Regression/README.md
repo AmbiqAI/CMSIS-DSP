@@ -357,3 +357,31 @@ passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
 first `blockSize % 4` elements again instead of the last ones, and the run
 must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
 followed by `FAIL: 1 of 20 kernels`.
+
+## QR with Q for m > n
+
+`arm_mat_qr_f32`, `arm_mat_qr_f16` and `arm_mat_qr_f64` built the m x m
+matrix Q from m Householder reflectors. For an m x n input with m > n the
+m - n extra reflectors took their scaling factors from the words past `tau`,
+which Arm documents as n long, and their vectors from columns past R's n
+columns. Where those words were not zero the last m - n columns of Q were
+wrong and Q was not orthogonal. Q is now built from the n reflectors; for
+square inputs nothing changes.
+
+`mat_qr_rectangular_q.c` fills the memory past `tau` and R with 0.37 and
+checks max |Q^t Q - I| and max |Q R - A| (upper triangle of R) for square
+shapes and for m > n, in f32, f16 and f64. The runner builds it with the
+Helium kernels and with the scalar code (Cortex-M55 and Cortex-M55+nomve);
+with Arm GNU the scalar build leaves out f16, which that compiler compiles
+for Cortex-M55+nomve with Advanced SIMD lane loads that the core does not
+implement.
+
+```sh
+python3 Testing/Regression/run_mat_qr_rectangular_q.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding the previous
+`arm_mat_qr_f32.c`, `arm_mat_qr_f16.c` and `arm_mat_qr_f64.c` through
+`--qr-source-dir`; every m > n case must fail (`FAIL: 24 of 36 QR cases with
+Q`, and `FAIL: 16 of 24` for the Arm GNU scalar build).
