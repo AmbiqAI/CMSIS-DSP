@@ -241,7 +241,7 @@ ARM_DSP_ATTRIBUTE void arm_split_rfft_q15(
     pIn1 = &pSrc[2];
 
     i = fftLen - 1U;
-    i = i / 4 + 1;
+    i = i / 4;
     while (i > 0U) {
         q15x8_t         in1 = vld1q_s16(pIn1);
         q15x8_t         in2 = vldrhq_gather_shifted_offset_s16(pSrc, offsetIn);
@@ -258,6 +258,23 @@ ARM_DSP_ATTRIBUTE void arm_split_rfft_q15(
         offsetIn -= 8;
         pIn1 += 8;
         i -= 1;
+    }
+
+    /*
+     * Last group: its last output is for k = fftLen, which pDst[2 * fftLen]
+     * overwrites below; that part of the input lies past the 2 * fftLen
+     * samples of pSrc and is loaded under the tail predicate.
+     */
+    {
+        q15x8_t         in1 = vldrhq_z_s16(pIn1, vctp16q(2 * fftLen - (uint32_t)(pIn1 - pSrc)));
+        q15x8_t         in2 = vldrhq_gather_shifted_offset_s16(pSrc, offsetIn);
+        q15x8_t         coefA = vldrhq_gather_shifted_offset_s16(pCoefAb, offsetCoef);
+        q15x8_t         coefB = vldrhq_gather_shifted_offset_s16(pCoefBb, offsetCoef);
+
+
+        q15x8_t         out = vhaddq_s16(MVE_CMPLX_MULT_FX_AxB(in1, coefA, q15x8_t),
+                                         MVE_CMPLX_MULT_FX_AxConjB(coefB, in2, q15x8_t));
+        vst1q_s16(pOut1, out);
     }
 
     pDst[2 * fftLen] = (pSrc[0] - pSrc[1]) >> 1U;
