@@ -254,7 +254,7 @@ static void arm_fir_interpolate2_f32_mve(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp32q(blkCnt);
-        vstrwq_p_f32(pStateCurnt, vldrwq_f32(pState), p0);
+        vstrwq_p_f32(pStateCurnt, vldrwq_z_f32(pState, p0), p0);
     }
 }
 
@@ -452,7 +452,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_interpolate_f32(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp32q(blkCnt);
-        vstrwq_p_f32(pStateCurnt, vldrwq_f32(pState), p0);
+        vstrwq_p_f32(pStateCurnt, vldrwq_z_f32(pState, p0), p0);
     }
 }
 

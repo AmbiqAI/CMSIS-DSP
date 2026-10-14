@@ -76,6 +76,88 @@
             *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc[j], 15);               \
         }
 
+/*
+ * The fixed-tap kernels load whole vectors of 8 taps. In the last outputs of a
+ * block, the zero-padded taps would read samples past the documented state
+ * length numTaps + blockSize - 1. arm_fir_q15 runs the kernels on the outputs
+ * whose loads stay within it, and arm_fir_q15_fixed_tail_mve on the rest: at
+ * most 7 + 3 outputs. The routine computes them as the kernels do, four at a
+ * time and then the remaining one to three, with the coefficient vectors in
+ * registers, but loads the last tap vector of samples for the real taps only.
+ * It is not inlined, so that its loops stay out of arm_fir_q15.
+ */
+#define FIR_Q15_FIXED_TAIL_CORE(pOutput, nbAcc, nbVecTaps, pSample, vecCoeffs, p)  \
+        for (int j = 0; j < nbAcc; j++) {                                  \
+            const q15_t    *pSmp = &pSample[j];                            \
+            q63_t           acc = 0;                                       \
+            int             i;                                             \
+                                                                           \
+            for (i = 0; i < nbVecTaps - 1; i++)                            \
+                acc = vmlaldavaq(acc, vld1q(pSmp + 8 * i), vecCoeffs[i]);  \
+            acc = vmlaldavaq(acc, vldrhq_z_s16(pSmp + 8 * i, p), vecCoeffs[i]); \
+            *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc, 15);                  \
+        }
+
+__STATIC_FORCEINLINE void arm_fir_q15_fixed_tail_core(const q15_t * pState,
+  const q15_t * pCoeffs,
+  q15_t * pDst, uint32_t blockSize, const int32_t nbVecTaps, mve_pred16_t p)
+{
+    const q15_t    *pSamples = pState;
+    q15_t          *pOutput = pDst;
+    q15x8_t         vecCoeffs[4];
+    int32_t         blkCnt;
+
+    for (int i = 0; i < nbVecTaps; i++)
+        vecCoeffs[i] = vld1q(pCoeffs + 8 * i);
+
+    for (blkCnt = blockSize >> 2; blkCnt > 0; blkCnt--) {
+        FIR_Q15_FIXED_TAIL_CORE(pOutput, 4, nbVecTaps, pSamples, vecCoeffs, p);
+        pSamples += 4;
+    }
+    FIR_Q15_FIXED_TAIL_CORE(pOutput, (int) (blockSize & 3), nbVecTaps, pSamples, vecCoeffs, p);
+}
+
+__attribute__((noinline)) static void arm_fir_q15_fixed_tail_mve(const arm_fir_instance_q15 * S,
+  const q15_t * pSrc,
+  q15_t * pDst, uint32_t blockSize)
+{
+    q15_t          *pState = S->pState;
+    const q15_t    *pCoeffs = S->pCoeffs;
+    uint32_t        numTaps = S->numTaps;
+    int32_t         nbVecTaps = (numTaps + 7) / 8;
+    mve_pred16_t    p = vctp16q(numTaps - 8 * (nbVecTaps - 1));
+    int32_t         blkCnt;
+
+    for (blkCnt = 0; blkCnt < (int32_t) blockSize; blkCnt += 8) {
+        mve_pred16_t p0 = vctp16q(blockSize - blkCnt);
+
+        vstrhq_p_s16(&pState[numTaps - 1u + blkCnt], vldrhq_z_s16(&pSrc[blkCnt], p0), p0);
+    }
+
+    switch (nbVecTaps) {
+    case 1:
+        arm_fir_q15_fixed_tail_core(pState, pCoeffs, pDst, blockSize, 1, p);
+        break;
+    case 2:
+        arm_fir_q15_fixed_tail_core(pState, pCoeffs, pDst, blockSize, 2, p);
+        break;
+    case 3:
+        arm_fir_q15_fixed_tail_core(pState, pCoeffs, pDst, blockSize, 3, p);
+        break;
+    default:
+        arm_fir_q15_fixed_tail_core(pState, pCoeffs, pDst, blockSize, 4, p);
+        break;
+    }
+
+    /* Copy the samples back into the history buffer start */
+    for (blkCnt = numTaps - 1; blkCnt > 0; blkCnt -= 8) {
+        mve_pred16_t p0 = vctp16q(blkCnt);
+
+        vstrhq_p_s16(pState, vldrhq_z_s16(&pState[blockSize], p0), p0);
+        pState += 8;
+    }
+}
+
 #define FIR_Q15_MAIN_CORE()                                                                  \
 {                                                                                            \
     q15_t          *pState = S->pState;     /* State pointer */                              \
@@ -220,20 +302,31 @@ ARM_DSP_ATTRIBUTE void arm_fir_q15(
 
 int32_t nbTaps = (numTaps + 7) >> 3;
 
-switch(nbTaps) {
+if (nbTaps <= 4) {
+    /* outputs, in groups of 4, whose padded taps stay within the state */
+    uint32_t  blkPad = 8 * nbTaps - numTaps;
+    uint32_t  blkMain = (blockSize > blkPad) ? ((blockSize - blkPad) & ~3u) : 0;
 
-    case 1:
-        arm_fir_q15_1_8_mve(S, pSrc, pDst, blockSize);
-        return;
-    case 2:
-        arm_fir_q15_9_16_mve(S, pSrc, pDst, blockSize);
-        return;
-    case 3:
-        arm_fir_q15_17_24_mve(S, pSrc, pDst, blockSize);
-        return;
-    case 4:
-        arm_fir_q15_25_32_mve(S, pSrc, pDst, blockSize);
-        return;
+    if (blkMain > 0) {
+        switch(nbTaps) {
+
+        case 1:
+            arm_fir_q15_1_8_mve(S, pSrc, pDst, blkMain);
+            break;
+        case 2:
+            arm_fir_q15_9_16_mve(S, pSrc, pDst, blkMain);
+            break;
+        case 3:
+            arm_fir_q15_17_24_mve(S, pSrc, pDst, blkMain);
+            break;
+        case 4:
+            arm_fir_q15_25_32_mve(S, pSrc, pDst, blkMain);
+            break;
+        }
+    }
+    if (blockSize > blkMain)
+        arm_fir_q15_fixed_tail_mve(S, pSrc + blkMain, pDst + blkMain, blockSize - blkMain);
+    return;
     }
     /*
      * pState points to state array which contains previous frame (numTaps - 1) samples

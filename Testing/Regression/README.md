@@ -276,3 +276,26 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## Q7 and Q15 FIR and FIR interpolator state
+
+`mve_fir_states_bound.c` applies the method of the f32 FIR state-bound
+regression to the fixed-tap Helium kernels of `arm_fir_q7` (1–64 taps) and
+`arm_fir_q15` (2–32 taps, even) and to `arm_fir_interpolate_f32`, `_q15` and
+`_q31` (L = 2, 3, 4, 5, 8; phase lengths 1–12), at 1–20, 31, 32, 33, 64 and
+65 samples per block (6500 cases). The documented state lengths are
+`numTaps + blockSize - 1` for the two FIR filters (Q15 without
+`ARM_MATH_LOOPUNROLL`, which the test rejects) and `numTaps / L + blockSize - 1`
+for the interpolators. The pass condition is no read or store past those
+lengths and no read past the input block, with Q7, Q15 and Q31 outputs equal
+to an integer reference that follows Arm's documented scaling and f32
+outputs within a relative bound of a double-precision reference.
+
+```sh
+python3 Testing/Regression/run_mve_fir_states_bound.py <dependency options> \
+  --compiler /path/to/arm-none-eabi-gcc --opt O2 --build-dir /path/to/build
+```
+
+For the negative control, pass the unpatched kernel files through
+`--fir-source` (once per file); each of the five kernels must then report
+reads past the documented length. The runner also takes `--control`.
