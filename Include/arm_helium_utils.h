@@ -298,7 +298,7 @@ __STATIC_INLINE arm_status arm_mat_trans_32bit_generic_mve(
         if (blkCnt > 0U)
         {
             mve_pred16_t p0 = vctp32q(blkCnt);
-            vecIn = vldrwq_gather_shifted_offset_u32(pDataC, vecOffs);
+            vecIn = vldrwq_gather_shifted_offset_z_u32(pDataC, vecOffs, p0);
             vstrwq_p(pDataDestR, vecIn, p0);
         }
 
@@ -378,7 +378,7 @@ __STATIC_INLINE arm_status arm_mat_cmplx_trans_32bit(
         if (blkCnt > 0U)
         {
             mve_pred16_t p0 = vctp32q(blkCnt);
-            vecIn = vldrwq_gather_shifted_offset(pDataC, vecOffsCur);
+            vecIn = vldrwq_gather_shifted_offset_z_u32(pDataC, vecOffsCur, p0);
             vstrwq_p(pDataDestR, vecIn, p0);
         }
 
@@ -497,7 +497,7 @@ __STATIC_INLINE arm_status arm_mat_trans_16bit_generic(
         if (blkCnt > 0U)
         {
             mve_pred16_t p0 = vctp16q(blkCnt);
-            vecIn = vldrhq_gather_shifted_offset_u16(pDataC, vecOffs);
+            vecIn = vldrhq_gather_shifted_offset_z_u16(pDataC, vecOffs, p0);
             vstrhq_p_u16(pDataDestR, vecIn, p0);
         }
         pDataSrc += 1;
@@ -583,7 +583,7 @@ __STATIC_INLINE arm_status arm_mat_cmplx_trans_16bit(
         if (blkCnt > 0U)
         {
             mve_pred16_t p0 = vctp16q(blkCnt);
-            vecIn = vldrhq_gather_shifted_offset(pDataC, vecOffsCur);
+            vecIn = vldrhq_gather_shifted_offset_z_u16(pDataC, vecOffsCur, p0);
             vstrhq_p(pDataDestR, vecIn, p0);
         }
 
