@@ -22,6 +22,8 @@ parser.add_argument('--fvp-root', type=Path, required=True, help='Corstone-300 m
 parser.add_argument('--compiler', default='arm-none-eabi-gcc')
 parser.add_argument('--opt', default='O3', help='Optimization level (default O3)')
 parser.add_argument('--build-dir', type=Path, required=True)
+parser.add_argument('--max-block', type=int, default=12,
+                    help='Largest blockSize (default 12; 40 reaches the 29-32 tap kernel, used from blockSize 32)')
 parser.add_argument('--fir-source', type=Path, help='Optional arm_fir_q31.c to build instead, for the negative control')
 parser.add_argument('--input-slack', type=int, default=0,
                     help='Readable elements between the input and its guard (diagnosis of a kernel that also reads past its input)')
@@ -42,6 +44,8 @@ if args.control:
     cmd += [CONTROLS[args.control]]
 if args.input_slack:
     cmd += [f'-DINPUT_SLACK={args.input_slack}U']
+cmd += [f'-DMAX_BLOCK={args.max_block}U']
+expected = f'PASS: {40 * args.max_block} MVE FIR q31 state-bound cases'
 for include in [repo / 'Include', repo / 'PrivateInclude', args.cmsis_core / 'Include', device / 'Include']:
     cmd += ['-I' + str(include.resolve())]
 cmd += [str(here / 'mve_fir_q31_state_bound.c'), str(here / 'corstone300_console.c'),
@@ -67,9 +71,9 @@ log = result.stdout + result.stderr
 print(log)
 # The UART shutdown path returns zero even when the test reports failure.
 if args.control:
-    if 'FAIL:' not in log or 'PASS: 480 MVE FIR q31 state-bound cases' in log:
+    if 'FAIL:' not in log or expected in log:
         print(f'control {args.control} did not fail as expected')
         raise SystemExit(1)
     print(f'control {args.control} failed as expected')
-elif result.returncode or 'FAIL:' in log or 'PASS: 480 MVE FIR q31 state-bound cases' not in log:
+elif result.returncode or 'FAIL:' in log or expected not in log:
     raise SystemExit(1)
