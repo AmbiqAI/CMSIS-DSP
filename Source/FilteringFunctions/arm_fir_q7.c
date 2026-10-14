@@ -189,6 +189,120 @@ static void arm_fir_q7_1_16_mve(const arm_fir_instance_q7 * S,
     #undef NBTAPS
 }
 
+/*
+ * Last outputs of the general Helium kernel, from the first output after the
+ * main loop (pSamples, pStateCur, pTempSrc and pOutput as the main loop left
+ * them), and the copy of the history to the start of the state. Kept out of
+ * line, with nothing live after the call, so that it does not change the
+ * register allocation of the main loop.
+ */
+__attribute__((noinline)) static void arm_fir_q7_tail_mve(
+    const q7_t * pCoeffs,
+    const q7_t * pSamples,
+          q7_t * pStateCur,
+    const q7_t * pTempSrc,
+          q7_t * pOutput,
+          q7_t * pState,
+    uint32_t numTaps,
+    uint32_t blockSize)
+{
+    uint32_t  tailCnt = blockSize - (uint32_t) (pSamples - pState);
+    q7_t     *pTempDest;
+    uint32_t  blkCnt;
+    uint32_t  tapsBlkCnt = (numTaps + 15) / 16;
+    q31_t     acc0, acc1, acc2, acc3;
+
+    /*
+     * Remaining outputs: the input copy and the last block of taps are
+     * predicated, so no access passes blockSize input samples or the
+     * numTaps + blockSize - 1 state samples. Groups of 4 as in the main loop,
+     * then the last 1 to 3 outputs one at a time.
+     */
+    mve_pred16_t pLastTaps = vctp8q(numTaps - (tapsBlkCnt - 1U) * 16U);
+    while (tailCnt >= 4U)
+    {
+        mve_pred16_t pCopy = vctp8q(4U);
+        const q7_t    *pCoeffsTmp = pCoeffs;
+        const q7_t    *pSamplesTmp = pSamples;
+
+        vstrbq_p_s8(pStateCur, vldrbq_z_s8(pTempSrc, pCopy), pCopy);
+        pStateCur += 4;
+        pTempSrc += 4;
+
+        acc0 = 0;
+        acc1 = 0;
+        acc2 = 0;
+        acc3 = 0;
+        for (uint32_t i = 1U; i < tapsBlkCnt; i++)
+        {
+            q7x16_t  vecCoeffs = vld1q(pCoeffsTmp);
+
+            acc0 = vmladavaq(acc0, vld1q(pSamplesTmp), vecCoeffs);
+            acc1 = vmladavaq(acc1, vld1q(&pSamplesTmp[1]), vecCoeffs);
+            acc2 = vmladavaq(acc2, vld1q(&pSamplesTmp[2]), vecCoeffs);
+            acc3 = vmladavaq(acc3, vld1q(&pSamplesTmp[3]), vecCoeffs);
+            pSamplesTmp += 16;
+            pCoeffsTmp += 16;
+        }
+        {
+            q7x16_t  vecCoeffs = vld1q(pCoeffsTmp);
+
+            acc0 = vmladavaq(acc0, vldrbq_z_s8(pSamplesTmp, pLastTaps), vecCoeffs);
+            acc1 = vmladavaq(acc1, vldrbq_z_s8(&pSamplesTmp[1], pLastTaps), vecCoeffs);
+            acc2 = vmladavaq(acc2, vldrbq_z_s8(&pSamplesTmp[2], pLastTaps), vecCoeffs);
+            acc3 = vmladavaq(acc3, vldrbq_z_s8(&pSamplesTmp[3], pLastTaps), vecCoeffs);
+        }
+        *pOutput++ = (q7_t) __SSAT((acc0 >> 7U), 8);
+        *pOutput++ = (q7_t) __SSAT((acc1 >> 7U), 8);
+        *pOutput++ = (q7_t) __SSAT((acc2 >> 7U), 8);
+        *pOutput++ = (q7_t) __SSAT((acc3 >> 7U), 8);
+
+        pSamples += 4;
+        tailCnt -= 4U;
+    }
+    while (tailCnt > 0U)
+    {
+        const q7_t    *pCoeffsTmp = pCoeffs;
+        const q7_t    *pSamplesTmp = pSamples;
+
+        *pStateCur++ = *pTempSrc++;
+
+        acc0 = 0;
+        for (uint32_t i = 1U; i < tapsBlkCnt; i++)
+        {
+            acc0 = vmladavaq(acc0, vld1q(pSamplesTmp), vld1q(pCoeffsTmp));
+            pSamplesTmp += 16;
+            pCoeffsTmp += 16;
+        }
+        acc0 = vmladavaq(acc0, vldrbq_z_s8(pSamplesTmp, pLastTaps), vld1q(pCoeffsTmp));
+        *pOutput++ = (q7_t) __SSAT((acc0 >> 7U), 8);
+
+        pSamples++;
+        tailCnt--;
+    }
+
+    /*
+     * Copy the last numTaps - 1 samples back into the history buffer start
+     */
+    pTempSrc = &pState[blockSize];
+    pTempDest = pState;
+
+    blkCnt = (numTaps - 1U) >> 4;
+    while (blkCnt > 0U)
+    {
+        vst1q(pTempDest, vld1q(pTempSrc));
+        pTempSrc += 16;
+        pTempDest += 16;
+        blkCnt--;
+    }
+    blkCnt = (numTaps - 1U) & 0xF;
+    if (blkCnt > 0U)
+    {
+        mve_pred16_t p0 = vctp8q(blkCnt);
+        vstrbq_p_s8(pTempDest, vldrbq_z_s8(pTempSrc, p0), p0);
+    }
+}
+
 ARM_DSP_ATTRIBUTE void arm_fir_q7(
   const arm_fir_instance_q7 * S,
   const q7_t * pSrc,
@@ -201,7 +315,6 @@ ARM_DSP_ATTRIBUTE void arm_fir_q7(
     const q7_t     *pSamples;         /* Temporary pointer to the sample buffer */
     q7_t     *pOutput;          /* Temporary pointer to the output buffer */
     const q7_t     *pTempSrc;         /* Temporary pointer to the source data */
-    q7_t     *pTempDest;        /* Temporary pointer to the destination buffer */
     uint32_t  numTaps = S->numTaps; /* Number of filter coefficients in the filter */
     uint32_t  blkCnt;
     q7x16_t  vecIn0;
@@ -250,7 +363,16 @@ ARM_DSP_ATTRIBUTE void arm_fir_q7(
     pSamples    = pState;
     pTempSrc    = pSrc;
     pOutput     = pDst;
-    blkCnt      = blockSize >> 2;
+    /*
+     * The main loop copies 16 input samples and reads the state through
+     * tapsBlkCnt * 16 taps (zero-padded past numTaps) for each 4 outputs, so it
+     * runs only over the blocks for which both stay within blockSize input
+     * samples and the numTaps + blockSize - 1 state samples. The remaining
+     * outputs follow it under the tail predicate.
+     */
+    uint32_t  padTaps = tapsBlkCnt * 16U - numTaps;
+    uint32_t  margin = (padTaps + 4U > 16U) ? padTaps + 4U : 16U;
+    blkCnt      = (blockSize >= margin) ? ((blockSize - margin) >> 2) + 1U : 0U;
 
     /*
      * outer samples loop
@@ -268,8 +390,8 @@ ARM_DSP_ATTRIBUTE void arm_fir_q7(
          * Save 16 input samples in the history buffer
          */
         vst1q(pStateCur, vld1q(pTempSrc));
-        pStateCur += 16;
-        pTempSrc += 16;
+        pStateCur += 4;
+        pTempSrc += 4;
 
         /*
          * inner coefficients loop
@@ -316,134 +438,11 @@ ARM_DSP_ATTRIBUTE void arm_fir_q7(
         blkCnt--;
     }
 
-    uint32_t  residual = blockSize & 3;
-    switch (residual)
-    {
-    case 3:
-        {
-            const q7_t     *pCoeffsTmp = pCoeffs;
-            const q7_t     *pSamplesTmp = pSamples;
-
-            acc0 = 0;
-            acc1 = 0;
-            acc2 = 0;
-            /*
-             * Save 16 input samples in the history buffer
-             */
-            vst1q(pStateCur, vld1q(pTempSrc));
-            pStateCur += 16;
-            pTempSrc += 16;
-
-            int       i = tapsBlkCnt;
-            while (i > 0)
-            {
-                vecCoeffs = *(q7x16_t *) pCoeffsTmp;
-
-                vecIn0 = vld1q(pSamplesTmp);
-                acc0 = vmladavaq(acc0, vecIn0, vecCoeffs);
-
-                vecIn0 = vld1q(&pSamplesTmp[4]);
-                acc1 = vmladavaq(acc1, vecIn0, vecCoeffs);
-
-                vecIn0 = vld1q(&pSamplesTmp[8]);
-                acc2 = vmladavaq(acc2, vecIn0, vecCoeffs);
-
-                pSamplesTmp += 16;
-                pCoeffsTmp += 16;
-                i--;
-            }
-
-            *pOutput++ = (q7_t) __SSAT((acc0 >> 7U), 8);
-            *pOutput++ = (q7_t) __SSAT((acc1 >> 7U), 8);
-            *pOutput++ = (q7_t) __SSAT((acc2 >> 7U), 8);
-        }
-        break;
-
-    case 2:
-        {
-            const q7_t     *pCoeffsTmp = pCoeffs;
-            const q7_t     *pSamplesTmp = pSamples;
-
-            acc0 = 0;
-            acc1 = 0;
-            /*
-             * Save 16 input samples in the history buffer
-             */
-            vst1q(pStateCur, vld1q(pTempSrc));
-            pStateCur += 16;
-            pTempSrc += 16;
-
-            int       i = tapsBlkCnt;
-            while (i > 0)
-            {
-                vecCoeffs = *(q7x16_t *) pCoeffsTmp;
-
-                vecIn0 = vld1q(pSamplesTmp);
-                acc0 = vmladavaq(acc0, vecIn0, vecCoeffs);
-
-                vecIn0 = vld1q(&pSamplesTmp[4]);
-                acc1 = vmladavaq(acc1, vecIn0, vecCoeffs);
-
-                pSamplesTmp += 16;
-                pCoeffsTmp += 16;
-                i--;
-            }
-
-            *pOutput++ = (q7_t) __SSAT((acc0 >> 7U), 8);
-            *pOutput++ = (q7_t) __SSAT((acc1 >> 7U), 8);
-        }
-        break;
-
-    case 1:
-        {
-            const q7_t     *pCoeffsTmp = pCoeffs;
-            const q7_t     *pSamplesTmp = pSamples;
-
-            acc0 = 0;
-            /*
-             * Save 16 input samples in the history buffer
-             */
-            vst1q(pStateCur, vld1q(pTempSrc));
-            pStateCur += 16;
-            pTempSrc += 16;
-
-            int       i = tapsBlkCnt;
-            while (i > 0)
-            {
-                vecCoeffs = *(q7x16_t *) pCoeffsTmp;
-
-                vecIn0 = vld1q(pSamplesTmp);
-                acc0 = vmladavaq(acc0, vecIn0, vecCoeffs);
-
-                pSamplesTmp += 16;
-                pCoeffsTmp += 16;
-                i--;
-            }
-            *pOutput++ = (q7_t) __SSAT((acc0 >> 7U), 8);
-        }
-        break;
-    }
-
     /*
-     * Copy the samples back into the history buffer start
+     * Remaining outputs and the history copy
      */
-    pTempSrc = &pState[blockSize];
-    pTempDest = pState;
-
-    blkCnt = numTaps >> 4;
-    while (blkCnt > 0U)
-    {
-        vst1q(pTempDest, vld1q(pTempSrc));
-        pTempSrc += 16;
-        pTempDest += 16;
-        blkCnt--;
-    }
-    blkCnt = numTaps & 0xF;
-    if (blkCnt > 0U)
-    {
-        mve_pred16_t p0 = vctp8q(blkCnt);
-        vstrbq_p_s8(pTempDest, vld1q(pTempSrc), p0);
-    }
+    arm_fir_q7_tail_mve(pCoeffs, pSamples, pStateCur, pTempSrc, pOutput, pState,
+                        numTaps, blockSize);
 }
 #else
 ARM_DSP_ATTRIBUTE void arm_fir_q7(
