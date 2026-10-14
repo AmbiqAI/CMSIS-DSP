@@ -321,3 +321,38 @@ followed by `FAIL: 1 of 20 kernels`.
 ## GCC 15.0–15.2 `__QSUB`/`__QADD` workaround canary
 
 `gcc15_qsub_ifcvt_canary.c` is the reproducer of GCC PR rtl-optimization/122170: the ACLE `__qsub` builtin under a condition, compiled without the workaround in `Include/arm_math_types.h`. Arm GNU 15.2.1 stops on it with an internal compiler error in RTL pass `ce1` at `-O1` and above on any core with the DSP extension; Arm GNU 14.3.1, 15.3.1 and ATfE 22.1.0 compile it. `run_gcc15_qsub_ifcvt_canary.py --compiler <gcc or clang> --cmsis-core <CMSIS-Core directory> [--cpu cortex-m4]` finds whether the compiler is in the workaround's range from the marker `ARM_MATH_GCC15_QSUB_WORKAROUND` in the `-dM -E` output of `arm_math_types.h`, which the block defines for that range with CMSIS-Core 6 and 5.x alike. It compiles the canary at `-O1`, `-O2`, `-O3` and `-Os`, and requires the crash at every level exactly when the marker is defined. It then compiles the six Q31 sources that crashed (`arm_abs_q31.c`, `arm_atan2_q31.c`, `arm_absmax_q31.c`, `arm_absmin_q31.c`, `arm_absmax_no_idx_q31.c`, `arm_absmin_no_idx_q31.c`) and the three `FASTBUILD` aggregates that include them at the same levels with `-DARM_MATH_LOOPUNROLL`, with soft float and with hard float; on a core with MVE, hard float builds the Helium kernels, and a third configuration adds `ARM_MATH_AUTOVECTORIZE`. It expects `PASS: canary agrees with the workaround gate at 4 levels; 72 source compilations succeed` for Cortex-M4 and `108` for Cortex-M55. A compiler inside the gate that compiles the canary reports `narrow the gate`; one outside it that crashes reports `widen the gate`. Workflow `gcc15-qsub-ifcvt.yml` runs it for Cortex-M4 and Cortex-M55 under Arm GNU 14.3.1, 15.2.1, 15.3.1 and ATfE 22.1.0 on every pull request that changes `Include/` or `Source/`, against CMSIS_6 from its default branch.
+
+## FIR q31 state-bound regression
+
+`mve_fir_q31_state_bound.c` applies the method of the f32 state-bound
+regression to `arm_fir_q31`, whose Helium state length Arm documents as
+`numTaps + 8 * ceil(blockSize / 4) + blockSize - 1` (the first
+`8 * ceil(blockSize / 4)` elements are scratch). It places the state against
+an MPU guard for 1–40 taps and 1–12 samples per block (480 cases, covering the
+1–4, 5–8, …, 25–28 tap paths and the general path above 28 taps), grows the
+buffer one element at a time after a recovered MemManage fault until the
+kernel runs without touching the guard, and records how many elements beyond
+the documented length were touched and whether any were stored to. The pass
+condition is no reads or stores past the documented length and no read past
+the input, whose two blocks end at a second guard; outputs of both blocks are
+checked against a double-precision reference within one LSB per vector of
+taps plus one. The initializer must clear the documented length and write
+nothing past it. `--opt` sets the optimization level (default `O3`); the 29–32
+tap path, which the kernel takes only from 32 samples per block, is outside
+this range.
+
+```sh
+python3 Testing/Regression/run_mve_fir_q31_state_bound.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass the unpatched `arm_fir_q31.c` through
+`--fir-source`. Its residual input copy reads past the input block, so it must
+report `FAIL: numTaps=1 blockSize=1 still faults with 16 extra elements`.
+With `--input-slack 4`, which leaves four readable elements after the input,
+the same kernel must report `FAIL: 408 of 480 MVE FIR q31 state-bound cases
+exceed the contract`: every tap count that is not a multiple of four reads up
+to three elements past the documented length, and with 1–4 taps and above 28
+taps the residual input copy also stores up to three elements past it. The
+`sparse-read-32` and `sparse-read-far` controls apply as in the other guarded
+regressions.
