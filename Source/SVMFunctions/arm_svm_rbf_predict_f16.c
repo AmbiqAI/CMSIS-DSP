@@ -171,7 +171,7 @@ ARM_DSP_ATTRIBUTE void arm_svm_rbf_predict_f16(
         vtmp = vsetq_lane(vecAddAcrossF16Mve(acc3), vtmp, 3);
 
         vSum =
-            vfmaq_m_f16(vSum, vld1q(pDualCoef),
+            vfmaq_m_f16(vSum, vld1q_z(pDualCoef, vctp16q(4)),
                       vexpq_f16(vmulq_n_f16(vtmp, -(_Float16)S->gamma)),vctp16q(4));
         pDualCoef += 4;
         pSrcA += numCols * 4;
@@ -249,7 +249,7 @@ ARM_DSP_ATTRIBUTE void arm_svm_rbf_predict_f16(
         vtmp = vsetq_lane(vecAddAcrossF16Mve(acc1), vtmp, 1);
 
         vSum =
-            vfmaq_m_f16(vSum, vld1q(pDualCoef),
+            vfmaq_m_f16(vSum, vld1q_z(pDualCoef, vctp16q(2)),
                         vexpq_f16(vmulq_n_f16(vtmp, -(_Float16)S->gamma)), vctp16q(2));
         pDualCoef += 2;
 
@@ -310,7 +310,7 @@ ARM_DSP_ATTRIBUTE void arm_svm_rbf_predict_f16(
         vtmp = vsetq_lane(vecAddAcrossF16Mve(acc0), vtmp, 0);
 
         vSum =
-            vfmaq_m_f16(vSum, vld1q(pDualCoef),
+            vfmaq_m_f16(vSum, vld1q_z(pDualCoef, vctp16q(1)),
                         vexpq_f16(vmulq_n_f16(vtmp, -(_Float16)S->gamma)), vctp16q(1));
 
     }
