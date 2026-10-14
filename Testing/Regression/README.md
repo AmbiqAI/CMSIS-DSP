@@ -317,3 +317,38 @@ passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
 first `blockSize % 4` elements again instead of the last ones, and the run
 must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
 followed by `FAIL: 1 of 20 kernels`.
+
+## FIR q31 state-bound regression
+
+`mve_fir_q31_state_bound.c` applies the method of the f32 state-bound
+regression to `arm_fir_q31`, whose Helium state length Arm documents as
+`numTaps + 8 * ceil(blockSize / 4) + blockSize - 1` (the first
+`8 * ceil(blockSize / 4)` elements are scratch). It places the state against
+an MPU guard for 1–40 taps and 1–12 samples per block (480 cases, covering the
+1–4, 5–8, …, 25–28 tap paths and the general path above 28 taps), grows the
+buffer one element at a time after a recovered MemManage fault until the
+kernel runs without touching the guard, and records how many elements beyond
+the documented length were touched and whether any were stored to. The pass
+condition is no reads or stores past the documented length and no read past
+the input, whose two blocks end at a second guard; outputs of both blocks are
+checked against a double-precision reference within one LSB per vector of
+taps plus one. The initializer must clear the documented length and write
+nothing past it. `--opt` sets the optimization level (default `O3`); the 29–32
+tap path, which the kernel takes only from 32 samples per block, is outside
+this range.
+
+```sh
+python3 Testing/Regression/run_mve_fir_q31_state_bound.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass the unpatched `arm_fir_q31.c` through
+`--fir-source`. Its residual input copy reads past the input block, so it must
+report `FAIL: numTaps=1 blockSize=1 still faults with 16 extra elements`.
+With `--input-slack 4`, which leaves four readable elements after the input,
+the same kernel must report `FAIL: 408 of 480 MVE FIR q31 state-bound cases
+exceed the contract`: every tap count that is not a multiple of four reads up
+to three elements past the documented length, and with 1–4 taps and above 28
+taps the residual input copy also stores up to three elements past it. The
+`sparse-read-32` and `sparse-read-far` controls apply as in the other guarded
+regressions.
