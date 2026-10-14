@@ -317,3 +317,27 @@ passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
 first `blockSize % 4` elements again instead of the last ones, and the run
 must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
 followed by `FAIL: 1 of 20 kernels`.
+
+## RFFT q15 and q31 input bound
+
+Arm documents the input of a forward RFFT as N samples. The Helium split
+stage of `arm_rfft_q15` and `arm_rfft_q31` processes four (q15) or two (q31)
+complex outputs per iteration, up to k = fftLen, whose output
+`pDst[2 * fftLen]` then overwrites; its last load read two samples past the
+N input samples. The last group now runs after the loop and loads under the
+tail predicate; the loop is unchanged.
+
+`mve_rfft_fixed_src_bound.c` runs each forward transform with the input
+ending at an MPU guard and compares the output bit for bit with a run on
+padded input: q15 at N = 32 to 4096, q31 at N = 32 to 8192 (17 cases).
+`--opt` sets the optimization level (default `O3`).
+
+```sh
+python3 Testing/Regression/run_mve_rfft_fixed_src_bound.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding the previous
+`arm_rfft_q15.c` and `arm_rfft_q31.c` through `--rfft-source-dir`; the run must
+report `FAIL: arm_rfft_q15 N=32 read past the input`, and with only the q31
+file unchanged `FAIL: arm_rfft_q31 N=32 read past the input`.
