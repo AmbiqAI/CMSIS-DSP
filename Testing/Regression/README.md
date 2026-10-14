@@ -352,3 +352,31 @@ to three elements past the documented length, and with 1–4 taps and above 28
 taps the residual input copy also stores up to three elements past it. The
 `sparse-read-32` and `sparse-read-far` controls apply as in the other guarded
 regressions.
+
+## FIR q31 at 29 to 32 taps: remainder outputs
+
+`arm_fir_q31` uses a dedicated Helium kernel for 29 to 32 taps when
+blockSize is 32 or more. It processed whole groups of four samples only: for
+blockSize mod 4 of 1 to 3 the last outputs were never written and the last
+inputs never reached the state, so the next block started from a wrong
+history. The kernel now computes those outputs in a separate routine, with
+the inputs copied under the tail predicate and the last tap vector loaded for
+the real taps only; the routine and the kernel are kept out of line so that
+the kernel's loops compile on their own.
+
+`mve_fir_q31_29_32_remainder.c` filters three consecutive blocks at 29 to 32
+taps and block sizes 32 to 48 and 61 to 67, with small and full-scale
+coefficients and inputs scaled down by log2(numTaps) bits as Arm requires,
+and compares every output bit for bit with the scalar kernel's arithmetic
+(the 64-bit sum shifted right by 31); output canaries catch unwritten
+outputs. 192 cases; `--opt` sets the optimization level (default `O3`).
+
+```sh
+python3 Testing/Regression/run_mve_fir_q31_29_32_remainder.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding the previous
+`arm_fir_q31.c` through `--fir-source-dir`; the run must report
+`FAIL: 144 of 192 MVE FIR q31 29-32 tap remainder cases`, the first failure
+an output that was not written.
