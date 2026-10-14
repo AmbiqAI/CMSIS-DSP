@@ -308,3 +308,31 @@ For the negative control, pass the previous `arm_mat_ldlt_f32.c` through
 `--ldlt-source`; it must report `FAIL: arm_mat_ldlt_f32 positive-definite n=2
 access 0 bytes past L` (ATfE 22.1.0 at `-O2` faults 8 bytes past L). The
 runner also takes `--control sparse-read-32`, `sparse-read-far` and `nan`.
+
+## LDLt on rank-deficient inputs
+
+`arm_mat_ldlt_f32` and `arm_mat_ldlt_f64` stop the elimination at step k when
+the largest remaining pivot is below their threshold, with k valid pivots.
+They then decremented the pivot count before copying the pivots into D, so
+the last valid pivot was left out of D and stayed on the diagonal of L, and
+P A P^t differed from L D L^t while the status was `ARM_MATH_SUCCESS`. The
+decrement is removed in the Helium and scalar f32 code and in the f64 code;
+full-rank inputs do not reach it.
+
+`mat_ldlt_rank_deficient.c` checks P A P^t = L D L^t (P from `pp`, as in
+Arm's tests) within 1e-5 (f32) and 1e-10 (f64) relative to the largest
+element, and that D is diagonal and L lower triangular, on exact
+rank-deficient matrices and on Arm's semidefinite and positive definite
+LDLt patterns (`Testing/Patterns/DSP/Matrix/Unary`), which the runner turns
+into a header. The runner builds it with the Helium kernels and with the
+scalar code (Cortex-M55 and Cortex-M55+nomve); 44 cases in each.
+
+```sh
+python3 Testing/Regression/run_mat_ldlt_rank_deficient.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding the previous
+`arm_mat_ldlt_f32.c` and `arm_mat_ldlt_f64.c` through `--ldlt-source-dir`;
+the run must report `FAIL: 7 of 44 LDLt reconstruction cases` for the
+Helium build and `FAIL: 8 of 44` for the scalar build.
