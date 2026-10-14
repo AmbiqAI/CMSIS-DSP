@@ -159,7 +159,7 @@ ARM_DSP_ATTRIBUTE void arm_svm_sigmoid_predict_f16(
         vtmp = vsetq_lane(vecAddAcrossF16Mve(acc3), vtmp, 3);
 
         vSum =
-            vfmaq_m_f16(vSum, vld1q(pDualCoef),
+            vfmaq_m_f16(vSum, vld1q_z(pDualCoef, vctp16q(4)),
                       vtanhq_f16(vaddq_n_f16(vmulq_n_f16(vtmp, S->gamma), S->coef0)),vctp16q(4));
 
         pDualCoef += 4;
@@ -234,7 +234,7 @@ ARM_DSP_ATTRIBUTE void arm_svm_sigmoid_predict_f16(
         vtmp = vsetq_lane(vecAddAcrossF16Mve(acc1), vtmp, 1);
 
         vSum =
-            vfmaq_m_f16(vSum, vld1q(pDualCoef),
+            vfmaq_m_f16(vSum, vld1q_z(pDualCoef, vctp16q(2)),
                         vtanhq_f16(vaddq_n_f16(vmulq_n_f16(vtmp, S->gamma), S->coef0)),
                         vctp16q(2));
 
@@ -293,7 +293,7 @@ ARM_DSP_ATTRIBUTE void arm_svm_sigmoid_predict_f16(
         vtmp = vsetq_lane(vecAddAcrossF16Mve(acc0), vtmp, 0);
 
         vSum =
-            vfmaq_m_f16(vSum, vld1q(pDualCoef),
+            vfmaq_m_f16(vSum, vld1q_z(pDualCoef, vctp16q(1)),
                         vtanhq_f16(vaddq_n_f16(vmulq_n_f16(vtmp, S->gamma), S->coef0)),
                         vctp16q(1));
     }

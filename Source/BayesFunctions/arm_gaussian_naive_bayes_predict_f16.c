@@ -115,13 +115,13 @@ ARM_DSP_ATTRIBUTE uint32_t arm_gaussian_naive_bayes_predict_f16(const arm_gaussi
             mve_pred16_t    p0 = vctp16q(blkCnt);
             f16x8_t         vinvSigma, vtmp;
 
-            vsigma = vaddq_n_f16(vld1q(pSigma), S->epsilon);
+            vsigma = vaddq_n_f16(vldrhq_z_f16(pSigma, p0), S->epsilon);
             vacc1 =
                 vaddq_m_f16(vacc1, vacc1, vlogq_f16(vmulq_n_f16(vsigma, 2.0f16 * (_Float16)PI)), p0);
 
             vinvSigma = vrecip_medprec_f16(vsigma);
 
-            vtmp = vsubq(vld1q(pIn), vld1q(pTheta));
+            vtmp = vsubq(vldrhq_z_f16(pIn, p0), vldrhq_z_f16(pTheta, p0));
             /* squaring */
             vtmp = vmulq(vtmp, vtmp);
 
