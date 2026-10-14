@@ -317,3 +317,27 @@ passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
 first `blockSize % 4` elements again instead of the last ones, and the run
 must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
 followed by `FAIL: 1 of 20 kernels`.
+
+## absmin fixed-point saturation
+
+`mve_absmin_fixed_saturation.c` calls `arm_absmin_q7`, `arm_absmin_q15` and
+`arm_absmin_q31` on inputs that contain the most negative value (0x80,
+0x8000, 0x80000000): once at each position, in every element, and together
+with ±3 or with ± the most positive value, for 22 lengths from 1 to 513
+(2622 cases). As in the scalar paths, the absolute value of the most
+negative value saturates to the most positive value. Each case checks that
+the returned value is the minimum of the saturated absolute values and that
+the returned index points to an element with that saturated absolute value;
+which of several equal minima it names is not checked. `--opt` sets the
+optimization level (default `O3`).
+
+```sh
+python3 Testing/Regression/run_mve_absmin_fixed_saturation.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding the three kernels of
+`ambiq/2026.10.0` (Arm's) through `--absmin-source-dir`. Their non-saturating
+`vabsq` leaves the most negative value negative, so it is returned as the
+minimum, and they must report `FAIL: 2622 of 2622 MVE absmin fixed-point
+saturation cases`.
