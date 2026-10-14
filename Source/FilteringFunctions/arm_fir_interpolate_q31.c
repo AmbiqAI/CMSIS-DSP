@@ -346,7 +346,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_interpolate_q31(
     if (blkCnt > 0U)
     {
         mve_pred16_t p0 = vctp32q(blkCnt);
-        vstrwq_p_s32(pStateCurnt, vldrwq_s32(pState), p0);
+        vstrwq_p_s32(pStateCurnt, vldrwq_z_s32(pState, p0), p0);
     }
 }
 #else
