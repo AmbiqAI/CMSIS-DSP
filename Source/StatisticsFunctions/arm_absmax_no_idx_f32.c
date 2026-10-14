@@ -89,9 +89,9 @@ ARM_DSP_ATTRIBUTE void arm_absmax_no_idx_f32(
     blkCnt = blockSize & 3;
     if (blkCnt > 0)
     {
-        vecSrc = vldrwq_f32(pSrcVec);  
-        pSrcVec += 4;
         p0 = vctp32q(blkCnt);
+        vecSrc = vldrwq_z_f32(pSrcVec, p0);
+        pSrcVec += 4;
         /*
          * Get current max per lane and current index per lane
          * when a max is selected
