@@ -21,6 +21,7 @@ parser.add_argument('--cortex-dfp', type=Path, required=True)
 parser.add_argument('--platform-linker', type=Path, required=True)
 parser.add_argument('--fvp-root', type=Path, required=True, help='Corstone-300 model package root')
 parser.add_argument('--compiler', default='arm-none-eabi-gcc')
+parser.add_argument('--opt', default='O3', help='Optimization level (default O3)')
 parser.add_argument('--build-dir', type=Path, required=True)
 parser.add_argument('--fir-source', type=Path, help='Optional upstream arm_fir_f32.c for negative control')
 parser.add_argument('--control', choices=sorted(CONTROLS),
@@ -34,7 +35,7 @@ device = args.cortex_dfp.resolve() / 'Device/ARMCM55'
 source = args.fir_source or repo / 'Source/FilteringFunctions/arm_fir_f32.c'
 elf = build / 'mve_fir_f32_state_bound.elf'
 cmd = [args.compiler, '-mcpu=cortex-m55', '-mthumb', '-mfloat-abi=hard',
-       '-O3', '-ffast-math', '-flax-vector-conversions', '-ffunction-sections',
+       '-' + args.opt, '-ffast-math', '-flax-vector-conversions', '-ffunction-sections',
        '-fdata-sections', '-DARMCM55', '-DDISABLEFLOAT16']
 if args.control:
     cmd += [CONTROLS[args.control]]
