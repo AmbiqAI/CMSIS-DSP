@@ -158,7 +158,6 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_ldlt_f64(
     diag=k;
     if (!fullRank)
     {
-      diag--;
       {
         int row;
         for(row=0; row < n;row++)
