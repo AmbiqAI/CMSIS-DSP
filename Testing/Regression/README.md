@@ -317,3 +317,33 @@ passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
 first `blockSize % 4` elements again instead of the last ones, and the run
 must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
 followed by `FAIL: 1 of 20 kernels`.
+
+## df1 Q15 and Q31 biquads at small block sizes
+
+`arm_biquad_cascade_df1_q15` computes four outputs before its loop and sets
+its loop count to `(blockSize - 4) >> 2`; `arm_biquad_cascade_df1_q31`
+computes two and uses `(blockSize - 2) >> 2`. Both counts are unsigned, so
+below those sizes (q15: blockSize 0 to 3, q31: 0 and 1) they wrap to about
+2^30 and the kernels store through memory without returning. Such blocks now
+go to a per-sample routine that computes each output with the same
+multiply-accumulate and rounding shift as the main kernel.
+
+`mve_biquad_df1_short_blocks.c` filters a 64-sample signal in one call and
+again in blocks of 1 to 17 samples, through 1 to 3 stages, with separate and
+with in-place buffers; the blocked output and final state must equal those of
+the single call bit for bit. Each block's output ends at a read-only MPU
+region, so a store past it faults while reads are allowed. A call with
+blockSize 0 must store nothing and keep the state. 216 cases; `--opt` sets
+the optimization level (default `O3`).
+
+```sh
+python3 Testing/Regression/run_mve_biquad_df1_short_blocks.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding the kernels of
+`ambiq/2026.10.0` through `--biquad-source-dir`; the run must report
+`FAIL: arm_biquad_cascade_df1_q15 store past the output, blockSize=0 stages=1
+in-place=0`, and with only the Q31 kernel unchanged
+`FAIL: arm_biquad_cascade_df1_q31 store past the output, blockSize=0 stages=1
+in-place=0`.
