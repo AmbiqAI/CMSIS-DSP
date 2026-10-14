@@ -276,3 +276,31 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## float16 on Armv8.1-M without MVE (Arm GNU before 15.3)
+
+Arm GNU Toolchain before 15.3 compiles scalar half-precision loads and
+stores for Armv8.1-M without MVE (for example `-mcpu=cortex-m55+nomve`,
+`cortex-m85+nomve`, `cortex-m52+nomve`, `-march=armv8.1-m.main+fp.dp`) to
+Advanced SIMD lane loads and stores, `vld1.16` and `vst1.16`, which M-profile
+cores do not implement; with the default `-mfpu` the image builds and faults
+at the first one. `arm_math_types_f16.h` now stops such a build with an
+`#error` unless `DISABLEFLOAT16` is defined. MVE, `+nomve.fp`, other
+M-profile targets, Clang-based compilers and Arm GNU 15.3 are unchanged.
+
+`test_f16_gcc_no_mve_guard.py` compiles a `float16_t` copy and
+`arm_mat_qr_f16.c` with each compiler given (`--gcc`, `--clang`) for seven
+targets: the four above without MVE, `cortex-m55+nomve.fp`, `cortex-m55` and
+`cortex-m4`. Arm GNU before 15.3 on a target without MVE must stop with the
+`#error` and compile with `DISABLEFLOAT16`; every other cell must compile with
+no Advanced SIMD load or store in the assembly.
+
+```sh
+python3 Testing/Regression/test_f16_gcc_no_mve_guard.py --cmsis-core <CMSIS_6>/CMSIS/Core \
+  --gcc /path/to/arm-gnu-14.3/bin/arm-none-eabi-gcc --gcc /path/to/arm-gnu-15.3/bin/arm-none-eabi-gcc \
+  --clang /path/to/ATfE/bin/clang
+```
+
+For the negative control, pass a checkout with the previous header through
+`--cmsis-dsp` with `--expect-failure`; it passes when the affected cells
+compile with Advanced SIMD loads and stores.
