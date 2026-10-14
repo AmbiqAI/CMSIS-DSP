@@ -58,21 +58,26 @@ ARM_DSP_ATTRIBUTE void arm_clip_q31(const q31_t * pSrc,
   q31_t high, 
   uint32_t numSamples)
 {
-    uint32_t  blkCnt;
+    uint32_t  blkCnt, nbBlocks;
     q31x4_t curVec0, curVec1;
     q31x4_t vecLow, vecHigh;
 
     vecLow = vdupq_n_s32(low);
     vecHigh = vdupq_n_s32(high);
 
-    curVec0 = vld1q(pSrc);
+    curVec0 = vld1q_z(pSrc, vctp32q(numSamples));
     pSrc += 4;
     /*
      * unrolled x 2 to allow
      * vldr/vstr/vmin/vmax
      * stall free interleaving
      */
-    blkCnt = numSamples >> 3;
+    /*
+     * The last pair of vectors runs after the loop: its look-ahead load
+     * reads only the samples that remain.
+     */
+    nbBlocks = numSamples >> 3;
+    blkCnt = nbBlocks > 0U ? nbBlocks - 1U : 0U;
     while (blkCnt--)
     {
         curVec0 = vmaxq(curVec0, vecLow);
@@ -88,6 +93,21 @@ ARM_DSP_ATTRIBUTE void arm_clip_q31(const q31_t * pSrc,
         vst1q(pDst, curVec1);
         pDst += 4;
     }
+    if (nbBlocks > 0U)
+    {
+        curVec0 = vmaxq(curVec0, vecLow);
+        curVec1 = vld1q(pSrc);
+        pSrc += 4;
+        curVec0 = vminq(curVec0, vecHigh);
+        vst1q(pDst, curVec0);
+        pDst += 4;
+        curVec1 = vmaxq(curVec1, vecLow);
+        curVec0 = vld1q_z(pSrc, vctp32q(numSamples & 7U));
+        pSrc += 4;
+        curVec1 = vminq(curVec1, vecHigh);
+        vst1q(pDst, curVec1);
+        pDst += 4;
+    }
     /*
      * Tail handling
      */
@@ -98,7 +118,7 @@ ARM_DSP_ATTRIBUTE void arm_clip_q31(const q31_t * pSrc,
         curVec0 = vminq(curVec0, vecHigh);
         vst1q(pDst, curVec0);
         pDst += 4;
-        curVec0 = vld1q(pSrc);
+        curVec0 = vld1q_z(pSrc, vctp32q(blkCnt - 4U));
         pSrc += 4;
     }
 
