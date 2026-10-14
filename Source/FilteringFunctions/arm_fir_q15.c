@@ -332,10 +332,10 @@ switch(nbTaps) {
                 vecIn0 = vld1q(pSamplesTmp);
                 acc0 = vmlaldavaq(acc0, vecIn0, vecCoeffs);
 
-                vecIn0 = vld1q(&pSamplesTmp[2]);
+                vecIn0 = vld1q(&pSamplesTmp[1]);
                 acc1 = vmlaldavaq(acc1, vecIn0, vecCoeffs);
 
-                vecIn0 = vld1q(&pSamplesTmp[4]);
+                vecIn0 = vld1q(&pSamplesTmp[2]);
                 acc2 = vmlaldavaq(acc2, vecIn0, vecCoeffs);
 
                 pSamplesTmp += 8;
@@ -345,10 +345,6 @@ switch(nbTaps) {
                  */
                 i--;
             }
-
-            acc0 = asrl(acc0, 15);
-            acc1 = asrl(acc1, 15);
-            acc2 = asrl(acc2, 15);
 
             *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc0, 15);
             *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc1, 15);
@@ -381,7 +377,7 @@ switch(nbTaps) {
                 vecIn0 = vld1q(pSamplesTmp);
                 acc0 = vmlaldavaq(acc0, vecIn0, vecCoeffs);
 
-                vecIn0 = vld1q(&pSamplesTmp[2]);
+                vecIn0 = vld1q(&pSamplesTmp[1]);
                 acc1 = vmlaldavaq(acc1, vecIn0, vecCoeffs);
 
                 pSamplesTmp += 8;
