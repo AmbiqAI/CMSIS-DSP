@@ -68,6 +68,8 @@
  
   @par             pState
                    pState will contain the transpose of pSrcB
+                   and needs numRowsB * numColsB elements. The Helium kernel and the
+                   scalar kernel with the DSP extension use it; the others do not.
  */
 #if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
 
