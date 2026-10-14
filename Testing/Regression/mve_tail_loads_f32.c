@@ -5,7 +5,8 @@
  * at an MPU-inaccessible region. Each kernel's final partial block is loaded
  * with the tail predicate, so a block of n elements reads exactly n elements
  * from every source. Covers the sixteen f32/u32 kernels of the predicated
- * tail-load change plus arm_mat_add_f32 and arm_mat_sub_f32, whose do/while
+ * tail-load change, arm_absmin_no_idx_f32 and arm_absmax_no_idx_f32, plus
+ * arm_mat_add_f32 and arm_mat_sub_f32, whose do/while
  * bodies the compilers already turn into tail-predicated loops: block sizes
  * 1 to 8 (two full vectors), matrices of one and two rows. Results are
  * compared with double-precision references; output canaries detect boundary
@@ -221,7 +222,7 @@ static int run_reductions(void)
     for (unsigned n = 1; n <= MAX_N; ++n)
     {
         float32_t *a = source_a(n), *b = source_b(n);
-        double dot = 0.0, sum = 0.0, mse = 0.0, absmin = 1e30;
+        double dot = 0.0, sum = 0.0, mse = 0.0, absmin = 1e30, absmax = 0.0;
         unsigned absmin_index = 0;
         for (unsigned i = 0; i < n; ++i)
         {
@@ -233,6 +234,8 @@ static int run_reductions(void)
                 absmin = fabs((double)a[i]);
                 absmin_index = i;
             }
+            if (fabs((double)a[i]) > absmax)
+                absmax = fabs((double)a[i]);
         }
         mse /= (double)n;
         current_n = n;
@@ -276,6 +279,24 @@ static int run_reductions(void)
             printf("FAIL: arm_absmin_f32 index n=%u\n", n);
             return 1;
         }
+        ++cases;
+
+        current_name = "arm_absmin_no_idx_f32";
+        clear_out();
+        protect_guards();
+        arm_absmin_no_idx_f32(a, n, out + 1);
+        unguard_buffers();
+        if (check_canaries(1) || check_value(out[1], absmin, 0))
+            return 1;
+        ++cases;
+
+        current_name = "arm_absmax_no_idx_f32";
+        clear_out();
+        protect_guards();
+        arm_absmax_no_idx_f32(a, n, out + 1);
+        unguard_buffers();
+        if (check_canaries(1) || check_value(out[1], absmax, 0))
+            return 1;
         ++cases;
     }
     return 0;

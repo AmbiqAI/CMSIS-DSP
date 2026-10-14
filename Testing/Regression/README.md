@@ -108,14 +108,15 @@ for coverage, with every source buffer ending at an MPU-inaccessible region:
 `arm_add_f32`, `arm_sub_f32`, `arm_mult_f32`, `arm_and_u32`, `arm_or_u32`,
 `arm_xor_u32`, `arm_not_u32`, `arm_dot_prod_f32`, `arm_accumulate_f32`,
 `arm_mse_f32`, `arm_absmin_f32`, `arm_mat_scale_f32`. Block sizes 1 to 8 and
-matrices of one and two rows by 1 to 8 columns, 168 cases, compared with
+matrices of one and two rows by 1 to 8 columns, 168 cases (184 with the
+statistics kernels below), compared with
 double-precision references; output canaries detect boundary writes.
 
 `run_mve_tail_loads.py --group f32` takes the dependency options of the other
 runners plus `--compiler` (Arm GNU `arm-none-eabi-gcc`, or an ATfE `clang`,
 compiled with `--target=arm-none-eabihf`), `--linker` (an Arm GNU driver, used
 for every build) and `--opt O2|O3`, and expects
-`PASS: 168 MVE f32/u32 tail-load cases`. For the negative control, save one
+`PASS: 184 MVE f32/u32 tail-load cases`. For the negative control, save one
 unpatched kernel outside the checkout and pass it through `--source`; the run
 must report `FAIL: <kernel> tail access n=1`. The two matrix kernels left
 unchanged pass this control, because Arm GNU 14.3 and ATfE 22.1 compile their
@@ -133,14 +134,14 @@ u8/u16 kernels whose final partial block was loaded with an unpredicated
 `arm_mat_sub`, `arm_mat_scale` for q15 and q31; `arm_mat_trans_q7`. Block
 sizes run from 1 to two full vectors (32 for 8-bit, 16 for 16-bit, 8 for
 32-bit types), matrices 1–2 rows by 1 to two vectors, the transpose 1–9 rows
-by 1–3 columns: 923 cases. Each case compares the guarded run with a run on
+by 1–3 columns: 923 cases (1163 with the statistics kernels below). Each case compares the guarded run with a run on
 readable nonzero padding (identical output) and with a double-precision
 reference (exact for add, sub, abs, negate, offset, shift and the bitwise
 kernels; within 2 LSB for mult and scale, n + 2 LSB for dot products and
 4 LSB for mse); output canaries detect boundary writes.
 
 `run_mve_tail_loads.py --group fixed` expects
-`PASS: 923 MVE fixed-point tail-load cases`; the negative control through
+`PASS: 1163 MVE fixed-point tail-load cases`; the negative control through
 `--source` must report `FAIL: <kernel> tail access n=1`.
 
 ## Predicated tail loads, f16 kernels
@@ -152,12 +153,13 @@ unpredicated gather) after `vctp16q`: `arm_abs_f16`, `arm_negate_f16`,
 `arm_mult_f16`, `arm_dot_prod_f16`, `arm_mse_f16`, `arm_absmin_f16`,
 `arm_cmplx_mult_real_f16`, `arm_q15_to_f16`, `arm_mat_add_f16`,
 `arm_mat_sub_f16`, `arm_mat_scale_f16`. Block sizes 1 to 16 and matrices of
-one and two rows by 1 to 16 columns, 288 cases. Inputs are exact in half
+one and two rows by 1 to 16 columns, 288 cases (352 with the statistics
+kernels below). Inputs are exact in half
 precision and small enough that every result except the mean square error is
 exact; mse is checked within 2 percent.
 
 `run_mve_tail_loads.py --group f16` builds without `DISABLEFLOAT16` and
-expects `PASS: 288 MVE f16 tail-load cases`; Arm GNU 14.3.1 and ATfE 22.1.0
+expects `PASS: 352 MVE f16 tail-load cases`; Arm GNU 14.3.1 and ATfE 22.1.0
 both compile this group. The negative control through `--source` must report
 `FAIL: <kernel> tail access n=1`.
 
@@ -183,6 +185,27 @@ compile their predicated `do`/`while` bodies to tail-predicated
 (`dlstp`/`letp`) loops at those levels, and fail it at `O0` under both
 compilers, where the unpredicated load is emitted as written; the runner's
 `O0` and `O1` levels exist for such controls.
+
+## Predicated tail loads, statistics kernels
+
+Eighteen statistics kernels loaded their final partial block with an
+unpredicated `vld1q`, `vldrwq` or `vldrhq` and applied the tail predicate only
+to the comparison that follows, so they read up to one vector minus one
+element past the source: `arm_absmin`, `arm_absmin_no_idx`, `arm_min_no_idx`
+and `arm_max_no_idx` for q7, q15 and q31; `arm_absmin_no_idx_f32`,
+`arm_absmax_no_idx_f32`; `arm_absmin_no_idx_f16`, `arm_absmax_f16`,
+`arm_absmax_no_idx_f16` and `arm_min_f16`. Each now computes the tail
+predicate first and loads under it. The existing groups cover them:
+`--group fixed` the twelve fixed-point kernels at 1 to two full vectors and,
+for q7, at 255, 256, 257 and 300 elements (the block path above 256 elements
+of `arm_absmin_q7`), 240 cases; `--group f32` the two f32 kernels at 1 to 8
+elements, 16 cases; `--group f16` the four f16 kernels at 1 to 16 elements,
+64 cases. The value is compared with a double-precision reference; for
+`arm_absmin_q7/q15/q31` the index must point to an element with that absolute
+value and equal the index of the run on padded data, and for `arm_absmax_f16`
+and `arm_min_f16` (distinct magnitudes) it must be the reference index. Each
+unchanged kernel passed through `--source` must report
+`FAIL: <kernel> tail access n=1`.
 
 ## CFFT buffer bound (final radix-4 stage)
 

@@ -26,7 +26,7 @@ CONTROLS = {
 GROUPS = {
     'f32': {
         'test': 'mve_tail_loads_f32.c',
-        'expected': 'PASS: 168 MVE f32/u32 tail-load cases',
+        'expected': 'PASS: 184 MVE f32/u32 tail-load cases',
         'defines': ['-DDISABLEFLOAT16'],
         'sources': [
             'BasicMathFunctions/arm_abs_f32.c', 'BasicMathFunctions/arm_add_f32.c',
@@ -38,11 +38,12 @@ GROUPS = {
             'MatrixFunctions/arm_mat_add_f32.c', 'MatrixFunctions/arm_mat_scale_f32.c',
             'MatrixFunctions/arm_mat_sub_f32.c', 'StatisticsFunctions/arm_absmin_f32.c',
             'StatisticsFunctions/arm_accumulate_f32.c', 'StatisticsFunctions/arm_mse_f32.c',
+            'StatisticsFunctions/arm_absmax_no_idx_f32.c', 'StatisticsFunctions/arm_absmin_no_idx_f32.c',
         ],
     },
     'fixed': {
         'test': 'mve_tail_loads_fixed.c',
-        'expected': 'PASS: 923 MVE fixed-point tail-load cases',
+        'expected': 'PASS: 1163 MVE fixed-point tail-load cases',
         'defines': ['-DDISABLEFLOAT16'],
         'sources': [
             'BasicMathFunctions/arm_abs_q15.c', 'BasicMathFunctions/arm_abs_q31.c',
@@ -68,11 +69,17 @@ GROUPS = {
             'MatrixFunctions/arm_mat_sub_q31.c', 'MatrixFunctions/arm_mat_trans_q7.c',
             'StatisticsFunctions/arm_mse_q15.c', 'StatisticsFunctions/arm_mse_q31.c',
             'StatisticsFunctions/arm_mse_q7.c',
+            'StatisticsFunctions/arm_absmin_q15.c', 'StatisticsFunctions/arm_absmin_q31.c',
+            'StatisticsFunctions/arm_absmin_q7.c', 'StatisticsFunctions/arm_absmin_no_idx_q15.c',
+            'StatisticsFunctions/arm_absmin_no_idx_q31.c', 'StatisticsFunctions/arm_absmin_no_idx_q7.c',
+            'StatisticsFunctions/arm_max_no_idx_q15.c', 'StatisticsFunctions/arm_max_no_idx_q31.c',
+            'StatisticsFunctions/arm_max_no_idx_q7.c', 'StatisticsFunctions/arm_min_no_idx_q15.c',
+            'StatisticsFunctions/arm_min_no_idx_q31.c', 'StatisticsFunctions/arm_min_no_idx_q7.c',
         ],
     },
     'f16': {
         'test': 'mve_tail_loads_f16.c',
-        'expected': 'PASS: 288 MVE f16 tail-load cases',
+        'expected': 'PASS: 352 MVE f16 tail-load cases',
         'defines': [],
         'sources': [
             'BasicMathFunctions/arm_abs_f16.c', 'BasicMathFunctions/arm_add_f16.c',
@@ -83,6 +90,8 @@ GROUPS = {
             'MatrixFunctions/arm_mat_scale_f16.c', 'MatrixFunctions/arm_mat_sub_f16.c',
             'StatisticsFunctions/arm_absmin_f16.c', 'StatisticsFunctions/arm_mse_f16.c',
             'SupportFunctions/arm_q15_to_f16.c',
+            'StatisticsFunctions/arm_absmax_f16.c', 'StatisticsFunctions/arm_absmax_no_idx_f16.c',
+            'StatisticsFunctions/arm_absmin_no_idx_f16.c', 'StatisticsFunctions/arm_min_f16.c',
         ],
     },
     'remainder': {
