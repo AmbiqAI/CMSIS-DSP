@@ -347,3 +347,16 @@ For the negative control, pass a directory holding the kernels of
 in-place=0`, and with only the Q31 kernel unchanged
 `FAIL: arm_biquad_cascade_df1_q31 store past the output, blockSize=0 stages=1
 in-place=0`.
+
+## df1 Q15, Q31 and 32x64 biquads: reads within the source and destination
+
+`arm_biquad_cascade_df1_q15` (blockSize 4 or more) read up to 6 samples past the end of its input and 2 before its start; `arm_biquad_cascade_df1_q31` (blockSize 2 or more) read 2 past and 2 before; `arm_biquad_cas_df1_32x64_q31` read 3 past. Stages after the first take the destination as their input, so the reads reached past the destination as well. The vectors that held those samples fed only outputs the kernels never compute, so the q15 and q31 kernels now load the first vector under a constant lane mask and the last vectors under a length predicate, with the main loop unchanged. The 32x64 kernel stops its vector loop one group of four outputs early and computes the remaining outputs one at a time with the same exact 64-bit sums.
+
+`mve_biquad_df1_io_bounds.c` places the source and the destination each between MPU guards, once ending at a guard and once starting right after one, and filters blocks of 1 to 17, 32, 64 and 100 samples through 1 to 3 stages, with separate and with in-place buffers; a fault is a failure. The guarded output must equal the output in padded memory, and that output must equal an integer model of the kernel's arithmetic. A 100-sample signal filtered in blocks of each size, with the state carried between calls, must also equal the model. 720 guarded cases and 180 block-split cases; `--opt` sets the optimization level (default `O3`), and `--control sparse-read-32` or `sparse-read-far` builds the negative controls of `regression_checks.h`.
+
+```sh
+python3 Testing/Regression/run_mve_biquad_df1_io_bounds.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding the three kernels of #34 through `--biquad-source-dir`; the run must report `FAIL: arm_biquad_cascade_df1_q15 past-end guard access, blockSize=4 stages=1 in-place=0`. With only the Q31 kernel unchanged it must report `FAIL: arm_biquad_cascade_df1_q31 past-end guard access, blockSize=2 stages=1 in-place=0`, and with only the 32x64 kernel unchanged `FAIL: arm_biquad_cas_df1_32x64_q31 past-end guard access, blockSize=4 stages=1 in-place=0`.
