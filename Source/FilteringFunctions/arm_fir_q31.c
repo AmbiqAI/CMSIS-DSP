@@ -396,7 +396,62 @@ static void arm_fir_q31_25_28_mve(const arm_fir_instance_q31 * S,
     #undef NBTAPS
 }
 
-static void arm_fir_q31_29_32_mve(const arm_fir_instance_q31 * S, 
+/*
+ * Remaining blockSize mod 4 outputs of arm_fir_q31_29_32_mve: their inputs
+ * are copied under the tail predicate and each output is the same
+ * accumulation as in the kernel's loops, with the last tap vector loaded for
+ * the real taps only. Kept out of line so that the kernel's loops compile as
+ * before.
+ */
+__attribute__((noinline)) static void arm_fir_q31_29_32_tail_mve(
+    const q31_t * pCoeffs,
+    const q31_t * pState,
+    q31_t * pStateCur,
+    const q31_t * pTempSrc,
+    q31_t * pOutput,
+    uint32_t numTaps,
+    uint32_t blockSize)
+{
+    mve_pred16_t    p = vctp32q(blockSize & 3);
+    mve_pred16_t    pTaps = vctp32q(numTaps - 28);
+    q31x4_t         vecCoeffs0 = vld1q(pCoeffs + 4 * 0);
+    q31x4_t         vecCoeffs1 = vld1q(pCoeffs + 4 * 1);
+    q31x4_t         vecCoeffs2 = vld1q(pCoeffs + 4 * 2);
+    q31x4_t         vecCoeffs3 = vld1q(pCoeffs + 4 * 3);
+    q31x4_t         vecCoeffs4 = vld1q(pCoeffs + 4 * 4);
+    q31x4_t         vecCoeffs5 = vld1q(pCoeffs + 4 * 5);
+    q31x4_t         vecCoeffs6 = vld1q(pCoeffs + 4 * 6);
+    q31x4_t         vecCoeffs7 = vld1q(pCoeffs + 4 * 7);
+
+    vstrwq_p_s32(pStateCur, vldrwq_z_s32(pTempSrc, p), p);
+
+    for (uint32_t i = 0; i < (blockSize & 3); i++) {
+        const q31_t    *pSmp = &pState[(blockSize & ~3U) + i];
+        q31x4_t         vecIn0;
+        q63_t           acc0;
+
+        vecIn0 = vld1q(pSmp);
+        acc0 = vrmlaldavhq(vecIn0, vecCoeffs0);
+        vecIn0 = vld1q(pSmp + 4 * 1);
+        acc0 = vrmlaldavhaq(acc0, vecIn0, vecCoeffs1);
+        vecIn0 = vld1q(pSmp + 4 * 2);
+        acc0 = vrmlaldavhaq(acc0, vecIn0, vecCoeffs2);
+        vecIn0 = vld1q(pSmp + 4 * 3);
+        acc0 = vrmlaldavhaq(acc0, vecIn0, vecCoeffs3);
+        vecIn0 = vld1q(pSmp + 4 * 4);
+        acc0 = vrmlaldavhaq(acc0, vecIn0, vecCoeffs4);
+        vecIn0 = vld1q(pSmp + 4 * 5);
+        acc0 = vrmlaldavhaq(acc0, vecIn0, vecCoeffs5);
+        vecIn0 = vld1q(pSmp + 4 * 6);
+        acc0 = vrmlaldavhaq(acc0, vecIn0, vecCoeffs6);
+        vecIn0 = vldrwq_z_s32(pSmp + 4 * 7, pTaps);
+        acc0 = vrmlaldavhaq(acc0, vecIn0, vecCoeffs7);
+
+        *pOutput++ = asrl(acc0, 23);
+    }
+}
+
+__attribute__((noinline)) static void arm_fir_q31_29_32_mve(const arm_fir_instance_q31 * S,
     const q31_t * __restrict pSrc, 
     q31_t * __restrict pDst,
                                uint32_t blockSize)
@@ -574,6 +629,10 @@ static void arm_fir_q31_29_32_mve(const arm_fir_instance_q31 * S,
          */
         blkCnt--;
     }
+
+    /* Remaining blockSize mod 4 outputs */
+    if (blockSize & 3)
+        arm_fir_q31_29_32_tail_mve(pCoeffs, pState, pStateCur, pTempSrc, pOutput, numTaps, blockSize);
 
     /*
      * Copy the samples back into the history buffer start
