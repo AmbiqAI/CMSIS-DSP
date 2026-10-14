@@ -321,3 +321,27 @@ followed by `FAIL: 1 of 20 kernels`.
 ## GCC 15.0–15.2 `__QSUB`/`__QADD` workaround canary
 
 `gcc15_qsub_ifcvt_canary.c` is the reproducer of GCC PR rtl-optimization/122170: the ACLE `__qsub` builtin under a condition, compiled without the workaround in `Include/arm_math_types.h`. Arm GNU 15.2.1 stops on it with an internal compiler error in RTL pass `ce1` at `-O1` and above on any core with the DSP extension; Arm GNU 14.3.1, 15.3.1 and ATfE 22.1.0 compile it. `run_gcc15_qsub_ifcvt_canary.py --compiler <gcc or clang> --cmsis-core <CMSIS-Core directory> [--cpu cortex-m4]` finds whether the compiler is in the workaround's range from the marker `ARM_MATH_GCC15_QSUB_WORKAROUND` in the `-dM -E` output of `arm_math_types.h`, which the block defines for that range with CMSIS-Core 6 and 5.x alike. It compiles the canary at `-O1`, `-O2`, `-O3` and `-Os`, and requires the crash at every level exactly when the marker is defined. It then compiles the six Q31 sources that crashed (`arm_abs_q31.c`, `arm_atan2_q31.c`, `arm_absmax_q31.c`, `arm_absmin_q31.c`, `arm_absmax_no_idx_q31.c`, `arm_absmin_no_idx_q31.c`) and the three `FASTBUILD` aggregates that include them at the same levels with `-DARM_MATH_LOOPUNROLL`, with soft float and with hard float; on a core with MVE, hard float builds the Helium kernels, and a third configuration adds `ARM_MATH_AUTOVECTORIZE`. It expects `PASS: canary agrees with the workaround gate at 4 levels; 72 source compilations succeed` for Cortex-M4 and `108` for Cortex-M55. A compiler inside the gate that compiles the canary reports `narrow the gate`; one outside it that crashes reports `widen the gate`. Workflow `gcc15-qsub-ifcvt.yml` runs it for Cortex-M4 and Cortex-M55 under Arm GNU 14.3.1, 15.2.1, 15.3.1 and ATfE 22.1.0 on every pull request that changes `Include/` or `Source/`, against CMSIS_6 from its default branch.
+
+## absmin fixed-point saturation
+
+`mve_absmin_fixed_saturation.c` calls `arm_absmin_q7`, `arm_absmin_q15` and
+`arm_absmin_q31` on inputs that contain the most negative value (0x80,
+0x8000, 0x80000000): once at each position, in every element, and together
+with ±3 or with ± the most positive value, for 22 lengths from 1 to 513
+(2622 cases). As in the scalar paths, the absolute value of the most
+negative value saturates to the most positive value. Each case checks that
+the returned value is the minimum of the saturated absolute values and that
+the returned index points to an element with that saturated absolute value;
+which of several equal minima it names is not checked. `--opt` sets the
+optimization level (default `O3`).
+
+```sh
+python3 Testing/Regression/run_mve_absmin_fixed_saturation.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding the three kernels of
+`ambiq/2026.10.0` (Arm's) through `--absmin-source-dir`. Their non-saturating
+`vabsq` leaves the most negative value negative, so it is returned as the
+minimum, and they must report `FAIL: 2622 of 2622 MVE absmin fixed-point
+saturation cases`.
