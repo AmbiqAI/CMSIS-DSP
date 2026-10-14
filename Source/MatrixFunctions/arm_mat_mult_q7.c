@@ -69,6 +69,8 @@
  
   @par             pState
                    pState will contain the transpose of pSrcB
+                   and needs numRowsB * numColsB elements. The Helium kernel uses it;
+                   the others do not.
  */
 #if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
 __STATIC_FORCEINLINE arm_status arm_mat_mult_q7_2x2_mve(

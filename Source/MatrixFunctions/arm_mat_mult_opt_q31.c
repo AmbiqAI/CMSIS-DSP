@@ -66,6 +66,10 @@
   @remark
                    This function is a faster implementation of arm_mat_mult_q31 for MVE but it is requiring 
                    additional storage for intermediate results.
+  @par            pState
+                   pState will contain the transpose of pSrcB and needs
+                   numRowsB * numColsB elements. The Helium kernel uses it; the
+                   scalar kernel does not.
  */
 #if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
 
