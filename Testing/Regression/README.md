@@ -276,3 +276,22 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## Predicated tail loads, clip kernels
+
+`arm_clip_q7`, `arm_clip_q15`, `arm_clip_q31`, `arm_clip_f32` and
+`arm_clip_f16` load one vector ahead of the one they clip. The first load,
+the look-ahead of the last pair of vectors and the look-ahead of the tail
+read a whole vector past the source at every length, including whole
+multiples of the vector length. Those three loads now use the tail
+predicate; the last pair of vectors runs after the unrolled loop, whose body
+is unchanged.
+
+`mve_tail_loads_clip.c` places the source against an MPU guard at block
+sizes 1 to three full vectors and 64, 100, 255 and 257 elements (140 cases),
+compares the output with that of a source followed by readable padding and
+with a reference clip bit for bit, and checks canaries around the output.
+
+`run_mve_tail_loads.py --group clip` expects
+`PASS: 140 MVE clip tail-load cases`; each unchanged kernel passed through
+`--source` must report `FAIL: <kernel> tail access n=1`.

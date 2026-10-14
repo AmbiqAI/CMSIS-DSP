@@ -85,6 +85,16 @@ GROUPS = {
             'SupportFunctions/arm_q15_to_f16.c',
         ],
     },
+    'clip': {
+        'test': 'mve_tail_loads_clip.c',
+        'expected': 'PASS: 140 MVE clip tail-load cases',
+        'defines': [],
+        'sources': [
+            'BasicMathFunctions/arm_clip_f16.c', 'BasicMathFunctions/arm_clip_f32.c',
+            'BasicMathFunctions/arm_clip_q15.c', 'BasicMathFunctions/arm_clip_q31.c',
+            'BasicMathFunctions/arm_clip_q7.c',
+        ],
+    },
     'remainder': {
         'test': 'mve_tail_loads_remainder.c',
         'expected': 'PASS: 112 MVE remainder tail-load cases',
