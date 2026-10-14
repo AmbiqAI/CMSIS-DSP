@@ -317,3 +317,29 @@ passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
 first `blockSize % 4` elements again instead of the last ones, and the run
 must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
 followed by `FAIL: 1 of 20 kernels`.
+
+## MVE tables without the HELIUM option
+
+The Helium kernels are selected by the compiler (`arm_math_types.h` defines
+`ARM_MATH_MVEI` and `ARM_MATH_MVEF` from `__ARM_FEATURE_MVE`), but the CMake
+build compiled `arm_mve_tables.c` and `arm_mve_tables_f16.c`, which hold the
+`rearranged_twiddle_*` tables of the Helium complex FFT, only with `HELIUM` or
+`MVEF` set. A Cortex-M55 build at the default `HELIUM=OFF` therefore failed to
+link any program that calls a complex or real FFT. Both files are now always
+compiled; without the MVE definitions they are empty.
+
+`test_mve_tables_link.py` configures the library with Arm GNU for Cortex-M55
+at `HELIUM=OFF` with `FASTBUILD` OFF and ON and at `HELIUM=ON`, and links a
+program that calls `arm_cfft_f32`, `arm_cfft_q31` and `arm_cfft_q15`; it then
+configures for Cortex-M4 with `FASTBUILD` OFF and ON, links the same program,
+and checks that both MVE table objects define no symbols:
+
+```sh
+python3 Testing/Regression/test_mve_tables_link.py --cmsis-core <CMSIS_6>/CMSIS/Core \
+  --compiler /path/to/arm-none-eabi-gcc
+```
+
+For the negative control, pass a checkout with the previous
+`Source/CommonTables/Config.cmake` through `--cmsis-dsp` together with
+`--expect-failure`; it runs the Cortex-M55 cases, and both `HELIUM=OFF` cases
+must fail to link (90 undefined `rearranged_twiddle_*` symbols each).
