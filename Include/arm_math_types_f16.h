@@ -54,6 +54,17 @@ won't be built.
   #define ARM_FLOAT16_SUPPORTED
 #else
   #if !defined(DISABLEFLOAT16)
+    /*
+     * Armv8.1-M without MVE (for example cortex-m55+nomve): Arm GNU Toolchain
+     * before 15.3 compiles scalar half-precision loads and stores there to
+     * Advanced SIMD encodings (vld1.16, vst1.16), which are UNDEFINED on
+     * M-profile; 15.3 emits vldr.16 and vstr.16.
+     */
+    #if defined(__GNUC__) && !defined(__clang__) && defined(__ARM_ARCH_PROFILE) && (__ARM_ARCH_PROFILE == 'M') && \
+        defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) && !defined(__ARM_FEATURE_MVE) && \
+        ((__GNUC__ < 15) || ((__GNUC__ == 15) && (__GNUC_MINOR__ < 3)))
+      #error "float16 on Armv8.1-M without MVE needs GCC 15.3 or later; define DISABLEFLOAT16, or use MVE, +nomve.fp or Clang"
+    #endif
     #if defined(__ARM_FP16_FORMAT_IEEE) || defined(__ARM_FP16_FORMAT_ALTERNATIVE)
       typedef __fp16 float16_t;
       #define ARM_FLOAT16_SUPPORTED
