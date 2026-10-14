@@ -317,3 +317,36 @@ passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
 first `blockSize % 4` elements again instead of the last ones, and the run
 must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
 followed by `FAIL: 1 of 20 kernels`.
+
+## FIR f16 input and state bounds
+
+Arm documents the Helium `arm_fir_f16` state as
+`numTaps + 8 * ceil(blockSize / 8) + blockSize - 1` elements, of which the
+first `8 * ceil(blockSize / 8)` are scratch for the partial sums of the
+general kernel (more than 8 taps). The kernel read up to 7 elements past the
+input block (the copy of the last partial vector into the state) and up to 10
+past the state (the lanes of the last vector beyond blockSize, the
+zero-padded taps of the final tap group, and the history copy). With Inf or
+NaN there, the zero-padded taps and unused lanes turned those values into NaN
+outputs. The copies and the last vector of each tap group now load under the
+tail predicate; in the general kernel the final tap group's loop runs over
+the vectors whose padded taps stay within the state, and the remaining
+outputs use the real taps only.
+
+`mve_fir_f16_bound.c` filters two consecutive blocks for 1 to 40 taps and 24
+block sizes from 1 to 40 (960 cases): with the state sized exactly to the
+documented length and ending at an MPU guard, and each input block ending at
+a second guard; and unguarded with zero, +Inf and NaN around the state and
+the input. The unguarded outputs must be finite, identical bit for bit across
+the paddings and close to a double-precision reference, and the guarded run
+must complete with the same outputs. `--opt` sets the optimization level
+(default `O3`); `--control` builds the sparse-read and NaN controls.
+
+```sh
+python3 Testing/Regression/run_mve_fir_f16_bound.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass the previous `arm_fir_f16.c` through
+`--fir-source`; the run must report `FAIL: 920 of 960 MVE FIR f16 bound
+cases (faults 920, nonfinite 690, padding-dependent 690, ...)`.
