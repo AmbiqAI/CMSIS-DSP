@@ -55,9 +55,16 @@
 
 extern void regression_console_init(void);
 
-static q31_t arena[256 + GUARD_BYTES / sizeof(q31_t)] __ALIGNED(32);
+/* Elements before each guard, in multiples of 8 so that the guards stay on
+ * 32-byte boundaries: at least 256 and 64, more for larger MAX_BLOCK. */
+#define ROUND8(n) ((((n) + 7U) / 8U) * 8U)
+#define STATE_ELEMS (ROUND8(DOCUMENTED(MAX_TAPS, MAX_BLOCK) + MAX_EXTRA + 8U) > 256U ? \
+                     ROUND8(DOCUMENTED(MAX_TAPS, MAX_BLOCK) + MAX_EXTRA + 8U) : 256U)
+#define INPUT_ELEMS (ROUND8(2U * MAX_BLOCK + INPUT_SLACK + 8U) > 64U ? \
+                     ROUND8(2U * MAX_BLOCK + INPUT_SLACK + 8U) : 64U)
+static q31_t arena[STATE_ELEMS + GUARD_BYTES / sizeof(q31_t)] __ALIGNED(32);
 static q31_t coeffs[MAX_TAPS + 4];
-static q31_t input_arena[64 + GUARD_BYTES / sizeof(q31_t)] __ALIGNED(32);
+static q31_t input_arena[INPUT_ELEMS + GUARD_BYTES / sizeof(q31_t)] __ALIGNED(32);
 static q31_t output[MAX_BLOCK + 2];
 static jmp_buf recover_env;
 static volatile unsigned faulted;
@@ -120,9 +127,9 @@ static void protect_tails(uintptr_t guard_a, uintptr_t guard_b)
 static int run_case(unsigned numTaps, unsigned blockSize, unsigned extra, int *stored)
 {
     const unsigned documented = DOCUMENTED(numTaps, blockSize);
-    q31_t *end = arena + 256;
+    q31_t *end = arena + STATE_ELEMS;
     q31_t *state = end - documented - extra;
-    q31_t *input_guard = input_arena + 64;
+    q31_t *input_guard = input_arena + INPUT_ELEMS;
     q31_t *input = input_guard - INPUT_SLACK - 2U * blockSize; /* two blocks, the second ends at the guard */
     arm_fir_instance_q31 S;
 
