@@ -212,9 +212,17 @@ static void _arm_radix4_butterfly_f16_mve(const arm_cfft_instance_f16 * S,float1
      */
     uint32x4_t vecScGathAddr = vld1q_u32((uint32_t*)strides);
     vecScGathAddr = vecScGathAddr + (uint32_t) pSrc;
+    /*
+     * The address vector is advanced with vaddq_n_u32 and the gathers use no
+     * writeback: Arm GNU Toolchain 15.2.Rel1 (GCC 15.2.1) miscompiles
+     * vldrwq_gather_base_wb here, issuing the gathers and scatters that follow
+     * it from the address before the writeback (Testing/Regression/
+     * mve_cfft_q31_guard.c). 14.3.Rel1 and 15.3.Rel1 compile it correctly.
+     */
 
     /* load scheduling */
-    vecA = (f16x8_t)vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
+    vecScGathAddr = vaddq_n_u32(vecScGathAddr, 64U);
+    vecA = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 0);
     vecC = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 8);
 
     /*
@@ -235,7 +243,8 @@ static void _arm_radix4_butterfly_f16_mve(const arm_cfft_instance_f16 * S,float1
         vecDiff1 = vecB - vecD;
 
         /* pre-load for next iteration */
-        vecA = (f16x8_t)vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
+        vecScGathAddr = vaddq_n_u32(vecScGathAddr, 64U);
+        vecA = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 0);
         vecC = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 8);
 
         vecTmp0 = vecSum0 + vecSum1;
@@ -448,11 +457,19 @@ static void _arm_radix4_butterfly_inverse_f16_mve(const arm_cfft_instance_f16 * 
      */
     uint32x4_t vecScGathAddr = vld1q_u32((uint32_t*)strides);
     vecScGathAddr = vecScGathAddr + (uint32_t) pSrc;
+    /*
+     * The address vector is advanced with vaddq_n_u32 and the gathers use no
+     * writeback: Arm GNU Toolchain 15.2.Rel1 (GCC 15.2.1) miscompiles
+     * vldrwq_gather_base_wb here, issuing the gathers and scatters that follow
+     * it from the address before the writeback (Testing/Regression/
+     * mve_cfft_q31_guard.c). 14.3.Rel1 and 15.3.Rel1 compile it correctly.
+     */
 
     /*
      * load scheduling
      */
-    vecA = (f16x8_t)vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
+    vecScGathAddr = vaddq_n_u32(vecScGathAddr, 64U);
+    vecA = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 0);
     vecC = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 8);
 
     /*
@@ -472,7 +489,8 @@ static void _arm_radix4_butterfly_inverse_f16_mve(const arm_cfft_instance_f16 * 
         vecSum1 = vecB + vecD;
         vecDiff1 = vecB - vecD;
 
-        vecA = (f16x8_t)vldrwq_gather_base_wb_f32(&vecScGathAddr, 64);
+        vecScGathAddr = vaddq_n_u32(vecScGathAddr, 64U);
+        vecA = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 0);
         vecC = (f16x8_t)vldrwq_gather_base_f32(vecScGathAddr, 8);
 
         vecTmp0 = vecSum0 + vecSum1;
