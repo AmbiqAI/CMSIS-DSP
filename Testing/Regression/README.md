@@ -85,7 +85,7 @@ against a double-precision DFT (14 cases). The final radix-4 stage gathered
 with `vldrwq_gather_base_wb_s32` and then addressed relative to the
 written-back base; a compiler that issues those accesses from the
 pre-writeback base touches 64 bytes below each block. Arm GNU Toolchain
-15.2.Rel1 does so at every optimization level (`FAIL: CFFT Q31 forward
+15.2.Rel1 does so at -O1 and above, not at -O0 (`FAIL: CFFT Q31 forward
 length 16 touched the guard`); 14.3.Rel1 and 15.3.Rel1 pass. The last stage
 of the four CFFT kernels now advances the address vector with `vaddq_n_u32`
 and gathers without writeback, so the test passes under 15.2.Rel1 too. The

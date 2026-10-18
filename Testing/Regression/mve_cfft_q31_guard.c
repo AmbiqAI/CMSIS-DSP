@@ -9,7 +9,7 @@
  * and then gathered and scattered relative to the written-back base. A
  * compiler that issues those accesses from the pre-writeback base touches
  * 64 bytes below each block, which here is the guard, and corrupts the
- * output. Arm GNU Toolchain 15.2.Rel1 does so at every optimization level;
+ * output. Arm GNU Toolchain 15.2.Rel1 does so at -O1 and above (not -O0);
  * 14.x and 15.3.Rel1 do not. The kernel now advances the address vector
  * with vaddq_n_u32 and gathers without writeback; a copy that uses the
  * writeback gather is the negative control (run_mve_cfft_q31_guard.py
