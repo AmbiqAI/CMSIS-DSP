@@ -81,18 +81,27 @@ must report `FAIL: numTaps=1 blockSize=1 still faults with 16 extra elements`.
 `mve_cfft_q31_guard.c` runs the MVE Q31 complex FFT, forward and inverse,
 for lengths 16 to 1024 on a buffer that starts immediately after an
 MPU-inaccessible guard, with canary padding above it, and checks the result
-against a double-precision DFT (14 cases). The final radix-4 stage gathers
-with `vldrwq_gather_base_wb_s32` and then addresses relative to the
+against a double-precision DFT (14 cases). The final radix-4 stage gathered
+with `vldrwq_gather_base_wb_s32` and then addressed relative to the
 written-back base; a compiler that issues those accesses from the
 pre-writeback base touches 64 bytes below each block. Arm GNU Toolchain
 15.2.Rel1 does so at every optimization level (`FAIL: CFFT Q31 forward
-length 16 touched the guard`); 14.x passes. The runner takes `--compiler`
-and `--opt O2|O3` so both toolchains can be exercised:
+length 16 touched the guard`); 14.3.Rel1 and 15.3.Rel1 pass. The last stage
+of the four CFFT kernels now advances the address vector with `vaddq_n_u32`
+and gathers without writeback, so the test passes under 15.2.Rel1 too. The
+runner takes `--compiler` (Arm GNU, or ATfE clang, which compiles with
+`--target=arm-none-eabihf` and links with `--linker`, an Arm GNU driver) and
+`--opt O2|O3` so the toolchains can be exercised:
 
 ```sh
 python3 Testing/Regression/run_mve_cfft_q31_guard.py <dependency options> \
   --compiler /path/to/arm-gnu-15.2/bin/arm-none-eabi-gcc --opt O2 --build-dir /path/to/build
 ```
+
+For the negative control, save an `arm_cfft_q31.c` that still uses the
+writeback gather (for example from `99dae6a2`) outside the checkout, pass it
+through `--source` and compile with Arm GNU 15.2.1; it must report
+`FAIL: CFFT Q31 forward length 16 touched the guard`.
 
 Under a correct compiler the upstream kernel reads one element past the
 buffer for the 16-point transform, which is why the upper side is padding
@@ -211,9 +220,12 @@ guard`, with `OVERREAD` 36 bytes, or beyond the probe range, for f32);
 The negative control passes upstream copies of one or more `arm_cfft_<type>.c`
 through `--source`; each must report `FAIL: CFFT <type> forward length 16
 touched the guard` after `OVERREAD` lines of 56 bytes (f32, Q31) or 60 bytes
-(Q15, f16) at every length. Under Arm GNU 15.2.1 the numerical check fails
-through that compiler's writeback-gather defect (#10); the over-read probe
-still reports 0 bytes there.
+(Q15, f16) at every length. Under Arm GNU 15.2.1 a copy that uses the
+writeback gather fails the numerical check through that compiler's defect
+(#10): passed alone through `--source`, each of the four reports
+`FAIL: CFFT <type> forward length 16` (differs from the reference, or for
+f16 an output that is not finite), and the over-read probe still reports
+0 bytes.
 
 ## f16 companion
 
