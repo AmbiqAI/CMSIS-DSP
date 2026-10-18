@@ -19,7 +19,8 @@
  * arm_absmax_f16, arm_absmin_q7/q15/q31) still read up to one vector past
  * the source; until #32 merges they run with one vector of sentinels between
  * the source and the guard (SLACK_* below), which must not change their
- * result either.
+ * result either. Whichever of #32 and #52 merges second sets those five
+ * SLACK_* values to 0 and removes this paragraph.
  *
  * The Helium arm_min_f32 scanned the first blockSize % 4 elements again in
  * its tail instead of the last ones, so a minimum among the last

@@ -287,12 +287,14 @@ vectors, six of Q15 and f16, twelve of f32 and Q31) and of 63–65, 127–129,
 elements): 5120 cases per kernel, 102400 in all. The other elements lie in
 [10, 106], and for `absmin` and `absmax` the extreme alternates in sign. The
 returned value and index must equal the extreme's, compared by their bits.
-Each source ends at an MPU-inaccessible region, and sixteen sentinels that
-would win over the extreme sit directly before it, so a kernel that reads or
-counts anything outside the data fails. `arm_min_f16`, `arm_absmax_f16` and
-`arm_absmin_q7/q15/q31` still load a whole vector in their tail (#32 predicates
-them) and run with one vector of sentinels between the source and the guard
-until that change merges. A failing kernel is reported and the run continues
+The source ends at an MPU-inaccessible guard, so a read past it faults, and
+sixteen sentinels that would win over the extreme sit directly before the
+source, so a kernel whose result uses anything before the data fails too.
+`arm_min_f16`, `arm_absmax_f16` and `arm_absmin_q7/q15/q31` still load a whole
+vector in their tail (#32 predicates them), so for them a read past the source
+lands in one vector of sentinels before the guard (`SLACK_*`) and fails only if
+it changes the result. Whichever of #32 and #52 merges second sets those five
+`SLACK_*` values to 0 and removes this sentence. A failing kernel is reported and the run continues
 with the next one; a guard access ends the run.
 
 `run_mve_min_max_index.py` takes the options of the CFFT buffer-bound runner
