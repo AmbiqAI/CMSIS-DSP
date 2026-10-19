@@ -245,7 +245,6 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_ldlt_f32(
     diag=k;
     if (!fullRank)
     {
-      diag--;
       for(int row=0; row < n;row++)
       {
         mve_pred16_t p0;
@@ -420,7 +419,6 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_ldlt_f32(
     diag=k;
     if (!fullRank)
     {
-      diag--;
       for(row=0; row < n;row++)
       {
         int col;
