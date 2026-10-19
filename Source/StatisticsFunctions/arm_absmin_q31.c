@@ -102,11 +102,11 @@ ARM_DSP_ATTRIBUTE void arm_absmin_q31(
     blkCnt = blockSize & 3;
     if (blkCnt > 0U)
     {
-        vecSrc = vldrwq_s32(pSrcVec);  
+        p0 = vctp32q(blkCnt);
+        vecSrc = vldrwq_z_s32(pSrcVec, p0);
         pSrcVec += 4;
         vecSrc = vabsq(vecSrc);
 
-        p0 = vctp32q(blkCnt);
         /*
          * Get current min per lane and current index per lane
          * when a min is selected

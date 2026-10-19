@@ -5,7 +5,8 @@
  * MPU-inaccessible region. Each kernel's final partial block is loaded with
  * the tail predicate, so a block of n elements reads exactly n elements from
  * every source. Covers the fifteen f16 kernels of the predicated tail-load
- * change: block sizes 1 to 16 (two full vectors), matrices of one and two
+ * change and arm_absmin_no_idx_f16, arm_absmax_f16, arm_absmax_no_idx_f16 and
+ * arm_min_f16: block sizes 1 to 16 (two full vectors), matrices of one and two
  * rows. Inputs are exact in half precision and small enough that sums and
  * products are exact; results are compared with double-precision references
  * and output canaries detect boundary writes.
@@ -175,8 +176,8 @@ static int run_reductions(void)
     for (unsigned n = 1; n <= MAX_N; ++n)
     {
         float16_t *a = source_a(n), *b = source_b(n);
-        double dot = 0.0, mse = 0.0, absmin = 1e30;
-        unsigned absmin_index = 0;
+        double dot = 0.0, mse = 0.0, absmin = 1e30, absmax = -1.0, min = 1e30;
+        unsigned absmin_index = 0, absmax_index = 0, min_index = 0;
         for (unsigned i = 0; i < n; ++i)
         {
             dot += (double)a[i] * (double)b[i];
@@ -185,6 +186,16 @@ static int run_reductions(void)
             {
                 absmin = fabs((double)a[i]);
                 absmin_index = i;
+            }
+            if (fabs((double)a[i]) > absmax)
+            {
+                absmax = fabs((double)a[i]);
+                absmax_index = i;
+            }
+            if ((double)a[i] < min)
+            {
+                min = (double)a[i];
+                min_index = i;
             }
         }
         mse /= (double)n;
@@ -218,6 +229,52 @@ static int run_reductions(void)
         if (out_u[1] != absmin_index)
         {
             printf("FAIL: arm_absmin_f16 index n=%u\n", n);
+            return 1;
+        }
+        ++cases;
+
+        current_name = "arm_absmin_no_idx_f16";
+        clear_out();
+        protect_guards();
+        arm_absmin_no_idx_f16(a, n, out + 1);
+        unguard_buffers();
+        if (check_canaries(1) || check_value(out[1], absmin, 0.0, 0))
+            return 1;
+        ++cases;
+
+        current_name = "arm_absmax_f16";
+        clear_out();
+        protect_guards();
+        arm_absmax_f16(a, n, out + 1, out_u + 1);
+        unguard_buffers();
+        if (check_canaries(1) || check_value(out[1], absmax, 0.0, 0))
+            return 1;
+        if (out_u[1] != absmax_index)
+        {
+            printf("FAIL: arm_absmax_f16 index n=%u\n", n);
+            return 1;
+        }
+        ++cases;
+
+        current_name = "arm_absmax_no_idx_f16";
+        clear_out();
+        protect_guards();
+        arm_absmax_no_idx_f16(a, n, out + 1);
+        unguard_buffers();
+        if (check_canaries(1) || check_value(out[1], absmax, 0.0, 0))
+            return 1;
+        ++cases;
+
+        current_name = "arm_min_f16";
+        clear_out();
+        protect_guards();
+        arm_min_f16(a, n, out + 1, out_u + 1);
+        unguard_buffers();
+        if (check_canaries(1) || check_value(out[1], min, 0.0, 0))
+            return 1;
+        if (out_u[1] != min_index)
+        {
+            printf("FAIL: arm_min_f16 index n=%u\n", n);
             return 1;
         }
         ++cases;
