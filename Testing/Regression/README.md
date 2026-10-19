@@ -317,3 +317,35 @@ passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
 first `blockSize % 4` elements again instead of the last ones, and the run
 must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
 followed by `FAIL: 1 of 20 kernels`.
+
+## LDL^t f32 bounds
+
+The MVE `arm_mat_ldlt_f32` updated the trailing rows in groups of four
+(`w`, `w + 1`, `w + 2`, `w + 3`) while `w < n`, so for `n - k - 1` not a
+multiple of four the last group loaded, updated and stored up to three rows
+past the end of L, the work matrix, and read their column-`k` entries: up to
+`3 * n` elements past L. The group loop now runs while all four rows are
+below `n`, and the single-row loop after it updates the rest; L, D and the
+permutation are bit-identical to the previous kernel's in-bounds results.
+
+`mve_mat_ldlt_f32_bounds.c` places A, L, D and the permutation vector each
+against an MPU guard for sizes 1 to 16, 17, 20, 23, 24, 31, 32 and 33, with
+a positive definite, an indefinite (diagonally dominant) and a
+rank-deficient input (69 cases); a MemManage fault reports the operand and
+the offset past its end. Results must be finite with permutation entries
+below `n`; the positive definite and indefinite results are checked against
+`P A P^t = L D L^t` in double precision. The rank-deficient inputs exercise
+the zeroing of the columns after the last pivot; their reconstruction is not
+checked, because every `arm_mat_ldlt_f32` path and `arm_mat_ldlt_f64` leave
+the last nonzero pivot out of D when they stop early. `--opt` sets the
+optimization level (default `O3`).
+
+```sh
+python3 Testing/Regression/run_mve_mat_ldlt_f32_bounds.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass the previous `arm_mat_ldlt_f32.c` through
+`--ldlt-source`; it must report `FAIL: arm_mat_ldlt_f32 positive-definite n=2
+access 0 bytes past L` (ATfE 22.1.0 at `-O2` faults 8 bytes past L). The
+runner also takes `--control sparse-read-32`, `sparse-read-far` and `nan`.

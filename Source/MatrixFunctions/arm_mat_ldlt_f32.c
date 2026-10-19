@@ -153,7 +153,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_ldlt_f32(
         vecOffs = (int32x4_t)vidupq_u32((uint32_t)0, 1);
         vecOffs = vmulq_n_s32(vecOffs,n);
 
-        for(w=k+1; w<n; w+=4)
+        /* Groups of four rows below n; the loop after it updates the remaining rows. */
+        for(w=k+1; w+3<n; w+=4)
         {
           int cnt = n - k - 1;
 
