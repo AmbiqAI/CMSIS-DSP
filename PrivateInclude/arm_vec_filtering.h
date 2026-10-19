@@ -70,15 +70,15 @@ extern "C"
     if (k > 0U)                                                                       \
     {                                                                                 \
         mve_pred16_t p0 = vctp32q(k);                                                 \
-        yVec = vld1q(pSrcY);                                                          \
+        yVec = vld1q_z(pSrcY, vctp32q(k));                                            \
         pSrcY += 4;                                                                   \
-        xVec = vldrwq_f32(&pSrcX[1]);                                                 \
+        xVec = vldrwq_z_f32(&pSrcX[1], vctp32q(k));                                   \
         acc1Vec = vfmaq_m_f32(acc1Vec, xVec, yVec, p0);                               \
-        xVec = vldrwq_f32(&pSrcX[2]);                                                 \
+        xVec = vldrwq_z_f32(&pSrcX[2], vctp32q(k));                                   \
         acc2Vec = vfmaq_m_f32(acc2Vec, xVec, yVec, p0);                               \
-        xVec = vldrwq_f32(&pSrcX[3]);                                                 \
+        xVec = vldrwq_z_f32(&pSrcX[3], vctp32q(k));                                   \
         acc3Vec = vfmaq_m_f32(acc3Vec, xVec, yVec, p0);                               \
-        xVec = vld1q(pSrcX);                                                          \
+        xVec = vld1q_z(pSrcX, vctp32q(k));                                            \
         pSrcX += 4;                                                                   \
         acc0Vec = vfmaq_m_f32(acc0Vec, xVec, yVec, p0);                               \
     }                                                                                 \
@@ -115,9 +115,9 @@ extern "C"
     if (k > 0U)                                      \
     {                                                \
         mve_pred16_t p0 = vctp32q(k);                \
-        yVec = vld1q(pSrcY);                         \
+        yVec = vld1q_z(pSrcY, vctp32q(k));           \
         pSrcY += 4;                                  \
-        xVec = vld1q(pSrcX);                         \
+        xVec = vld1q_z(pSrcX, vctp32q(k));           \
         pSrcX += 4;                                  \
         accVec = vfmaq_m_f32(accVec, xVec, yVec, p0);\
     }                                                \
@@ -153,14 +153,14 @@ extern "C"
     /* disable extra lanes in final MAC computation  */                 \
     k = (count-1) % 0x4U;                                               \
     mve_pred16_t p0 = vctp32q(k);                                       \
-    yVec = vld1q(pSrcY);                                                \
+    yVec = vld1q_z(pSrcY, vctp32q(k+1));                                \
     pSrcY += 4;                                                         \
-    xVec = vldrwq_f32(&pSrcX[1]);                                       \
+    xVec = vldrwq_z_f32(&pSrcX[1], vctp32q(k));                         \
     acc1Vec = vfmaq_m_f32(acc1Vec, xVec, yVec, p0);                     \
     /* acc0 requires 1 additional sample  (count) */                    \
     /* so add 1 to unmask an extra lane  in final MAC computation  */   \
     p0 = vctp32q(k+1);                                                  \
-    xVec = vld1q(pSrcX);                                                \
+    xVec = vld1q_z(pSrcX, vctp32q(k+1));                                \
     pSrcX += 4;                                                         \
     acc0Vec = vfmaq_m_f32(acc0Vec, xVec, yVec, p0);                     \
                                                                         \
@@ -197,11 +197,11 @@ extern "C"
     if (k > 0U)                                                           \
     {                                                                     \
         mve_pred16_t p0 = vctp32q(k);                                     \
-        yVec = vld1q(pSrcY);                                              \
+        yVec = vld1q_z(pSrcY, vctp32q(k));                                \
         pSrcY += 4;                                                       \
-        xVec = vldrwq_f32(&pSrcX[1]);                                     \
+        xVec = vldrwq_z_f32(&pSrcX[1], vctp32q(k));                       \
         acc1Vec = vfmaq_m_f32(acc1Vec, xVec, yVec, p0);                   \
-        xVec = vld1q(pSrcX);                                              \
+        xVec = vld1q_z(pSrcX, vctp32q(k));                                \
         pSrcX += 4;                                                       \
         acc0Vec = vfmaq_m_f32(acc0Vec, xVec, yVec, p0);                   \
     }                                                                     \
@@ -238,14 +238,14 @@ extern "C"
     /* acc1 requires 1 additional sample  */                            \
     /* so add 1 to unmask an extra lane  in final MAC computation  */   \
     mve_pred16_t p0 = vctp32q(k+1);                                     \
-    xVec = vld1q(pSrcX);                                                \
+    xVec = vld1q_z(pSrcX, vctp32q(k+1));                                \
     pSrcX += 4;                                                         \
-    yVec = vldrwq_f32(&pSrcY[-1]);                                      \
+    yVec = vldrwq_z_f32(&pSrcY[-1], vctp32q(k+1));                      \
     acc1Vec = vfmaq_m_f32(acc1Vec, xVec, yVec,p0);                      \
     /* acc0 requires exact number of sample  */                         \
     /* disable extra lanes in final MAC computation  */                 \
     p0 = vctp32q(k);                                                    \
-    yVec = vld1q(pSrcY);                                                \
+    yVec = vld1q_z(pSrcY, vctp32q(k));                                  \
     pSrcY += 4;                                                         \
     acc0Vec = vfmaq_m_f32(acc0Vec, xVec, yVec,p0);                      \
                                                                         \
@@ -278,10 +278,10 @@ extern "C"
     /* Loop with tail predication expected here  */                                                  \
     k = (count - 1) % 0x4U;                                                                          \
     mve_pred16_t p0 = vctp32q(k);                                                                    \
-    yVec = vldrwq_gather_shifted_offset_f32(pY, decrIdxVec);                                         \
-    xVec = vldrwq_f32(&pSrcX[1]);                                                                    \
+    yVec = vldrwq_gather_shifted_offset_z_f32(pY, decrIdxVec, vctp32q(k+1));                         \
+    xVec = vldrwq_z_f32(&pSrcX[1], vctp32q(k));                                                      \
     acc1Vec = vfmaq_m_f32(acc1Vec, xVec, yVec, p0);                                                  \
-    xVec = vld1q(pSrcX);  pSrcX += 4;                                                                \
+    xVec = vld1q_z(pSrcX, vctp32q(k+1));  pSrcX += 4;                                                \
     p0 = vctp32q(k+1);                                                                               \
     acc0Vec = vfmaq_m_f32(acc0Vec, xVec, yVec, p0);                                                  \
                                                                                                      \
@@ -316,10 +316,10 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp32q(k);                                                                \
-        yVec = vldrwq_gather_shifted_offset_f32(pY, decrIdxVec);                                     \
-        xVec = vldrwq_f32(&pSrcX[1]);                                                                \
+        yVec = vldrwq_gather_shifted_offset_z_f32(pY, decrIdxVec, vctp32q(k));                       \
+        xVec = vldrwq_z_f32(&pSrcX[1], vctp32q(k));                                                  \
         acc1Vec = vfmaq_m_f32(acc1Vec, xVec, yVec, p0);                                              \
-        xVec = vld1q(pSrcX);  pSrcX += 4;                                                            \
+        xVec = vld1q_z(pSrcX, vctp32q(k));  pSrcX += 4;                                              \
         acc0Vec = vfmaq_m_f32(acc0Vec, xVec, yVec, p0);                                              \
     }                                                                                                \
     acc0 = vecAddAcrossF32Mve(acc0Vec);                                                              \
@@ -355,10 +355,10 @@ extern "C"
     /* acc0 requires exact number of sample  */                         \
     /* disable extra lanes in final MAC computation  */                 \
     mve_pred16_t p0 = vctp32q(k);                                       \
-    xVec = vld1q(pSrcX);  pSrcX += 4;                                   \
-    yVec = vldrwq_gather_shifted_offset_f32(pY, decrIdxVec);            \
+    xVec = vld1q_z(pSrcX, vctp32q(k+1));  pSrcX += 4;                   \
+    yVec = vldrwq_gather_shifted_offset_z_f32(pY, decrIdxVec, vctp32q(k)); \
     acc0Vec = vfmaq_m_f32(acc0Vec, xVec, yVec, p0);                     \
-    yVec = vldrwq_gather_shifted_offset_f32(pY1, decrIdxVec);           \
+    yVec = vldrwq_gather_shifted_offset_z_f32(pY1, decrIdxVec, vctp32q(k+1)); \
     /* acc1 requires 1 additional sample  */                            \
     /* so add 1 to unmask an extra lane  in final MAC computation  */   \
     p0 = vctp32q(k+1);                                                  \
@@ -392,8 +392,8 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp32q(k);                                                                \
-        xVec = vld1q(pSrcX);  pSrcX += 4;                                                            \
-        yVec = vldrwq_gather_shifted_offset_f32(pY, decrIdxVec);                                     \
+        xVec = vld1q_z(pSrcX, vctp32q(k));  pSrcX += 4;                                              \
+        yVec = vldrwq_gather_shifted_offset_z_f32(pY, decrIdxVec, vctp32q(k));                       \
         accVec = vfmaq_m_f32(accVec, xVec, yVec, p0);                                                \
     }                                                                                                \
     acc = vecAddAcrossF32Mve(accVec);                                                                \
@@ -426,8 +426,8 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp32q(k);                                                                \
-        xVec = vld1q(pSrcX); pSrcX += 4;                                                             \
-        yVec = vldrwq_gather_shifted_offset_s32(pY, decrIdxVec);                                     \
+        xVec = vld1q_z(pSrcX, vctp32q(k)); pSrcX += 4;                                               \
+        yVec = vldrwq_gather_shifted_offset_z_s32(pY, decrIdxVec, vctp32q(k));                       \
         acc = vmlaldavaq_p(acc, xVec, yVec, p0);                                                     \
     }                                                                                                \
     acc = asrl(acc, 31);                                                                             \
@@ -462,10 +462,10 @@ extern "C"
     /* acc0 requires exact number of sample  */                         \
     /* disable extra lanes in final MAC computation  */                 \
     mve_pred16_t p0 = vctp32q(k);                                       \
-    xVec = vld1q(pSrcX); pSrcX += 4;                                    \
-    yVec = vldrwq_gather_shifted_offset_s32(pY, decrIdxVec);            \
+    xVec = vld1q_z(pSrcX, vctp32q(k+1)); pSrcX += 4;                    \
+    yVec = vldrwq_gather_shifted_offset_z_s32(pY, decrIdxVec, vctp32q(k)); \
     acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                          \
-    yVec = vldrwq_gather_shifted_offset_s32(pY1, decrIdxVec);           \
+    yVec = vldrwq_gather_shifted_offset_z_s32(pY1, decrIdxVec, vctp32q(k+1)); \
     /* acc1 requires 1 additional sample  */                            \
     /* so add 1 to unmask an extra lane  in final MAC computation  */   \
     p0 = vctp32q(k+1);                                                  \
@@ -504,13 +504,13 @@ extern "C"
     /* acc1 requires exact number of sample (count-1)  */                \
     /* disable extra lanes in final MAC computation  */                  \
     mve_pred16_t p0 = vctp32q(k);                                        \
-    yVec = vldrwq_gather_shifted_offset_s32(pY, decrIdxVec);             \
-    xVec = vldrwq_s32(&pSrcX[1]);                                        \
+    yVec = vldrwq_gather_shifted_offset_z_s32(pY, decrIdxVec, vctp32q(k+1)); \
+    xVec = vldrwq_z_s32(&pSrcX[1], vctp32q(k));                          \
     acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                           \
     /* acc0 requires 1 additional sample  (count) */                     \
     /* so add 1 to unmask an extra lane  in final MAC computation  */    \
     p0 = vctp32q(k+1);                                                   \
-    xVec = vld1q(pSrcX);                                                 \
+    xVec = vld1q_z(pSrcX, vctp32q(k+1));                                 \
     pSrcX += 4;                                                          \
     acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                           \
                                                                          \
@@ -545,10 +545,10 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp32q(k);                                                                \
-        yVec = vldrwq_gather_shifted_offset_s32(pY, decrIdxVec);                                     \
-        xVec = vldrwq_s32(&pSrcX[1]);                                                                \
+        yVec = vldrwq_gather_shifted_offset_z_s32(pY, decrIdxVec, vctp32q(k));                       \
+        xVec = vldrwq_z_s32(&pSrcX[1], vctp32q(k));                                                  \
         acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                                                   \
-        xVec = vld1q(pSrcX); pSrcX += 4;                                                             \
+        xVec = vld1q_z(pSrcX, vctp32q(k)); pSrcX += 4;                                               \
         acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                                                   \
     }                                                                                                \
     acc0 = asrl(acc0, 31);                                                                           \
@@ -586,14 +586,14 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp32q(k);                                                                \
-        yVec = vldrwq_gather_shifted_offset_s32(pY, decrIdxVec);                                     \
-        xVec = vldrwq_s32(&pSrcX[1]);                                                                \
+        yVec = vldrwq_gather_shifted_offset_z_s32(pY, decrIdxVec, vctp32q(k));                       \
+        xVec = vldrwq_z_s32(&pSrcX[1], vctp32q(k));                                                  \
         acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                                                   \
-        xVec = vldrwq_s32(&pSrcX[2]);                                                                \
+        xVec = vldrwq_z_s32(&pSrcX[2], vctp32q(k));                                                  \
         acc2 = vmlaldavaq_p(acc2, xVec, yVec, p0);                                                   \
-        xVec = vldrwq_s32(&pSrcX[3]);                                                                \
+        xVec = vldrwq_z_s32(&pSrcX[3], vctp32q(k));                                                  \
         acc3 = vmlaldavaq_p(acc3, xVec, yVec, p0);                                                   \
-        xVec = vld1q(pSrcX); pSrcX += 4;                                                             \
+        xVec = vld1q_z(pSrcX, vctp32q(k)); pSrcX += 4;                                               \
         acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                                                   \
     }                                                                                                \
     acc0 = asrl(acc0, 31);                                                                           \
@@ -627,13 +627,13 @@ extern "C"
     /* acc1 requires 1 additional sample  */                            \
     /* so add 1 to unmask an extra lane  in final MAC computation  */   \
     mve_pred16_t p0 = vctp32q(k+1);                                     \
-    xVec = vld1q(pSrcX); pSrcX += 4;                                    \
-    yVec = vldrwq_s32(&pSrcY[-1]);                                      \
+    xVec = vld1q_z(pSrcX, vctp32q(k+1)); pSrcX += 4;                    \
+    yVec = vldrwq_z_s32(&pSrcY[-1], vctp32q(k+1));                      \
     acc1 = vmlaldavaq_p(acc1, xVec, yVec,p0);                           \
     /* acc0 requires exact number of sample  */                         \
     /* disable extra lanes in final MAC computation  */                 \
     p0 = vctp32q(k);                                                    \
-    yVec = vld1q(pSrcY);  pSrcY += 4;                                   \
+    yVec = vld1q_z(pSrcY, vctp32q(k));  pSrcY += 4;                     \
     acc0 = vmlaldavaq_p(acc0, xVec, yVec,p0);                           \
                                                                         \
     acc0 = asrl(acc0, 31);                                              \
@@ -663,8 +663,8 @@ extern "C"
     if (k > 0U)                                     \
     {                                               \
         mve_pred16_t p0 = vctp32q(k);               \
-        xVec = vld1q(pSrcX); pSrcX += 4;            \
-        yVec = vld1q(pSrcY); pSrcY += 4;            \
+        xVec = vld1q_z(pSrcX, vctp32q(k)); pSrcX += 4; \
+        yVec = vld1q_z(pSrcY, vctp32q(k)); pSrcY += 4; \
         acc = vmlaldavaq_p(acc, xVec, yVec, p0);    \
     }                                               \
     acc = asrl(acc, 31);                            \
@@ -699,14 +699,14 @@ extern "C"
     if (k > 0U)                                                                       \
     {                                                                                 \
         mve_pred16_t p0 = vctp32q(k);                                                 \
-        yVec = vld1q(pSrcY); pSrcY += 4;                                              \
-        xVec = vldrwq_s32(&pSrcX[1]);                                                 \
+        yVec = vld1q_z(pSrcY, vctp32q(k)); pSrcY += 4;                                \
+        xVec = vldrwq_z_s32(&pSrcX[1], vctp32q(k));                                   \
         acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                                    \
-        xVec = vldrwq_s32(&pSrcX[2]);                                                 \
+        xVec = vldrwq_z_s32(&pSrcX[2], vctp32q(k));                                   \
         acc2 = vmlaldavaq_p(acc2, xVec, yVec, p0);                                    \
-        xVec = vldrwq_s32(&pSrcX[3]);                                                 \
+        xVec = vldrwq_z_s32(&pSrcX[3], vctp32q(k));                                   \
         acc3 = vmlaldavaq_p(acc3, xVec, yVec, p0);                                    \
-        xVec = vld1q(pSrcX); pSrcX += 4;                                              \
+        xVec = vld1q_z(pSrcX, vctp32q(k)); pSrcX += 4;                                \
         acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                                    \
     }                                                                                 \
                                                                                       \
@@ -741,10 +741,10 @@ extern "C"
     if (k > 0U)                                                           \
     {                                                                     \
         mve_pred16_t p0 = vctp32q(k);                                     \
-        yVec = vld1q(pSrcY); pSrcY += 4;                                  \
-        xVec = vldrwq_s32(&pSrcX[1]);                                     \
+        yVec = vld1q_z(pSrcY, vctp32q(k)); pSrcY += 4;                    \
+        xVec = vldrwq_z_s32(&pSrcX[1], vctp32q(k));                       \
         acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                        \
-        xVec = vld1q(pSrcX); pSrcX += 4;                                  \
+        xVec = vld1q_z(pSrcX, vctp32q(k)); pSrcX += 4;                    \
         acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                        \
     }                                                                     \
                                                                           \
@@ -777,13 +777,13 @@ extern "C"
     /* disable extra lanes in final MAC computation  */                 \
     k = (count-1) % 0x4U;                                               \
     mve_pred16_t p0 = vctp32q(k);                                       \
-    yVec = vld1q(pSrcY);  pSrcY += 4;                                   \
-    xVec = vldrwq_s32(&pSrcX[1]);                                       \
+    yVec = vld1q_z(pSrcY, vctp32q(k+1));  pSrcY += 4;                   \
+    xVec = vldrwq_z_s32(&pSrcX[1], vctp32q(k));                         \
     acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                          \
     /* acc0 requires 1 additional sample  (count) */                    \
     /* so add 1 to unmask an extra lane  in final MAC computation  */   \
     p0 = vctp32q(k+1);                                                  \
-    xVec = vld1q(pSrcX); pSrcX += 4;                                    \
+    xVec = vld1q_z(pSrcX, vctp32q(k+1)); pSrcX += 4;                    \
     acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                          \
                                                                         \
     acc0 = asrl(acc0, 31);                                              \
@@ -814,13 +814,13 @@ extern "C"
     /* acc1 requires 1 additional sample  */                            \
     /* so add 1 to unmask an extra lane  in final MAC computation  */   \
     mve_pred16_t p0 = vctp16q(k+1);                                     \
-    xVec = vld1q(pSrcX);  pSrcX += 8;                                   \
-    yVec = vldrhq_s16(&pSrcY[-1]);                                      \
+    xVec = vld1q_z(pSrcX, vctp16q(k+1));  pSrcX += 8;                   \
+    yVec = vldrhq_z_s16(&pSrcY[-1], vctp16q(k+1));                      \
     acc1 = vmlaldavaq_p(acc1, xVec, yVec,p0);                           \
     /* acc0 requires exact number of sample  */                         \
     /* disable extra lanes in final MAC computation  */                 \
     p0 = vctp16q(k);                                                    \
-    yVec = vld1q(pSrcY);  pSrcY += 8;                                   \
+    yVec = vld1q_z(pSrcY, vctp16q(k));  pSrcY += 8;                     \
     acc0 = vmlaldavaq_p(acc0, xVec, yVec,p0);                           \
                                                                         \
     acc0 = asrl(acc0, 15);                                              \
@@ -851,8 +851,8 @@ extern "C"
     if (k > 0U)                                     \
     {                                               \
         mve_pred16_t p0 = vctp16q(k);               \
-        xVec = vld1q(pSrcX);  pSrcX += 8;           \
-        yVec = vld1q(pSrcY);  pSrcY += 8;           \
+        xVec = vld1q_z(pSrcX, vctp16q(k));  pSrcX += 8; \
+        yVec = vld1q_z(pSrcY, vctp16q(k));  pSrcY += 8; \
         acc = vmlaldavaq_p(acc, xVec, yVec, p0);    \
     }                                               \
     acc = asrl(acc, 15);                            \
@@ -888,14 +888,14 @@ extern "C"
     if (k > 0U)                                                                       \
     {                                                                                 \
         mve_pred16_t p0 = vctp16q(k);                                                 \
-        yVec = vld1q(pSrcY);  pSrcY += 8;                                             \
-        xVec = vldrhq_s16(&pSrcX[1]);                                                 \
+        yVec = vld1q_z(pSrcY, vctp16q(k));  pSrcY += 8;                               \
+        xVec = vldrhq_z_s16(&pSrcX[1], vctp16q(k));                                   \
         acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                                    \
-        xVec = vldrhq_s16(&pSrcX[2]);                                                 \
+        xVec = vldrhq_z_s16(&pSrcX[2], vctp16q(k));                                   \
         acc2 = vmlaldavaq_p(acc2, xVec, yVec, p0);                                    \
-        xVec = vldrhq_s16(&pSrcX[3]);                                                 \
+        xVec = vldrhq_z_s16(&pSrcX[3], vctp16q(k));                                   \
         acc3 = vmlaldavaq_p(acc3, xVec, yVec, p0);                                    \
-        xVec = vld1q(pSrcX);  pSrcX += 8;                                             \
+        xVec = vld1q_z(pSrcX, vctp16q(k));  pSrcX += 8;                               \
         acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                                    \
     }                                                                                 \
                                                                                       \
@@ -934,10 +934,10 @@ extern "C"
     if (k > 0U)                                                           \
     {                                                                     \
         mve_pred16_t p0 = vctp16q(k);                                     \
-        yVec = vld1q(pSrcY);  pSrcY += 8;                                 \
-        xVec = vldrhq_s16(&pSrcX[1]);                                     \
+        yVec = vld1q_z(pSrcY, vctp16q(k));  pSrcY += 8;                   \
+        xVec = vldrhq_z_s16(&pSrcX[1], vctp16q(k));                       \
         acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                        \
-        xVec = vld1q(pSrcX);  pSrcX += 8;                                 \
+        xVec = vld1q_z(pSrcX, vctp16q(k));  pSrcX += 8;                   \
         acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                        \
     }                                                                     \
                                                                           \
@@ -972,13 +972,13 @@ extern "C"
     /* disable extra lanes in final MAC computation  */                 \
     k = (count-1) % 0x8U;                                               \
     mve_pred16_t p0 = vctp16q(k);                                       \
-    yVec = vld1q(pSrcY);  pSrcY += 8;                                   \
-    xVec = vldrhq_s16(&pSrcX[1]);                                       \
+    yVec = vld1q_z(pSrcY, vctp16q(k+1));  pSrcY += 8;                   \
+    xVec = vldrhq_z_s16(&pSrcX[1], vctp16q(k));                         \
     acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                          \
     /* acc0 requires 1 additional sample  (count) */                    \
     /* so add 1 to unmask an extra lane  in final MAC computation  */   \
     p0 = vctp16q(k+1);                                                  \
-    xVec = vld1q(pSrcX);  pSrcX += 8;                                   \
+    xVec = vld1q_z(pSrcX, vctp16q(k+1));  pSrcX += 8;                   \
     acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                          \
                                                                         \
     acc0 = asrl(acc0, 15);                                              \
@@ -1014,10 +1014,10 @@ extern "C"
     /* acc0 requires exact number of sample  */                         \
     /* disable extra lanes in final MAC computation  */                 \
     mve_pred16_t p0 = vctp16q(k);                                       \
-    xVec = vld1q(pSrcX);  pSrcX += 8;                                   \
-    yVec = vldrhq_gather_shifted_offset_s16(pY, decrIdxVec);            \
+    xVec = vld1q_z(pSrcX, vctp16q(k+1));  pSrcX += 8;                   \
+    yVec = vldrhq_gather_shifted_offset_z_s16(pY, decrIdxVec, vctp16q(k)); \
     acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                          \
-    yVec = vldrhq_gather_shifted_offset_s16(pY1, decrIdxVec);           \
+    yVec = vldrhq_gather_shifted_offset_z_s16(pY1, decrIdxVec, vctp16q(k+1)); \
     /* acc1 requires 1 additional sample  */                            \
     /* so add 1 to unmask an extra lane  in final MAC computation  */   \
     p0 = vctp16q(k+1);                                                  \
@@ -1052,8 +1052,8 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp16q(k);                                                                \
-        xVec = vld1q(pSrcX);  pSrcX += 8;                                                            \
-        yVec = vldrhq_gather_shifted_offset_s16(pY, decrIdxVec);                                     \
+        xVec = vld1q_z(pSrcX, vctp16q(k));  pSrcX += 8;                                              \
+        yVec = vldrhq_gather_shifted_offset_z_s16(pY, decrIdxVec, vctp16q(k));                       \
         acc = vmlaldavaq_p(acc, xVec, yVec, p0);                                                     \
     }                                                                                                \
     acc = asrl(acc, 15);                                                                             \
@@ -1089,14 +1089,14 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp16q(k);                                                                \
-        yVec = vldrhq_gather_shifted_offset_s16(pY, decrIdxVec);                                     \
-        xVec = vldrhq_s16(&pSrcX[1]);                                                                \
+        yVec = vldrhq_gather_shifted_offset_z_s16(pY, decrIdxVec, vctp16q(k));                       \
+        xVec = vldrhq_z_s16(&pSrcX[1], vctp16q(k));                                                  \
         acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                                                   \
-        xVec = vldrhq_s16(&pSrcX[2]);                                                                \
+        xVec = vldrhq_z_s16(&pSrcX[2], vctp16q(k));                                                  \
         acc2 = vmlaldavaq_p(acc2, xVec, yVec, p0);                                                   \
-        xVec = vldrhq_s16(&pSrcX[3]);                                                                \
+        xVec = vldrhq_z_s16(&pSrcX[3], vctp16q(k));                                                  \
         acc3 = vmlaldavaq_p(acc3, xVec, yVec, p0);                                                   \
-        xVec = vld1q(pSrcX);  pSrcX += 8;                                                            \
+        xVec = vld1q_z(pSrcX, vctp16q(k));  pSrcX += 8;                                              \
         acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                                                   \
     }                                                                                                \
     acc0 = asrl(acc0, 15);                                                                           \
@@ -1134,10 +1134,10 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp16q(k);                                                                \
-        yVec = vldrhq_gather_shifted_offset_s16(pY, decrIdxVec);                                     \
-        xVec = vldrhq_s16(&pSrcX[1]);                                                                \
+        yVec = vldrhq_gather_shifted_offset_z_s16(pY, decrIdxVec, vctp16q(k));                       \
+        xVec = vldrhq_z_s16(&pSrcX[1], vctp16q(k));                                                  \
         acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                                                   \
-        xVec = vld1q(pSrcX);  pSrcX += 8;                                                            \
+        xVec = vld1q_z(pSrcX, vctp16q(k));  pSrcX += 8;                                              \
         acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                                                   \
     }                                                                                                \
     acc0 = asrl(acc0, 15);                                                                           \
@@ -1171,13 +1171,13 @@ extern "C"
     /* acc1 requires exact number of sample (count-1)  */                                            \
     /* disable extra lanes in final MAC computation  */                                              \
     mve_pred16_t p0 = vctp16q(k);                                                                    \
-    yVec = vldrhq_gather_shifted_offset_s16(pY, decrIdxVec);                                         \
-    xVec = vldrhq_s16(&pSrcX[1]);                                                                    \
+    yVec = vldrhq_gather_shifted_offset_z_s16(pY, decrIdxVec, vctp16q(k+1));                         \
+    xVec = vldrhq_z_s16(&pSrcX[1], vctp16q(k));                                                      \
     acc1 = vmlaldavaq_p(acc1, xVec, yVec, p0);                                                       \
     /* acc0 requires 1 additional sample  (count) */                                                 \
     /* so add 1 to unmask an extra lane  in final MAC computation  */                                \
     p0 = vctp16q(k+1);                                                                               \
-    xVec = vld1q(pSrcX);  pSrcX += 8;                                                                \
+    xVec = vld1q_z(pSrcX, vctp16q(k+1));  pSrcX += 8;                                                \
     acc0 = vmlaldavaq_p(acc0, xVec, yVec, p0);                                                       \
                                                                                                      \
     acc0 = asrl(acc0, 15);                                                                           \
@@ -1210,13 +1210,13 @@ extern "C"
     /* acc1 requires 1 additional sample  */                           \
     /* so add 1 to unmask an extra lane  in final MAC computation  */  \
     mve_pred16_t p0 = vctp8q(k+1);                                     \
-    xVec = vld1q(pSrcX);  pSrcX += 16;                                 \
-    yVec = vldrbq_s8(&pSrcY[-1]);                                      \
+    xVec = vld1q_z(pSrcX, vctp8q(k+1));  pSrcX += 16;                  \
+    yVec = vldrbq_z_s8(&pSrcY[-1], vctp8q(k+1));                       \
     acc1 = vmladavaq_p(acc1, xVec, yVec,p0);                           \
     /* acc0 requires exact number of sample  */                        \
     /* disable extra lanes in final MAC computation  */                \
     p0 = vctp8q(k);                                                    \
-    yVec = vld1q(pSrcY);  pSrcY += 16;                                 \
+    yVec = vld1q_z(pSrcY, vctp8q(k));  pSrcY += 16;                    \
     acc0 = vmladavaq_p(acc0, xVec, yVec,p0);                           \
                                                                        \
     acc0 = (acc0 >> 7);                                                \
@@ -1247,8 +1247,8 @@ extern "C"
     if (k > 0U)                                    \
     {                                              \
         mve_pred16_t p0 = vctp8q(k);               \
-        xVec = vld1q(pSrcX);  pSrcX += 16;         \
-        yVec = vld1q(pSrcY);  pSrcY += 16;         \
+        xVec = vld1q_z(pSrcX, vctp8q(k));  pSrcX += 16; \
+        yVec = vld1q_z(pSrcY, vctp8q(k));  pSrcY += 16; \
         acc = vmladavaq_p(acc, xVec, yVec, p0);    \
     }                                              \
     acc =(acc >> 7);                               \
@@ -1284,14 +1284,14 @@ extern "C"
     if (k > 0U)                                                                      \
     {                                                                                \
         mve_pred16_t p0 = vctp8q(k);                                                 \
-        yVec = vld1q(pSrcY);  pSrcY += 16;                                           \
-        xVec = vldrbq_s8(&pSrcX[1]);                                                 \
+        yVec = vld1q_z(pSrcY, vctp8q(k));  pSrcY += 16;                              \
+        xVec = vldrbq_z_s8(&pSrcX[1], vctp8q(k));                                    \
         acc1 = vmladavaq_p(acc1, xVec, yVec, p0);                                    \
-        xVec = vldrbq_s8(&pSrcX[2]);                                                 \
+        xVec = vldrbq_z_s8(&pSrcX[2], vctp8q(k));                                    \
         acc2 = vmladavaq_p(acc2, xVec, yVec, p0);                                    \
-        xVec = vldrbq_s8(&pSrcX[3]);                                                 \
+        xVec = vldrbq_z_s8(&pSrcX[3], vctp8q(k));                                    \
         acc3 = vmladavaq_p(acc3, xVec, yVec, p0);                                    \
-        xVec = vld1q(pSrcX);  pSrcX += 16;                                           \
+        xVec = vld1q_z(pSrcX, vctp8q(k));  pSrcX += 16;                              \
         acc0 = vmladavaq_p(acc0, xVec, yVec, p0);                                    \
     }                                                                                \
                                                                                      \
@@ -1330,10 +1330,10 @@ extern "C"
     if (k > 0U)                                                          \
     {                                                                    \
         mve_pred16_t p0 = vctp8q(k);                                     \
-        yVec = vld1q(pSrcY);  pSrcY += 16;                               \
-        xVec = vldrbq_s8(&pSrcX[1]);                                     \
+        yVec = vld1q_z(pSrcY, vctp8q(k));  pSrcY += 16;                  \
+        xVec = vldrbq_z_s8(&pSrcX[1], vctp8q(k));                        \
         acc1 = vmladavaq_p(acc1, xVec, yVec, p0);                        \
-        xVec = vld1q(pSrcX);  pSrcX += 16;                               \
+        xVec = vld1q_z(pSrcX, vctp8q(k));  pSrcX += 16;                  \
         acc0 = vmladavaq_p(acc0, xVec, yVec, p0);                        \
     }                                                                    \
                                                                          \
@@ -1368,13 +1368,13 @@ extern "C"
     /* disable extra lanes in final MAC computation  */                \
     k = (count-1) % 0x10U;                                             \
     mve_pred16_t p0 = vctp8q(k);                                       \
-    yVec = vld1q(pSrcY);  pSrcY += 16;                                 \
-    xVec = vldrbq_s8(&pSrcX[1]);                                       \
+    yVec = vld1q_z(pSrcY, vctp8q(k+1));  pSrcY += 16;                  \
+    xVec = vldrbq_z_s8(&pSrcX[1], vctp8q(k));                          \
     acc1 = vmladavaq_p(acc1, xVec, yVec, p0);                          \
     /* acc0 requires 1 additional sample  (count) */                   \
     /* so add 1 to unmask an extra lane  in final MAC computation  */  \
     p0 = vctp8q(k+1);                                                  \
-    xVec = vld1q(pSrcX);  pSrcX += 16;                                 \
+    xVec = vld1q_z(pSrcX, vctp8q(k+1));  pSrcX += 16;                  \
     acc0 = vmladavaq_p(acc0, xVec, yVec, p0);                          \
                                                                        \
     acc0 = (acc0 >> 7);                                                \
@@ -1410,10 +1410,10 @@ extern "C"
     /* acc0 requires exact number of sample  */                        \
     /* disable extra lanes in final MAC computation  */                \
     mve_pred16_t p0 = vctp8q(k);                                       \
-    xVec = vld1q(pSrcX);  pSrcX += 16;                                 \
-    yVec = vldrbq_gather_offset_s8(pY, decrIdxVec);                    \
+    xVec = vld1q_z(pSrcX, vctp8q(k+1));  pSrcX += 16;                  \
+    yVec = vldrbq_gather_offset_z_s8(pY, decrIdxVec, vctp8q(k));       \
     acc0 = vmladavaq_p(acc0, xVec, yVec, p0);                          \
-    yVec = vldrbq_gather_offset_s8(pY1, decrIdxVec);                   \
+    yVec = vldrbq_gather_offset_z_s8(pY1, decrIdxVec, vctp8q(k+1));    \
     /* acc1 requires 1 additional sample  */                           \
     /* so add 1 to unmask an extra lane  in final MAC computation  */  \
     p0 = vctp8q(k+1);                                                  \
@@ -1448,8 +1448,8 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp8q(k);                                                                 \
-        xVec = vld1q(pSrcX);  pSrcX += 16;                                                           \
-        yVec = vldrbq_gather_offset_s8(pY, decrIdxVec);                                              \
+        xVec = vld1q_z(pSrcX, vctp8q(k));  pSrcX += 16;                                              \
+        yVec = vldrbq_gather_offset_z_s8(pY, decrIdxVec, vctp8q(k));                                 \
         acc = vmladavaq_p(acc, xVec, yVec, p0);                                                      \
     }                                                                                                \
     acc = __SSAT(acc >> 7, 8);                                                                       \
@@ -1484,14 +1484,14 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp8q(k);                                                                 \
-        yVec = vldrbq_gather_offset_s8(pY, decrIdxVec);                                              \
-        xVec = vldrbq_s8(&pSrcX[1]);                                                                 \
+        yVec = vldrbq_gather_offset_z_s8(pY, decrIdxVec, vctp8q(k));                                 \
+        xVec = vldrbq_z_s8(&pSrcX[1], vctp8q(k));                                                    \
         acc1 = vmladavaq_p(acc1, xVec, yVec, p0);                                                    \
-        xVec = vldrbq_s8(&pSrcX[2]);                                                                 \
+        xVec = vldrbq_z_s8(&pSrcX[2], vctp8q(k));                                                    \
         acc2 = vmladavaq_p(acc2, xVec, yVec, p0);                                                    \
-        xVec = vldrbq_s8(&pSrcX[3]);                                                                 \
+        xVec = vldrbq_z_s8(&pSrcX[3], vctp8q(k));                                                    \
         acc3 = vmladavaq_p(acc3, xVec, yVec, p0);                                                    \
-        xVec = vld1q(pSrcX);  pSrcX += 16;                                                           \
+        xVec = vld1q_z(pSrcX, vctp8q(k));  pSrcX += 16;                                              \
         acc0 = vmladavaq_p(acc0, xVec, yVec, p0);                                                    \
     }                                                                                                \
     acc0 = __SSAT(acc0 >> 7, 8);                                                                     \
@@ -1525,10 +1525,10 @@ extern "C"
     if (k > 0U)                                                                                      \
     {                                                                                                \
         mve_pred16_t p0 = vctp8q(k);                                                                 \
-        yVec = vldrbq_gather_offset_s8(pY, decrIdxVec);                                              \
-        xVec = vldrbq_s8(&pSrcX[1]);                                                                 \
+        yVec = vldrbq_gather_offset_z_s8(pY, decrIdxVec, vctp8q(k));                                 \
+        xVec = vldrbq_z_s8(&pSrcX[1], vctp8q(k));                                                    \
         acc1 = vmladavaq_p(acc1, xVec, yVec, p0);                                                    \
-        xVec = vld1q(pSrcX);  pSrcX += 16;                                                           \
+        xVec = vld1q_z(pSrcX, vctp8q(k));  pSrcX += 16;                                              \
         acc0 = vmladavaq_p(acc0, xVec, yVec, p0);                                                    \
     }                                                                                                \
     acc0 = __SSAT(acc0 >> 7, 8);                                                                     \
@@ -1561,13 +1561,13 @@ extern "C"
     /* acc1 requires exact number of sample (count-1)  */                                            \
     /* disable extra lanes in final MAC computation  */                                              \
     mve_pred16_t p0 = vctp8q(k);                                                                     \
-    yVec = vldrbq_gather_offset_s8(pY, decrIdxVec);                                                  \
-    xVec = vldrbq_s8(&pSrcX[1]);                                                                     \
+    yVec = vldrbq_gather_offset_z_s8(pY, decrIdxVec, vctp8q(k+1));                                   \
+    xVec = vldrbq_z_s8(&pSrcX[1], vctp8q(k));                                                        \
     acc1 = vmladavaq_p(acc1, xVec, yVec, p0);                                                        \
     /* acc0 requires 1 additional sample  (count) */                                                 \
     /* so add 1 to unmask an extra lane  in final MAC computation  */                                \
     p0 = vctp8q(k+1);                                                                                \
-    xVec = vld1q(pSrcX);  pSrcX += 16;                                                               \
+    xVec = vld1q_z(pSrcX, vctp8q(k+1));  pSrcX += 16;                                                \
     acc0 = vmladavaq_p(acc0, xVec, yVec, p0);                                                        \
                                                                                                      \
     acc0 = (acc0 >> 7);                                                                              \
