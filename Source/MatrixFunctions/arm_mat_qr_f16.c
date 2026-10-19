@@ -144,7 +144,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
       if (blkCnt > 0)
       {
           mve_pred16_t p0 = vctp16q(blkCnt);
-          v1 = vld1q_f16(pa);
+          v1 = vld1q_z_f16(pa, p0);
           v2 = vmulq_n_f16(v1,temp);
           vst1q_p_f16(pdst,v2,p0);
 
@@ -165,7 +165,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
       k=1;
       while(blkCnt > 0)
       {
-          vtemp=vld1q_f16(pv);
+          vtemp=vld1q_z_f16(pv, vctp16q(4));
 
           blkCnt2 = (pSrc->numCols-col) >> 3;
           while (blkCnt2 > 0)
@@ -198,18 +198,18 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
           {
               mve_pred16_t p0 = vctp16q(blkCnt2);
 
-              v1 = vld1q_f16(pdst);
+              v1 = vld1q_z_f16(pdst, p0);
 
-              v2 = vld1q_f16(pa0);
+              v2 = vld1q_z_f16(pa0, p0);
               v1 = vfmaq_n_f16(v1,v2,vgetq_lane(vtemp,0));
 
-              v2 = vld1q_f16(pa1);
+              v2 = vld1q_z_f16(pa1, p0);
               v1 = vfmaq_n_f16(v1,v2,vgetq_lane(vtemp,1));
 
-              v2 = vld1q_f16(pa2);
+              v2 = vld1q_z_f16(pa2, p0);
               v1 = vfmaq_n_f16(v1,v2,vgetq_lane(vtemp,2));
 
-              v2 = vld1q_f16(pa3);
+              v2 = vld1q_z_f16(pa3, p0);
               v1 = vfmaq_n_f16(v1,v2,vgetq_lane(vtemp,3));
 
               vst1q_p_f16(pdst,v1,p0);
@@ -250,8 +250,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
           if (blkCnt2 > 0)
           {
               mve_pred16_t p0 = vctp16q(blkCnt2);
-              v1 = vld1q_f16(pa);
-              v2 = vld1q_f16(pdst);
+              v1 = vld1q_z_f16(pa, p0);
+              v2 = vld1q_z_f16(pdst, p0);
               v2 = vfmaq_n_f16(v2,v1,temp);
               vst1q_p_f16(pdst,v2,p0);
 
@@ -288,8 +288,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
         {
             mve_pred16_t p0 = vctp16q(blkCnt2);
 
-            v1 = vld1q_f16(pa);
-            v2 = vld1q_f16(ptemp);
+            v1 = vld1q_z_f16(pa, p0);
+            v2 = vld1q_z_f16(ptemp, p0);
             v1 = vfmaq_n_f16(v1,v2,f);
             vst1q_p_f16(pa,v1,p0);
 
@@ -365,7 +365,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
        {
            mve_pred16_t p0 = vctp16q(blkCnt2);
 
-           v1 = vld1q_f16(pa);
+           v1 = vld1q_z_f16(pa, p0);
            v1 = vmulq_n_f16(v1, temp);
            vst1q_p_f16(pdst,v1,p0);
 
@@ -386,7 +386,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
        while(blkCnt > 0)
        {
 
-           vtemp = vld1q_f16(pv);
+           vtemp = vld1q_z_f16(pv, vctp16q(4));
            blkCnt2 = (pOutQ->numRows-pos) >> 3;
            while (blkCnt2 > 0)
            {
@@ -419,18 +419,18 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
            {
                mve_pred16_t p0 = vctp16q(blkCnt2);
 
-               v1 = vld1q_f16(pdst);
+               v1 = vld1q_z_f16(pdst, p0);
 
-               v2 = vld1q_f16(pa0);
+               v2 = vld1q_z_f16(pa0, p0);
                v1 = vfmaq_n_f16(v1, v2, vgetq_lane(vtemp,0));
 
-               v2 = vld1q_f16(pa1);
+               v2 = vld1q_z_f16(pa1, p0);
                v1 = vfmaq_n_f16(v1, v2, vgetq_lane(vtemp,1));
 
-               v2 = vld1q_f16(pa2);
+               v2 = vld1q_z_f16(pa2, p0);
                v1 = vfmaq_n_f16(v1, v2, vgetq_lane(vtemp,2));
 
-               v2 = vld1q_f16(pa3);
+               v2 = vld1q_z_f16(pa3, p0);
                v1 = vfmaq_n_f16(v1, v2, vgetq_lane(vtemp,3));
 
                vst1q_p_f16(pdst,v1,p0);
@@ -473,8 +473,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
            if (blkCnt2 > 0)
            {
                mve_pred16_t p0 = vctp16q(blkCnt2);
-               v1 = vld1q_f16(pdst);
-               v2 = vld1q_f16(pa);
+               v1 = vld1q_z_f16(pdst, p0);
+               v2 = vld1q_z_f16(pa, p0);
                v1 = vfmaq_n_f16(v1, v2, temp);
                vst1q_p_f16(pdst,v1,p0);
 
@@ -511,8 +511,8 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_qr_f16(
            {
                mve_pred16_t p0 = vctp16q(blkCnt2);
 
-               v1 = vld1q_f16(pa);
-               v2 = vld1q_f16(ptemp);
+               v1 = vld1q_z_f16(pa, p0);
+               v2 = vld1q_z_f16(ptemp, p0);
                v1 = vfmaq_n_f16(v1,v2,f);
                vst1q_p_f16(pa,v1,p0);
 
