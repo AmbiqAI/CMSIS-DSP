@@ -123,6 +123,8 @@ ARM_DSP_ATTRIBUTE void arm_min_f32(
      * tail
      */
     blkCnt = blockSize & 0x3;
+    /* The vector loop advanced pSrcVec, not pSrc; continue where it stopped. */
+    pSrc = pSrcVec;
 
     while (blkCnt > 0U)
     {

@@ -276,3 +276,32 @@ Q31 CFFT test) after the kernel call, `sparse-read-far` the same at the far
 end of the guard, and `nan` (the float tests) writes a quiet NaN into the
 first checked output. With 32-byte guards, `sparse-read-32` passes every
 one of these tests, and `nan` passes the matrix-vector and FIR state tests.
+
+## Min/max value and index
+
+`mve_min_max_index.c` runs the MVE `arm_min`, `arm_max`, `arm_absmin` and
+`arm_absmax` kernels for f32, Q31, Q15, Q7 and f16 (20 kernels) with a unique
+extreme at every position of every length from 1 to 48 (three full Q7
+vectors, six of Q15 and f16, twelve of f32 and Q31) and of 63–65, 127–129,
+254–257, 300 and 510–513 (the Q7 kernels split blocks longer than 255
+elements): 5120 cases per kernel, 102400 in all. The other elements lie in
+[10, 106], and for `absmin` and `absmax` the extreme alternates in sign. The
+returned value and index must equal the extreme's, compared by their bits.
+The source ends at an MPU-inaccessible guard, so a read past it faults, and
+sixteen sentinels that would win over the extreme sit directly before the
+source, so a kernel whose result uses anything before the data fails too.
+`arm_min_f16`, `arm_absmax_f16` and `arm_absmin_q7/q15/q31` still load a whole
+vector in their tail (#32 predicates them), so for them a read past the source
+lands in one vector of sentinels before the guard (`SLACK_*`) and fails only if
+it changes the result. Whichever of #32 and #52 merges second sets those five
+`SLACK_*` values to 0 and removes this sentence. A failing kernel is reported and the run continues
+with the next one; a guard access ends the run.
+
+`run_mve_min_max_index.py` takes the options of the CFFT buffer-bound runner
+(`--compiler`, `--linker`, `--opt`, `--source`, `--control` with
+`sparse-read-32`, `sparse-read-far` and `nan`), builds with float16 enabled
+and expects `PASS: 102400 MVE min/max index cases`. The negative control
+passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
+first `blockSize % 4` elements again instead of the last ones, and the run
+must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
+followed by `FAIL: 1 of 20 kernels`.
