@@ -198,6 +198,120 @@ static void arm_fir_q15_1_8_mve(const arm_fir_instance_q15 * S,
 }
 
 
+/*
+ * Last outputs of the general Helium kernel, from the first output after the
+ * main loop (pSamples, pStateCur, pTempSrc and pOutput as the main loop left
+ * them), and the copy of the history to the start of the state. Kept out of
+ * line, with nothing live after the call, so that it does not change the
+ * register allocation of the main loop.
+ */
+__attribute__((noinline)) static void arm_fir_q15_tail_mve(
+    const q15_t * pCoeffs,
+    const q15_t * pSamples,
+          q15_t * pStateCur,
+    const q15_t * pTempSrc,
+          q15_t * pOutput,
+          q15_t * pState,
+    uint32_t numTaps,
+    uint32_t blockSize)
+{
+    uint32_t  tailCnt = blockSize - (uint32_t) (pSamples - pState);
+    q15_t     *pTempDest;
+    uint32_t  blkCnt;
+    uint32_t  tapsBlkCnt = (numTaps + 7) / 8;
+    q63_t     acc0, acc1, acc2, acc3;
+
+    /*
+     * Remaining outputs: the input copy and the last block of taps are
+     * predicated, so no access passes blockSize input samples or the
+     * numTaps + blockSize - 1 state samples. Groups of 4 as in the main loop,
+     * then the last 1 to 3 outputs one at a time.
+     */
+    mve_pred16_t pLastTaps = vctp16q(numTaps - (tapsBlkCnt - 1U) * 8U);
+    while (tailCnt >= 4U)
+    {
+        mve_pred16_t pCopy = vctp16q(4U);
+        const q15_t    *pCoeffsTmp = pCoeffs;
+        const q15_t    *pSamplesTmp = pSamples;
+
+        vstrhq_p_s16(pStateCur, vldrhq_z_s16(pTempSrc, pCopy), pCopy);
+        pStateCur += 4;
+        pTempSrc += 4;
+
+        acc0 = 0LL;
+        acc1 = 0LL;
+        acc2 = 0LL;
+        acc3 = 0LL;
+        for (uint32_t i = 1U; i < tapsBlkCnt; i++)
+        {
+            q15x8_t  vecCoeffs = vld1q(pCoeffsTmp);
+
+            acc0 = vmlaldavaq(acc0, vld1q(pSamplesTmp), vecCoeffs);
+            acc1 = vmlaldavaq(acc1, vld1q(&pSamplesTmp[1]), vecCoeffs);
+            acc2 = vmlaldavaq(acc2, vld1q(&pSamplesTmp[2]), vecCoeffs);
+            acc3 = vmlaldavaq(acc3, vld1q(&pSamplesTmp[3]), vecCoeffs);
+            pSamplesTmp += 8;
+            pCoeffsTmp += 8;
+        }
+        {
+            q15x8_t  vecCoeffs = vld1q(pCoeffsTmp);
+
+            acc0 = vmlaldavaq(acc0, vldrhq_z_s16(pSamplesTmp, pLastTaps), vecCoeffs);
+            acc1 = vmlaldavaq(acc1, vldrhq_z_s16(&pSamplesTmp[1], pLastTaps), vecCoeffs);
+            acc2 = vmlaldavaq(acc2, vldrhq_z_s16(&pSamplesTmp[2], pLastTaps), vecCoeffs);
+            acc3 = vmlaldavaq(acc3, vldrhq_z_s16(&pSamplesTmp[3], pLastTaps), vecCoeffs);
+        }
+        *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc0, 15);
+        *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc1, 15);
+        *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc2, 15);
+        *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc3, 15);
+
+        pSamples += 4;
+        tailCnt -= 4U;
+    }
+    while (tailCnt > 0U)
+    {
+        const q15_t    *pCoeffsTmp = pCoeffs;
+        const q15_t    *pSamplesTmp = pSamples;
+
+        *pStateCur++ = *pTempSrc++;
+
+        acc0 = 0LL;
+        for (uint32_t i = 1U; i < tapsBlkCnt; i++)
+        {
+            acc0 = vmlaldavaq(acc0, vld1q(pSamplesTmp), vld1q(pCoeffsTmp));
+            pSamplesTmp += 8;
+            pCoeffsTmp += 8;
+        }
+        acc0 = vmlaldavaq(acc0, vldrhq_z_s16(pSamplesTmp, pLastTaps), vld1q(pCoeffsTmp));
+        *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc0, 15);
+
+        pSamples++;
+        tailCnt--;
+    }
+
+    /*
+     * Copy the last numTaps - 1 samples back into the history buffer start
+     */
+    pTempSrc = &pState[blockSize];
+    pTempDest = pState;
+
+    blkCnt = (numTaps - 1U) >> 3;
+    while (blkCnt > 0U)
+    {
+        vst1q(pTempDest, vld1q(pTempSrc));
+        pTempSrc += 8;
+        pTempDest += 8;
+        blkCnt--;
+    }
+    blkCnt = (numTaps - 1U) & 7;
+    if (blkCnt > 0U)
+    {
+        mve_pred16_t p0 = vctp16q(blkCnt);
+        vstrhq_p_s16(pTempDest, vldrhq_z_s16(pTempSrc, p0), p0);
+    }
+}
+
 ARM_DSP_ATTRIBUTE void arm_fir_q15(
   const arm_fir_instance_q15 * S,
   const q15_t * pSrc,
@@ -210,7 +324,6 @@ ARM_DSP_ATTRIBUTE void arm_fir_q15(
     const q15_t    *pSamples;         /* Temporary pointer to the sample buffer */
     q15_t    *pOutput;          /* Temporary pointer to the output buffer */
     const q15_t    *pTempSrc;         /* Temporary pointer to the source data */
-    q15_t    *pTempDest;        /* Temporary pointer to the destination buffer */
     uint32_t  numTaps = S->numTaps; /* Number of filter coefficients in the filter */
     uint32_t  blkCnt;
     q15x8_t vecIn0;
@@ -243,7 +356,16 @@ switch(nbTaps) {
     pTempSrc    = pSrc;
     pSamples    = pState;
     pOutput     = pDst;
-    blkCnt      = blockSize >> 2;
+    /*
+     * The main loop copies 8 input samples and reads the state through
+     * tapsBlkCnt * 8 taps (zero-padded past numTaps) for each 4 outputs, so it
+     * runs only over the blocks for which both stay within blockSize input
+     * samples and the numTaps + blockSize - 1 state samples. The remaining
+     * outputs follow it under the tail predicate.
+     */
+    uint32_t  padTaps = tapsBlkCnt * 8U - numTaps;
+    uint32_t  margin = (padTaps + 4U > 8U) ? padTaps + 4U : 8U;
+    blkCnt      = (blockSize >= margin) ? ((blockSize - margin) >> 2) + 1U : 0U;
 
     while (blkCnt > 0U)
     {
@@ -259,8 +381,8 @@ switch(nbTaps) {
          * Save 8 input samples in the history buffer
          */
         vst1q(pStateCur, vld1q(pTempSrc));
-        pStateCur += 8;
-        pTempSrc += 8;
+        pStateCur += 4;
+        pTempSrc += 4;
 
         int       i = tapsBlkCnt;
         while (i > 0)
@@ -302,159 +424,11 @@ switch(nbTaps) {
         blkCnt--;
     }
 
-    uint32_t  residual = blockSize & 3;
-    switch (residual)
-    {
-    case 3:
-        {
-            const q15_t    *pCoeffsTmp = pCoeffs;
-            const q15_t    *pSamplesTmp = pSamples;
-
-            acc0 = 0LL;
-            acc1 = 0LL;
-            acc2 = 0LL;
-
-            /*
-             * Save 8 input samples in the history buffer
-             */
-            *(q15x8_t *) pStateCur = *(q15x8_t *) pTempSrc;
-            pStateCur += 8;
-            pTempSrc += 8;
-
-            int       i = tapsBlkCnt;
-            while (i > 0)
-            {
-                /*
-                 * load 8 coefs
-                 */
-                q15x8_t vecCoeffs = *(q15x8_t *) pCoeffsTmp;
-
-                vecIn0 = vld1q(pSamplesTmp);
-                acc0 = vmlaldavaq(acc0, vecIn0, vecCoeffs);
-
-                vecIn0 = vld1q(&pSamplesTmp[2]);
-                acc1 = vmlaldavaq(acc1, vecIn0, vecCoeffs);
-
-                vecIn0 = vld1q(&pSamplesTmp[4]);
-                acc2 = vmlaldavaq(acc2, vecIn0, vecCoeffs);
-
-                pSamplesTmp += 8;
-                pCoeffsTmp += 8;
-                /*
-                 * Decrement the taps block loop counter
-                 */
-                i--;
-            }
-
-            acc0 = asrl(acc0, 15);
-            acc1 = asrl(acc1, 15);
-            acc2 = asrl(acc2, 15);
-
-            *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc0, 15);
-            *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc1, 15);
-            *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc2, 15);
-        }
-        break;
-
-    case 2:
-        {
-            const q15_t    *pCoeffsTmp = pCoeffs;
-            const q15_t    *pSamplesTmp = pSamples;
-
-            acc0 = 0LL;
-            acc1 = 0LL;
-            /*
-             * Save 8 input samples in the history buffer
-             */
-            vst1q(pStateCur, vld1q(pTempSrc));
-            pStateCur += 8;
-            pTempSrc += 8;
-
-            int       i = tapsBlkCnt;
-            while (i > 0)
-            {
-                /*
-                 * load 8 coefs
-                 */
-                q15x8_t vecCoeffs = *(q15x8_t *) pCoeffsTmp;
-
-                vecIn0 = vld1q(pSamplesTmp);
-                acc0 = vmlaldavaq(acc0, vecIn0, vecCoeffs);
-
-                vecIn0 = vld1q(&pSamplesTmp[2]);
-                acc1 = vmlaldavaq(acc1, vecIn0, vecCoeffs);
-
-                pSamplesTmp += 8;
-                pCoeffsTmp += 8;
-                /*
-                 * Decrement the taps block loop counter
-                 */
-                i--;
-            }
-
-            *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc0, 15);
-            *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc1, 15);
-        }
-        break;
-
-    case 1:
-        {
-            const q15_t    *pCoeffsTmp = pCoeffs;
-            const q15_t    *pSamplesTmp = pSamples;
-
-            acc0 = 0LL;
-
-            /*
-             * Save 8 input samples in the history buffer
-             */
-            vst1q(pStateCur, vld1q(pTempSrc));
-            pStateCur += 8;
-            pTempSrc += 8;
-
-            int       i = tapsBlkCnt;
-            while (i > 0)
-            {
-                /*
-                 * load 8 coefs
-                 */
-                q15x8_t vecCoeffs = *(q15x8_t *) pCoeffsTmp;
-
-                vecIn0 = vld1q(pSamplesTmp);
-                acc0 = vmlaldavaq(acc0, vecIn0, vecCoeffs);
-
-                pSamplesTmp += 8;
-                pCoeffsTmp += 8;
-                /*
-                 * Decrement the taps block loop counter
-                 */
-                i--;
-            }
-
-            *pOutput++ = (q15_t) MVE_ASRL_SAT16(acc0, 15);
-        }
-        break;
-    }
-
     /*
-     * Copy the samples back into the history buffer start
+     * Remaining outputs and the history copy
      */
-    pTempSrc = &pState[blockSize];
-    pTempDest = pState;
-
-    blkCnt = numTaps >> 3;
-    while (blkCnt > 0U)
-    {
-        vst1q(pTempDest, vld1q(pTempSrc));
-        pTempSrc += 8;
-        pTempDest += 8;
-        blkCnt--;
-    }
-    blkCnt = numTaps & 7;
-    if (blkCnt > 0U)
-    {
-        mve_pred16_t p0 = vctp16q(blkCnt);
-        vstrhq_p_s16(pTempDest, vld1q(pTempSrc), p0);
-    }
+    arm_fir_q15_tail_mve(pCoeffs, pSamples, pStateCur, pTempSrc, pOutput, pState,
+                        numTaps, blockSize);
 }
 
 #else
