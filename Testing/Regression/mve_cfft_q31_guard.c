@@ -5,12 +5,15 @@
  * lengths 16 to 1024, on a buffer whose first element follows an
  * MPU-inaccessible guard, checked against a double-precision DFT.
  *
- * The final radix-4 stage of the MVE kernel uses vldrwq_gather_base_wb_s32
- * and then gathers and scatters relative to the written-back base. A
+ * The final radix-4 stage of the MVE kernel used vldrwq_gather_base_wb_s32
+ * and then gathered and scattered relative to the written-back base. A
  * compiler that issues those accesses from the pre-writeback base touches
  * 64 bytes below each block, which here is the guard, and corrupts the
- * output. Arm GNU Toolchain 15.2.Rel1 does so at every optimization level;
- * 14.x does not.
+ * output. Arm GNU Toolchain 15.2.Rel1 does so at -O1 and above (not -O0);
+ * 14.x and 15.3.Rel1 do not. The kernel now advances the address vector
+ * with vaddq_n_u32 and gathers without writeback; a copy that uses the
+ * writeback gather is the negative control (run_mve_cfft_q31_guard.py
+ * --source).
  *
  * The guard covers one full buffer (2 * MAX_LEN words) plus one vector access
  * below the buffer, so a read anywhere within that distance below it faults

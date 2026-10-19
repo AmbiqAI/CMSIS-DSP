@@ -174,11 +174,19 @@ static void _arm_radix4_butterfly_q31_mve(
      */
     uint32x4_t vecScGathAddr = vld1q_u32((uint32_t*)strides);
     vecScGathAddr = vecScGathAddr + (uint32_t) pSrc;
+    /*
+     * The address vector is advanced with vaddq_n_u32 and the gathers use no
+     * writeback: Arm GNU Toolchain 15.2.Rel1 (GCC 15.2.1) miscompiles
+     * vldrwq_gather_base_wb here, issuing the gathers and scatters that follow
+     * it from the address before the writeback (Testing/Regression/
+     * mve_cfft_q31_guard.c). 14.3.Rel1 and 15.3.Rel1 compile it correctly.
+     */
 
     /*
      * load scheduling
      */
-    vecA = vldrwq_gather_base_wb_s32(&vecScGathAddr, 64);
+    vecScGathAddr = vaddq_n_u32(vecScGathAddr, 64U);
+    vecA = vldrwq_gather_base_s32(vecScGathAddr, 0);
     vecC = vldrwq_gather_base_s32(vecScGathAddr, 16);
 
     /*
@@ -200,7 +208,8 @@ static void _arm_radix4_butterfly_q31_mve(
         /*
          * pre-load for next iteration
          */
-        vecA = vldrwq_gather_base_wb_s32(&vecScGathAddr, 64);
+        vecScGathAddr = vaddq_n_u32(vecScGathAddr, 64U);
+        vecA = vldrwq_gather_base_s32(vecScGathAddr, 0);
         vecC = vldrwq_gather_base_s32(vecScGathAddr, 16);
 
         vecTmp0 = vhaddq(vecSum0, vecSum1);
@@ -453,11 +462,19 @@ static void _arm_radix4_butterfly_inverse_q31_mve(
      */
     uint32x4_t vecScGathAddr = vld1q_u32((uint32_t*)strides);
     vecScGathAddr = vecScGathAddr + (uint32_t) pSrc;
+    /*
+     * The address vector is advanced with vaddq_n_u32 and the gathers use no
+     * writeback: Arm GNU Toolchain 15.2.Rel1 (GCC 15.2.1) miscompiles
+     * vldrwq_gather_base_wb here, issuing the gathers and scatters that follow
+     * it from the address before the writeback (Testing/Regression/
+     * mve_cfft_q31_guard.c). 14.3.Rel1 and 15.3.Rel1 compile it correctly.
+     */
 
     /*
      * load scheduling
      */
-    vecA = vldrwq_gather_base_wb_s32(&vecScGathAddr, 64);
+    vecScGathAddr = vaddq_n_u32(vecScGathAddr, 64U);
+    vecA = vldrwq_gather_base_s32(vecScGathAddr, 0);
     vecC = vldrwq_gather_base_s32(vecScGathAddr, 16);
 
     /*
@@ -479,7 +496,8 @@ static void _arm_radix4_butterfly_inverse_q31_mve(
         /*
          * pre-load for next iteration
          */
-        vecA = vldrwq_gather_base_wb_s32(&vecScGathAddr, 64);
+        vecScGathAddr = vaddq_n_u32(vecScGathAddr, 64U);
+        vecA = vldrwq_gather_base_s32(vecScGathAddr, 0);
         vecC = vldrwq_gather_base_s32(vecScGathAddr, 16);
 
         vecTmp0 = vhaddq(vecSum0, vecSum1);
