@@ -80,7 +80,7 @@ ARM_DSP_ATTRIBUTE void arm_absmin_q31(
     {
         vecSrc = vldrwq_s32(pSrcVec);  
         pSrcVec += 4;
-        vecSrc = vabsq(vecSrc);
+        vecSrc = vqabsq(vecSrc);
         /*
          * Get current min per lane and current index per lane
          * when a min is selected
@@ -104,7 +104,7 @@ ARM_DSP_ATTRIBUTE void arm_absmin_q31(
     {
         vecSrc = vldrwq_s32(pSrcVec);  
         pSrcVec += 4;
-        vecSrc = vabsq(vecSrc);
+        vecSrc = vqabsq(vecSrc);
 
         p0 = vctp32q(blkCnt);
         /*
