@@ -154,6 +154,7 @@ if (NOT DISABLEFLOAT16)
            Source/Tests/ComplexTestsF16.cpp
            Source/Tests/DistanceTestsF16.cpp
            Source/Tests/FastMathF16.cpp
+           Source/Tests/DECIMF16.cpp
            Source/Tests/FIRF16.cpp
            Source/Tests/InterpolationTestsF16.cpp
            Source/Tests/mfccdata_f16.c

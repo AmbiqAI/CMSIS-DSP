@@ -317,3 +317,7 @@ passes the unmodified `arm_min_f32.c` through `--source`; its tail scanned the
 first `blockSize % 4` elements again instead of the last ones, and the run
 must report `FAIL: arm_min_f32 length 5 extreme at 4: index 0, value wrong`
 followed by `FAIL: 1 of 20 kernels`.
+
+## f16 FIR decimator
+
+`mve_fir_decimate_f16_state.c` checks `arm_fir_decimate_f16`, added by this fork, as the f32 decimator test checks `arm_fir_decimate_f32`: 1–20 taps, decimation factors 1–5, 1–9 outputs per call, two consecutive calls per case, 900 cases. Each case runs with the state buffer followed by readable f16 +Inf padding, with the state buffer ending at an MPU-inaccessible region, and with the input ending there; all outputs must equal the double-precision reference bit for bit (every partial sum is exact in f16), with output canaries. `run_mve_fir_decimate_f16_state.py` takes the options of the f32 runner and expects `PASS: 900 MVE f16 decimator state cases`. Variants of the kernel with one predicated load reverted to `vld1q` report `FAIL: decimator state access taps=1 M=1 outputs=4` (tap block), `taps=2 M=1 outputs=1` (state copy) and `FAIL: decimator input access taps=1 M=1 outputs=4` (input copy).
