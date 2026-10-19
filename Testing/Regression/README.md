@@ -60,21 +60,30 @@ MPU guard for 1–20 taps and 1–12 samples per block (240 cases, covering the 
 recovered MemManage fault, grows the buffer one element at a time until the
 kernel runs without touching the guard. It records for each case how many
 elements beyond the documented `numTaps + 2 * blockSize - 1` were touched
-and whether any were stored to. The pass condition is no stores past the
-documented length and no reads past `4 * ceil(numTaps / 4) + 2 * blockSize - 1`,
-the rounding the coefficient array already needs; outputs are checked against
-a double-precision reference in every case.
+and whether any were stored to. The pass condition is no reads or stores
+past the documented length; outputs are checked against a double-precision
+reference in every case. `--opt` sets the optimization level (default `O3`).
+The fault handler returns into a function that clears VPR before it unwinds
+to the case: the exception return restores VPR from the faulting kernel, and
+a fault inside a VPT block would otherwise predicate the vector instructions
+that follow (ATfE 22.1.0 vectorizes the canary fill).
 
 ```sh
 python3 Testing/Regression/run_mve_fir_f32_state_bound.py <dependency options> \
   --build-dir /path/to/build
 ```
 
-The input block ends at a second guard, and the initializer must have
-cleared everything the kernel reads. For the negative control, pass the
+The input block ends at a second guard. The initializer must clear the
+documented length and write nothing past it; canaries extend four elements
+past the state for that check. For the negative control, pass the
 unpatched `arm_fir_f32.c` through `--fir-source`; its residual input copy
 reads past the input block, which no amount of state padding cures, so it
 must report `FAIL: numTaps=1 blockSize=1 still faults with 16 extra elements`.
+The fork's kernel at `ambiq/2026.10.0` (`--fir-source` with that `arm_fir_f32.c`) reads
+up to three elements past the documented length when `numTaps` is not a
+multiple of four and must report `FAIL: 180 of 240 MVE FIR f32 state-bound
+cases exceed the contract`; its initializer clears the rounded length and
+fails the initializer check at the first case.
 
 ## Q31 CFFT guard regression (compiler check)
 

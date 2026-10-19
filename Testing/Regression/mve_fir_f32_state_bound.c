@@ -2,13 +2,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /* Cortex-M55 regression: the handwritten MVE arm_fir_f32 kernel must not
- * store past the documented state length numTaps + 2 * blockSize - 1 and
- * must not read past 4 * ceil(numTaps / 4) + 2 * blockSize - 1 (the same
- * rounding the coefficient array needs), the initializer must clear that
- * whole length, and the kernel must not read past the blockSize input
- * samples, for 1..MAX_TAPS taps and 1..MAX_BLOCK samples per block. Each
- * case also reports how many state elements beyond the documented length
- * were touched.
+ * read or store past Arm's documented state length numTaps + 2 * blockSize - 1
+ * (including through the zero-padded taps of the coefficient array), the
+ * initializer must clear that whole length and write nothing past it, and the
+ * kernel must not read past the blockSize input samples, for 1..MAX_TAPS taps
+ * and 1..MAX_BLOCK samples per block. Each case also reports how many state
+ * elements beyond the documented length were touched.
  *
  * The state buffer ends at an MPU-inaccessible guard, first with the
  * documented length and then with one extra element at a time until no
@@ -55,8 +54,12 @@ static float32_t output[MAX_BLOCK + 2];
 static jmp_buf recover_env;
 static volatile unsigned faulted;
 
+/* The exception return restores VPR from the interrupted kernel; a fault
+ * inside a VPT block would otherwise predicate the vector instructions that
+ * follow (for example a vectorized canary fill), so clear it. */
 static void recover(void)
 {
+    __asm volatile("vmsr vpr, %0" : : "r"(0U));
     longjmp(recover_env, 1);
 }
 
@@ -109,7 +112,6 @@ static void protect_tails(uintptr_t guard_a, uintptr_t guard_b)
 static int run_case(unsigned numTaps, unsigned blockSize, unsigned extra, int *stored)
 {
     const unsigned documented = numTaps + 2U * blockSize - 1U;
-    const unsigned cleared = ((numTaps + 3U) & ~3U) + 2U * blockSize - 1U;
     float32_t *end = arena + 256;
     float32_t *state = end - documented - extra;
     float32_t *input_end = input_arena + 64;
@@ -120,16 +122,19 @@ static int run_case(unsigned numTaps, unsigned blockSize, unsigned extra, int *s
         coeffs[i] = (i < numTaps) ? (float32_t)((int)(i % 5) - 2) * 0.25f : 0.0f;
     for (unsigned i = 0; i < 2U * blockSize; ++i)
         input[i] = (float32_t)((int)(i % 7) + 1) * 0.5f; /* never zero */
-    for (unsigned i = 0; i < documented + extra; ++i)
+    /* The canaries continue for four elements into the guard, which the
+     * initializer reaches with the MPU disabled. */
+    for (unsigned i = 0; i < documented + extra + 4U; ++i)
         state[i] = CANARY;
 
     arm_fir_init_f32(&S, (uint16_t)numTaps, coeffs, state, blockSize);
-    /* The initializer must clear everything the kernel may read. */
-    for (unsigned i = 0; i < cleared && i < documented + extra; ++i)
+    /* The initializer must clear the documented length and nothing past it. */
+    for (unsigned i = 0; i < documented + extra + 4U; ++i)
     {
-        if (state[i] != 0.0f)
+        if ((i < documented) != (state[i] == 0.0f))
         {
-            printf("FAIL: initializer left state[%u] uncleared numTaps=%u blockSize=%u\n",
+            printf("FAIL: initializer %s state[%u] numTaps=%u blockSize=%u\n",
+                   i < documented ? "left uncleared" : "wrote past the documented length at",
                    i, numTaps, blockSize);
             return 2;
         }
@@ -177,11 +182,11 @@ static int run_case(unsigned numTaps, unsigned blockSize, unsigned extra, int *s
     ARM_MPU_Disable();
     if (faulted)
         return 1;
-    /* Elements past the documented length hold zero from the initializer (or
-     * the canary beyond the cleared length); any stored input sample is nonzero. */
+    /* Elements past the documented length hold the canary; any stored value
+     * differs from it. */
     *stored = 0;
     for (unsigned i = documented; i < documented + extra; ++i)
-        if (state[i] != 0.0f && state[i] != CANARY)
+        if (state[i] != CANARY)
             *stored = 1;
     return 0;
 }
@@ -211,8 +216,7 @@ int main(void)
             extra--; /* loop incremented past the passing value */
             printf("%u %u %u %u %s\n", numTaps, blockSize, numTaps + 2U * blockSize - 1U,
                    extra, stored ? "yes" : "no");
-            /* Allowed excess: the zero-padded taps of the main loop only. */
-            if (stored || extra > ((numTaps + 3U) & ~3U) - numTaps)
+            if (stored || extra != 0U)
                 ++violations;
             ++cases;
         }

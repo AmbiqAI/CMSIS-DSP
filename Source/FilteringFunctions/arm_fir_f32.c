@@ -129,8 +129,7 @@
 
   @par
                  So the state buffer has size <code> numTaps + A + blockSize - 1 </code> :
-                 - A is blockSize for f32, and numTaps is rounded up to a multiple of four
-                   (the vector kernel evaluates the zero-padded coefficients too)
+                 - A is blockSize for f32
                  - A is 8*ceil(blockSize/8) for f16
                  - A is 8*ceil(blockSize/4) for q31
                  - A is 0 for other datatypes (q15 and q7)
@@ -166,13 +165,32 @@
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c[i]);                        \
         }
 
-/* Residual block: lanes past the last output are predicated off so that no
- * state element beyond the last needed sample is read. */
-#define FIR_F32_CORE_P(pSamples, c, NB_TAPS, p0)                           \
+/* Final tap group. The coefficient array is zero-padded to a multiple of four
+ * taps, and for the last outputs of a block the padded taps of the final
+ * group would read state past its documented length
+ * numTaps + 2 * blockSize - 1. The unpredicated loop of that group covers
+ * FIR_F32_FULL_BLOCKS vectors, whose padded taps stay within the state; the
+ * remaining outputs, at most two vectors, are computed under the tail
+ * predicate from the real taps only. */
+#define FIR_F32_FULL_BLOCKS(blockSize, padded)                             \
+        ((blockSize) > (padded) ? ((blockSize) - (padded)) >> 2 : 0U)
+
+/* Tail of the 1 to 4 tap kernel: the real taps, in the order of FIR_F32_CORE. */
+#define FIR_F32_CORE_TAIL(pSamples, c, numTaps, p0)                        \
         vecAcc0 = vdupq_n_f32(0.0f);                                       \
-        for (int i = 0; i < NB_TAPS; i++) {                                \
-            vecIn0 = vldrwq_z_f32(&pSamples[i], p0);                       \
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c[i]);                        \
+        vecIn0 = vldrwq_z_f32(&pSamples[0], p0);                           \
+        vecAcc0 = vfmaq(vecAcc0, vecIn0, c[0]);                            \
+        if (numTaps > 1) {                                                 \
+            vecIn0 = vldrwq_z_f32(&pSamples[1], p0);                       \
+            vecAcc0 = vfmaq(vecAcc0, vecIn0, c[1]);                        \
+            if (numTaps > 2) {                                             \
+                vecIn0 = vldrwq_z_f32(&pSamples[2], p0);                   \
+                vecAcc0 = vfmaq(vecAcc0, vecIn0, c[2]);                    \
+                if (numTaps > 3) {                                         \
+                    vecIn0 = vldrwq_z_f32(&pSamples[3], p0);               \
+                    vecAcc0 = vfmaq(vecAcc0, vecIn0, c[3]);                \
+                }                                                          \
+            }                                                              \
         }
 
 
@@ -195,6 +213,7 @@ __STATIC_INLINE void arm_fir_f32_1_4_mve(const arm_fir_instance_f32 * S,
     float32x4_t         vecAcc0;
     float32_t       c[NB_TAPS];
     const float32_t *pCoeffsCur = pCoeffs;
+    uint32_t        fullBlocks = FIR_F32_FULL_BLOCKS(blockSize, NB_TAPS - numTaps);
 
     /*
      * pState points to state array which contains previous frame (numTaps - 1) samples
@@ -209,7 +228,7 @@ __STATIC_INLINE void arm_fir_f32_1_4_mve(const arm_fir_instance_f32 * S,
     for (int i = 0; i < NB_TAPS; i++)
         c[i] = *pCoeffsCur++;
 
-    blkCnt = blockSize >> 2;
+    blkCnt = fullBlocks;
     while (blkCnt > 0) {
         /*
          * Save 4 input samples in the history buffer
@@ -228,8 +247,8 @@ __STATIC_INLINE void arm_fir_f32_1_4_mve(const arm_fir_instance_f32 * S,
         blkCnt--;
     }
 
-    blkCnt = blockSize & 3;
-    if (blkCnt)
+    blkCnt = blockSize - 4U * fullBlocks;
+    while (blkCnt > 0)
     {
         mve_pred16_t    p0 = vctp32q(blkCnt);
 
@@ -237,9 +256,13 @@ __STATIC_INLINE void arm_fir_f32_1_4_mve(const arm_fir_instance_f32 * S,
         pStateCur += 4;
         pTempSrc += 4;
 
-        FIR_F32_CORE_P(pSamples, c, NB_TAPS, p0);
+        FIR_F32_CORE_TAIL(pSamples, c, numTaps, p0);
 
         vstrwq_p_f32(pOutput, vecAcc0, p0);
+
+        pOutput += 4;
+        pSamples += 4;
+        blkCnt -= 4;
     }
 
     /*
@@ -300,7 +323,9 @@ __STATIC_INLINE void arm_fir_f32_5_8_mve(const arm_fir_instance_f32 * S,
     c6 = *pCoeffs++;
     c7 = *pCoeffs++;
 
-    cnt = blockSize >> 2;
+    uint32_t fullBlocks = FIR_F32_FULL_BLOCKS(blockSize, 8U - numTaps);
+
+    cnt = fullBlocks;
     while(cnt > 0) 
     {
         float32x4_t vecAcc0;
@@ -328,8 +353,8 @@ __STATIC_INLINE void arm_fir_f32_5_8_mve(const arm_fir_instance_f32 * S,
         pDst += 4;
     }
 
-    cnt = blockSize & 3;
-    if (cnt > 0) 
+    cnt = blockSize - 4U * fullBlocks;
+    while (cnt > 0)
     {
         float32x4_t vecAcc0;
         float32x4_t vecIn0;
@@ -346,13 +371,22 @@ __STATIC_INLINE void arm_fir_f32_5_8_mve(const arm_fir_instance_f32 * S,
         vecAcc0 = vfmaq(vecAcc0, vecIn0, c3);
         vecIn0 = vldrwq_z_f32(&pSamples[4], p0);
         vecAcc0 = vfmaq(vecAcc0, vecIn0, c4);
-        vecIn0 = vldrwq_z_f32(&pSamples[5], p0);
-        vecAcc0 = vfmaq(vecAcc0, vecIn0, c5);
-        vecIn0 = vldrwq_z_f32(&pSamples[6], p0);
-        vecAcc0 = vfmaq(vecAcc0, vecIn0, c6);
-        vecIn0 = vldrwq_z_f32(&pSamples[7], p0);
-        vecAcc0 = vfmaq(vecAcc0, vecIn0, c7);
+        if (numTaps > 5) {
+            vecIn0 = vldrwq_z_f32(&pSamples[5], p0);
+            vecAcc0 = vfmaq(vecAcc0, vecIn0, c5);
+            if (numTaps > 6) {
+                vecIn0 = vldrwq_z_f32(&pSamples[6], p0);
+                vecAcc0 = vfmaq(vecAcc0, vecIn0, c6);
+                if (numTaps > 7) {
+                    vecIn0 = vldrwq_z_f32(&pSamples[7], p0);
+                    vecAcc0 = vfmaq(vecAcc0, vecIn0, c7);
+                }
+            }
+        }
         vstrwq_p_f32(pDst, vecAcc0,p0);
+        pSamples += 4;
+        pDst += 4;
+        cnt -= 4;
     }
 
 
@@ -392,6 +426,7 @@ uint32_t blockSize)
     uint32_t  blkCnt;
     float32_t c0, c1, c2, c3;
     float32_t c4, c5, c6, c7;
+    uint32_t  fullBlocks;
 
     /*
      * [1 to 8 taps] specialized routines
@@ -571,7 +606,8 @@ uint32_t blockSize)
         pOutput = pDst;
 
         partial_accu_ptr = S->pState;
-        cnt = blockSize  >> 2;
+        fullBlocks = FIR_F32_FULL_BLOCKS(blockSize, 8U - (uint32_t)localTaps);
+        cnt = fullBlocks;
         while(cnt > 0) {
             float32x4_t vecAcc0;
             float32x4_t vecIn0;
@@ -600,8 +636,8 @@ uint32_t blockSize)
             pOutput += 4;
         }
 
-        cnt = blockSize  & 3;
-        if (cnt > 0) {
+        cnt = blockSize - 4U * fullBlocks;
+        while (cnt > 0) {
             float32x4_t vecAcc0;
             float32x4_t vecIn0;
 
@@ -617,15 +653,24 @@ uint32_t blockSize)
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c3);
             vecIn0 = vldrwq_z_f32(&pSamples[4], p0);
             vecAcc0 = vfmaq(vecAcc0, vecIn0, c4);
-            vecIn0 = vldrwq_z_f32(&pSamples[5], p0);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c5);
-            vecIn0 = vldrwq_z_f32(&pSamples[6], p0);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c6);
-            vecIn0 = vldrwq_z_f32(&pSamples[7], p0);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c7);
+            if (localTaps > 5) {
+                vecIn0 = vldrwq_z_f32(&pSamples[5], p0);
+                vecAcc0 = vfmaq(vecAcc0, vecIn0, c5);
+                if (localTaps > 6) {
+                    vecIn0 = vldrwq_z_f32(&pSamples[6], p0);
+                    vecAcc0 = vfmaq(vecAcc0, vecIn0, c6);
+                    if (localTaps > 7) {
+                        vecIn0 = vldrwq_z_f32(&pSamples[7], p0);
+                        vecAcc0 = vfmaq(vecAcc0, vecIn0, c7);
+                    }
+                }
+            }
             float32x4_t pap = vld1q_f32(partial_accu_ptr);
             vstrwq_p_f32(pOutput, vecAcc0+pap,p0);
-            pOutput += cnt;
+            pSamples += 4;
+            partial_accu_ptr += 4;
+            pOutput += 4;
+            cnt -= 4;
         }
     }
     else {
@@ -636,7 +681,8 @@ uint32_t blockSize)
         pOutput = pDst;
 
         partial_accu_ptr = S->pState;
-        cnt = blockSize >> 2;
+        fullBlocks = FIR_F32_FULL_BLOCKS(blockSize, 4U - (uint32_t)localTaps);
+        cnt = fullBlocks;
         while(cnt > 0) {
             float32x4_t vecAcc0;
             float32x4_t vecIn0;
@@ -657,8 +703,8 @@ uint32_t blockSize)
             pOutput += 4;
         }
 
-        cnt = blockSize & 3;
-        if (cnt > 0) {
+        cnt = blockSize - 4U * fullBlocks;
+        while (cnt > 0) {
             float32x4_t vecAcc0;
             float32x4_t vecIn0;
 
@@ -666,15 +712,24 @@ uint32_t blockSize)
 
             vecIn0 = vldrwq_z_f32(pSamples, p0);
             vecAcc0 = vmulq(vecIn0, c0);
-            vecIn0 = vldrwq_z_f32(&pSamples[1], p0);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c1);
-            vecIn0 = vldrwq_z_f32(&pSamples[2], p0);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c2);
-            vecIn0 = vldrwq_z_f32(&pSamples[3], p0);
-            vecAcc0 = vfmaq(vecAcc0, vecIn0, c3);
+            if (localTaps > 1) {
+                vecIn0 = vldrwq_z_f32(&pSamples[1], p0);
+                vecAcc0 = vfmaq(vecAcc0, vecIn0, c1);
+                if (localTaps > 2) {
+                    vecIn0 = vldrwq_z_f32(&pSamples[2], p0);
+                    vecAcc0 = vfmaq(vecAcc0, vecIn0, c2);
+                    if (localTaps > 3) {
+                        vecIn0 = vldrwq_z_f32(&pSamples[3], p0);
+                        vecAcc0 = vfmaq(vecAcc0, vecIn0, c3);
+                    }
+                }
+            }
             float32x4_t pap = vld1q_f32(partial_accu_ptr);
             vstrwq_p_f32(pOutput, vecAcc0+pap,p0);
-            pOutput += cnt;
+            pSamples += 4;
+            partial_accu_ptr += 4;
+            pOutput += 4;
+            cnt -= 4;
         }
     }
 
