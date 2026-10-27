@@ -124,6 +124,26 @@ extern "C"
 /* Compiler intrinsics are supplied by CMSIS-Core, outside the DSP documentation. */
 #ifndef DOXYGEN
 #include "cmsis_compiler.h"
+
+/* Compiler workarounds live in this block only. Each entry names the vendor
+   bug, the fixing release, a closed version range, and its removal condition,
+   and has a canary under Testing/Regression/. See AMBIQ_PATCHES.md. */
+
+/* GCC 15.0-15.2 ICE (PR rtl-optimization/122170): if-conversion accepts the
+   ss_minus/ss_plus RTL from the ACLE __qsub/__qadd builtins without an SImode
+   optab handler and crashes in copy_to_mode_reg. Fixed in 15.3 (d03c80f4dd).
+   Inline asm is opaque to if-conversion. Remove when GCC 15.2 is unsupported.
+   Only CMSIS-Core 6 defines __QSUB/__QADD as macros for the builtins; 5.x
+   defines inline-asm functions, which are unaffected and must not be redefined. */
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ == 15) && (__GNUC_MINOR__ < 3) && defined(__ARM_FEATURE_DSP) \
+    && defined(__QSUB) && defined(__QADD)
+  #undef __QSUB
+  #undef __QADD
+  __STATIC_FORCEINLINE int32_t __QSUB(int32_t op1, int32_t op2)
+  { int32_t r; __ASM ("qsub %0, %1, %2" : "=r" (r) : "r" (op1), "r" (op2)); return r; }
+  __STATIC_FORCEINLINE int32_t __QADD(int32_t op1, int32_t op2)
+  { int32_t r; __ASM ("qadd %0, %1, %2" : "=r" (r) : "r" (op1), "r" (op2)); return r; }
+#endif
 #endif
 #endif
 

@@ -1,0 +1,50 @@
+name: GCC 15 __QSUB/__QADD workaround
+
+on:
+  pull_request:
+    paths:
+      - 'Include/arm_math_types.h'
+      - 'Source/BasicMathFunctions/**'
+      - 'Source/FastMathFunctions/**'
+      - 'Source/StatisticsFunctions/**'
+      - 'Testing/Regression/gcc15_qsub_ifcvt_canary.c'
+      - 'Testing/Regression/run_gcc15_qsub_ifcvt_canary.py'
+      - '.github/workflows/gcc15-qsub-ifcvt.yml'
+  workflow_dispatch:
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Arm GNU 14.3.1
+            url: https://artifacts.tools.arm.com/arm-none-eabi-gcc/14.3.1/arm-gnu-toolchain-x86_64-arm-none-eabi.tar.xz
+            cc: bin/arm-none-eabi-gcc
+          - name: Arm GNU 15.2.1
+            url: https://artifacts.tools.arm.com/arm-none-eabi-gcc/15.2.1/arm-gnu-toolchain-x86_64-arm-none-eabi.tar.xz
+            cc: bin/arm-none-eabi-gcc
+          - name: Arm GNU 15.3.1
+            url: https://artifacts.tools.arm.com/arm-none-eabi-gcc/15.3.1/arm-gnu-toolchain-x86_64-arm-none-eabi.tar.xz
+            cc: bin/arm-none-eabi-gcc
+          - name: ATfE 22.1.0
+            url: https://github.com/arm/arm-toolchain/releases/download/release-22.1.0-ATfE/ATfE-22.1.0-Linux-x86_64.tar.xz
+            cc: bin/clang
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ARM-software/CMSIS_6
+          path: cmsis6
+      - name: Install the compiler
+        run: |
+          mkdir -p "$RUNNER_TEMP/tc"
+          curl -sSfL "${{ matrix.url }}" | tar -xJ -C "$RUNNER_TEMP/tc" --strip-components=1
+      - name: Canary agrees with the workaround gate; affected sources compile
+        run: |
+          for cpu in cortex-m4 cortex-m55; do
+            python3 Testing/Regression/run_gcc15_qsub_ifcvt_canary.py \
+              --compiler "$RUNNER_TEMP/tc/${{ matrix.cc }}" --cmsis-core cmsis6/CMSIS/Core --cpu "$cpu"
+          done
