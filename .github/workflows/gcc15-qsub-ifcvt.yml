@@ -3,10 +3,8 @@ name: GCC 15 __QSUB/__QADD workaround
 on:
   pull_request:
     paths:
-      - 'Include/arm_math_types.h'
-      - 'Source/BasicMathFunctions/**'
-      - 'Source/FastMathFunctions/**'
-      - 'Source/StatisticsFunctions/**'
+      - 'Include/**'
+      - 'Source/**'
       - 'Testing/Regression/gcc15_qsub_ifcvt_canary.c'
       - 'Testing/Regression/run_gcc15_qsub_ifcvt_canary.py'
       - '.github/workflows/gcc15-qsub-ifcvt.yml'
@@ -34,10 +32,15 @@ jobs:
     name: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
+      # CMSIS_6 is taken from its default branch: a change there to how __QSUB/__QADD are
+      # defined fails this job without a change in this fork, and the run log names the
+      # CMSIS_6 commit used.
       - uses: actions/checkout@v4
         with:
           repository: ARM-software/CMSIS_6
           path: cmsis6
+      - name: CMSIS_6 commit
+        run: git -C cmsis6 log -1 --format='%H %cs %s'
       - name: Install the compiler
         run: |
           mkdir -p "$RUNNER_TEMP/tc"

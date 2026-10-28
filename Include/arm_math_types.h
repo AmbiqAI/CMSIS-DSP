@@ -134,15 +134,19 @@ extern "C"
    optab handler and crashes in copy_to_mode_reg. Fixed in 15.3 (d03c80f4dd).
    Inline asm is opaque to if-conversion. Remove when GCC 15.2 is unsupported.
    Only CMSIS-Core 6 defines __QSUB/__QADD as macros for the builtins; 5.x
-   defines inline-asm functions, which are unaffected and must not be redefined. */
-#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ == 15) && (__GNUC_MINOR__ < 3) && defined(__ARM_FEATURE_DSP) \
-    && defined(__QSUB) && defined(__QADD)
-  #undef __QSUB
-  #undef __QADD
-  __STATIC_FORCEINLINE int32_t __QSUB(int32_t op1, int32_t op2)
-  { int32_t r; __ASM ("qsub %0, %1, %2" : "=r" (r) : "r" (op1), "r" (op2)); return r; }
-  __STATIC_FORCEINLINE int32_t __QADD(int32_t op1, int32_t op2)
-  { int32_t r; __ASM ("qadd %0, %1, %2" : "=r" (r) : "r" (op1), "r" (op2)); return r; }
+   defines inline-asm functions, which are unaffected and must not be redefined.
+   ARM_MATH_GCC15_QSUB_WORKAROUND marks the affected compiler range, whichever
+   CMSIS-Core is used; the canary runner tests it. */
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ == 15) && (__GNUC_MINOR__ < 3) && defined(__ARM_FEATURE_DSP)
+  #define ARM_MATH_GCC15_QSUB_WORKAROUND 1
+  #if defined(__QSUB) && defined(__QADD)
+    #undef __QSUB
+    #undef __QADD
+    __STATIC_FORCEINLINE int32_t __QSUB(int32_t op1, int32_t op2)
+    { int32_t r; __ASM ("qsub %0, %1, %2" : "=r" (r) : "r" (op1), "r" (op2)); return r; }
+    __STATIC_FORCEINLINE int32_t __QADD(int32_t op1, int32_t op2)
+    { int32_t r; __ASM ("qadd %0, %1, %2" : "=r" (r) : "r" (op1), "r" (op2)); return r; }
+  #endif
 #endif
 #endif
 #endif
