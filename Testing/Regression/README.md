@@ -233,9 +233,11 @@ must be finite by its bits; the real Q15 and Q7 products must be within one
 LSB of the (saturated) reference, with Q7 inputs at 2^5 so that each term
 spans several LSB; QR must reconstruct its input within 4e-5·n (f32) or 4e-3·n (f16). Transposes of 1 to 17 by 1 to 17; products of
 1 to 5 rows of A by 1 to 17 columns of A by 1 to 5 columns of B, and the
-square sizes 2, 3 and 4; QR of n x n matrices, n = 1 to 12: 3040 cases.
+square sizes 2, 3 and 4; QR of m x n matrices, n = 1 to 12 and m = n to
+n + 9 (the shapes with m > n need the Q construction of the next section):
+3256 cases.
 `run_mve_tail_loads.py --group matrix` builds without `DISABLEFLOAT16` and
-expects `PASS: 3040 MVE matrix tail-load cases`. For the negative control,
+expects `PASS: 3256 MVE matrix tail-load cases`. For the negative control,
 pass an unchanged kernel, or the unchanged `arm_helium_utils.h` for the
 transposes, through `--source`; the run must report
 `FAIL: <kernel> tail access <rows>x<cols>x<cols of B> operand <i>`.
@@ -385,7 +387,18 @@ shapes and for m > n, in f32, f16 and f64. The runner builds it with the
 Helium kernels and with the scalar code (Cortex-M55 and Cortex-M55+nomve);
 with Arm GNU the scalar build leaves out f16, which that compiler compiles
 for Cortex-M55+nomve with Advanced SIMD lane loads that the core does not
-implement.
+implement, so the scalar f16 code is tested with ATfE only.
+
+`--compiler` takes Arm GNU or an ATfE clang. With clang the test and library
+sources compile with `--target=arm-none-eabihf`, and the Arm GNU driver named
+by `--linker` (default `arm-none-eabi-gcc`) compiles the device startup files
+and links (`fvp_build.py`).
+
+The matrix tail-load group (`run_mve_tail_loads.py --group matrix`) also
+runs QR on m x n inputs with m > n, whose R-update tail loads end at the
+operand only on tall inputs. The declarations of `arm_mat_qr_f32`,
+`arm_mat_qr_f64` and `arm_mat_qr_f16` now give `pTmpB` as m elements, as the
+source files do; with Q, the construction uses m - pos of them.
 
 ```sh
 python3 Testing/Regression/run_mat_qr_rectangular_q.py <dependency options> \

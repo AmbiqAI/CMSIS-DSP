@@ -795,7 +795,7 @@ void arm_mat_init_f64(
   @param[out]    pOutQ     points to output Q matrix structure of dimension m x m
   @param[out]    pOutTau   points to Householder scaling factors of dimension n
   @param[inout]  pTmpA     points to a temporary vector of dimension m.
-  @param[inout]  pTmpB     points to a temporary vector of dimension n.
+  @param[inout]  pTmpB     points to a temporary vector of dimension m.
   @return        execution status
                    - \ref ARM_MATH_SUCCESS       : Operation successful
                    - \ref ARM_MATH_SIZE_MISMATCH : Matrix size check failed
@@ -820,7 +820,7 @@ arm_status arm_mat_qr_f32(
   @param[out]    pOutQ     points to output Q matrix structure of dimension m x m
   @param[out]    pOutTau   points to Householder scaling factors of dimension n
   @param[inout]  pTmpA     points to a temporary vector of dimension m.
-  @param[inout]  pTmpB     points to a temporary vector of dimension n.
+  @param[inout]  pTmpB     points to a temporary vector of dimension m.
   @return        execution status
                    - \ref ARM_MATH_SUCCESS       : Operation successful
                    - \ref ARM_MATH_SIZE_MISMATCH : Matrix size check failed

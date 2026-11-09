@@ -20,8 +20,8 @@
  * unused pScratch of arm_mat_cmplx_mult_q15 is 2 * numRowsB * numColsB.
  * Shapes: transposes of 1 to 17 rows by 1 to 17 columns; products of 1 to 5
  * rows of A by 1 to 17 columns of A by 1 to 5 columns of B, and the square
- * 2, 3 and 4 sizes of the specialized kernels; QR of n x n matrices, n = 1
- * to 12.
+ * 2, 3 and 4 sizes of the specialized kernels; QR of m x n matrices, n = 1
+ * to 12 and m = n to n + 9.
  */
 #include "ARMCM55.h"
 #include "dsp/matrix_functions.h"
@@ -369,8 +369,9 @@ static int run_products(void)
 }
 
 /* ---------------- QR ---------------- */
-/* Operands: src (m x n, modified), R (m x n), Q (m x m), tau (n), tmpA (m), tmpB (m);
- * here m = n. */
+/* Operands: src (m x n, modified), R (m x n), Q (m x m), tau (n), tmpA (m),
+ * tmpB (m); m = n to n + 9, so the tail loads of the R update also end at the
+ * operand on tall inputs. */
 static void call_qr_f32(void **p)
 {
     arm_matrix_instance_f32 A = {(uint16_t)R, (uint16_t)C, (float32_t *)p[0]};
@@ -394,8 +395,8 @@ static int run_qr(void)
     };
     for (unsigned j = 0; j < sizeof(k) / sizeof(k[0]); ++j)
         for (C = 1; C <= 12U; ++C)
+            for (R = C; R <= C + 9U; ++R)
             {
-                R = C;
                 Q = R;
                 unsigned sz = type_bytes[k[j].t];
                 unsigned bytes[6] = {R * C * sz, R * C * sz, R * R * sz, C * sz, R * sz, R * sz};

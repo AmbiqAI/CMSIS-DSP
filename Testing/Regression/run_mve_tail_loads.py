@@ -99,7 +99,7 @@ GROUPS = {
     },
     'matrix': {
         'test': 'mve_tail_loads_matrix.c',
-        'expected': 'PASS: 3040 MVE matrix tail-load cases',
+        'expected': 'PASS: 3256 MVE matrix tail-load cases',
         'defines': [],
         'headers': ['arm_helium_utils.h'],
         'sources': [
