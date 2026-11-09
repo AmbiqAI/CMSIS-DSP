@@ -350,3 +350,34 @@ For the negative control, pass a directory holding the three kernels of
 `vabsq` leaves the most negative value negative, so it is returned as the
 minimum, and they must report `FAIL: 2622 of 2622 MVE absmin fixed-point
 saturation cases`.
+
+## absmin fixed-point tie index
+
+The Helium `arm_absmin_q7`, `arm_absmin_q15` and `arm_absmin_q31` kept, in
+each lane, the last element whose absolute value was at most the lane's
+minimum (`vcmpleq`), so when the minimum occurred more than once they could
+return a later index than the scalar paths, which return the first element
+with the minimum. The per-lane comparisons are now strict (`vcmpltq`,
+`vcmpltq_m`); the reduction across lanes already takes the smallest index
+among the lanes holding the minimum, and the q7 path above 256 elements
+keeps the first block on a tie.
+
+`mve_absmin_fixed_tie_index.c` calls the three kernels on inputs whose
+minimum saturated absolute value occurs more than once: a smaller magnitude
+at 2 to 4 random positions among random magnitudes, every element the most
+negative value or ± the most positive value, and one magnitude at every
+element with random signs, for 52 lengths from 1 to 513 (every tail
+remainder of each type and the q7 path above 256 elements), 12 draws each
+(5616 cases). Each case checks that the returned value is the minimum and
+that the returned index is the first element with it. `--opt`, `--compiler`
+and `--linker` are as in the saturation regression.
+
+```sh
+python3 Testing/Regression/run_mve_absmin_fixed_tie_index.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass a directory holding the three kernels of the
+saturation fix (#31) through `--absmin-source-dir`; they must report
+`FAIL: 3316 of 5616 MVE absmin fixed-point tie-index cases` with Arm GNU
+14.3.1 at `-O3` (3274 with ATfE 22.1.0), and each of the three alone fails.
