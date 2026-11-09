@@ -85,7 +85,7 @@ ARM_DSP_ATTRIBUTE void arm_absmin_q31(
          * Get current min per lane and current index per lane
          * when a min is selected
          */
-        p0 = vcmpleq(vecSrc, curExtremValVec);
+        p0 = vcmpltq(vecSrc, curExtremValVec);
         curExtremValVec = vpselq(vecSrc, curExtremValVec, p0);
         curExtremIdxVec = vpselq(indexVec, curExtremIdxVec, p0);
 
@@ -111,7 +111,7 @@ ARM_DSP_ATTRIBUTE void arm_absmin_q31(
          * Get current min per lane and current index per lane
          * when a min is selected
          */
-        p0 = vcmpleq_m(vecSrc, curExtremValVec, p0);
+        p0 = vcmpltq_m(vecSrc, curExtremValVec, p0);
         curExtremValVec = vpselq(vecSrc, curExtremValVec, p0);
         curExtremIdxVec = vpselq(indexVec, curExtremIdxVec, p0);
     }
