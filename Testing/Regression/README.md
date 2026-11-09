@@ -337,9 +337,10 @@ documented scaling (the full-precision sum, shifted right by 15 or 7 and
 saturated): q15 at 34 to 48 taps (even, as Arm requires) and q7 at 65 to 80
 taps, block sizes 1 to 24 and 61 to 67, with small and with full-scale
 coefficients. 1488 cases; `--opt` sets the optimization level (default
-`O3`). The state buffers are larger than Arm's documented length, because
-these general kernels copy input into the state ahead of use, which this
-regression does not test.
+`O3`). The state and input buffers are larger than Arm's documented lengths,
+because these general kernels copy input into the state ahead of use, 8
+(q15) or 16 (q7) samples per 4 outputs, reading the input and writing the
+state past their documented lengths, which this regression does not test.
 
 ```sh
 python3 Testing/Regression/run_mve_fir_q15_q7_remainder.py <dependency options> \

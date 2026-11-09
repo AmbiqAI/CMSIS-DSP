@@ -12,9 +12,11 @@
  * coefficients, and full-scale coefficients with random signs, whose outputs
  * also exercise the saturation. Coefficient arrays are zero-padded to a
  * multiple of 8 (q15) or 16 (q7), as Arm's Helium notes require. The state
- * buffers are larger than Arm's documented numTaps + blockSize - 1: these
- * general kernels copy input into the state ahead of use (8 or 16 samples per
- * 4 outputs), which this regression does not test.
+ * and input buffers are larger than Arm's documented lengths (numTaps +
+ * blockSize - 1 and blockSize): these general kernels copy input into the
+ * state ahead of use, 8 (q15) or 16 (q7) samples per 4 outputs, reading the
+ * input and writing the state past their documented lengths, which this
+ * regression does not test (#39 fixes it).
  */
 #include "ARMCM55.h"
 #include "dsp/filtering_functions.h"
