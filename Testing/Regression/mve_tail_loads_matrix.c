@@ -16,7 +16,7 @@
  * the input for QR).
  *
  * Operand lengths are Arm's documented sizes; the pState scratch of
- * arm_mat_mult_q31/q15/q7 (opt_q31) is numRowsB * numColsB elements and the
+ * arm_mat_mult_opt_q31/q15/q7 is numRowsB * numColsB elements and the
  * unused pScratch of arm_mat_cmplx_mult_q15 is 2 * numRowsB * numColsB.
  * Shapes: transposes of 1 to 17 rows by 1 to 17 columns; products of 1 to 5
  * rows of A by 1 to 17 columns of A by 1 to 5 columns of B, and the square
@@ -166,15 +166,16 @@ static double value(unsigned op, unsigned i)
 /* Element access by type. */
 enum { T_F16, T_F32, T_Q7, T_Q15, T_Q31 };
 static const unsigned type_bytes[] = {2, 4, 1, 2, 4};
-/* Fixed-point inputs use a fraction of full scale so the products neither
- * saturate nor overflow: q31 2^27, q15 2^11, q7 2^4. */
+/* Fixed-point inputs use a fraction of full scale: q31 2^27, q15 2^11, q7
+ * 2^5. q31 and q15 products neither saturate nor overflow; q7 products can
+ * saturate, and the reference saturates as the kernels do. */
 static void put(int t, unsigned char *b, unsigned i, double v)
 {
     switch (t)
     {
     case T_F16: ((float16_t *)b)[i] = (float16_t)v; break;
     case T_F32: ((float32_t *)b)[i] = (float32_t)v; break;
-    case T_Q7: ((q7_t *)b)[i] = (q7_t)(v * 16.0); break;
+    case T_Q7: ((q7_t *)b)[i] = (q7_t)(v * 32.0); break;
     case T_Q15: ((q15_t *)b)[i] = (q15_t)(v * 2048.0); break;
     default: ((q31_t *)b)[i] = (q31_t)(v * 134217728.0); break;
     }
@@ -189,6 +190,15 @@ static double get(int t, const unsigned char *b, unsigned i)
     case T_Q15: return (double)((const q15_t *)b)[i];
     default: return (double)((const q31_t *)b)[i];
     }
+}
+/* Nonfinite check by the bits (fast-math comparisons cannot see NaN). */
+static int nonfinite(int t, const unsigned char *b, unsigned i)
+{
+    if (t == T_F16)
+        return regression_nonfinite_f16(b + 2U * i);
+    if (t == T_F32)
+        return regression_nonfinite_f32(b + 4U * i);
+    return 0;
 }
 static void fill(int t, unsigned op, unsigned count)
 {
@@ -293,16 +303,17 @@ REAL_CALL(mat_cmplx_mult_q15, q15, q15_t, WITH_STATE(q15_t))
 static int run_products(void)
 {
     /* scale: the product of two inputs is divided by it to give output units;
-     * tol: tolerance in output units per accumulated term. */
-    static const struct { const char *name; int t, cplx, state; call_fn call; double scale, tol; } k[] = {
-        {"arm_mat_mult_q31", T_Q31, 0, 0, call_mat_mult_q31, 2147483648.0, 1.0},
-        {"arm_mat_mult_opt_q31", T_Q31, 0, 1, call_mat_mult_opt_q31, 2147483648.0, 1.0},
-        {"arm_mat_mult_q15", T_Q15, 0, 1, call_mat_mult_q15, 32768.0, 1.0},
-        {"arm_mat_mult_q7", T_Q7, 0, 1, call_mat_mult_q7, 128.0, 1.0},
-        {"arm_mat_cmplx_mult_f16", T_F16, 1, 0, call_mat_cmplx_mult_f16, 1.0, 0.004},
-        {"arm_mat_cmplx_mult_f32", T_F32, 1, 0, call_mat_cmplx_mult_f32, 1.0, 1e-6},
-        {"arm_mat_cmplx_mult_q31", T_Q31, 1, 0, call_mat_cmplx_mult_q31, 2147483648.0, 1.0},
-        {"arm_mat_cmplx_mult_q15", T_Q15, 1, 1, call_mat_cmplx_mult_q15, 32768.0, 1.0},
+     * tol: tolerance in output units, per accumulated term unless flat (the
+     * real q15 and q7 products accumulate exactly and truncate once). */
+    static const struct { const char *name; int t, cplx, state, flat; call_fn call; double scale, tol; } k[] = {
+        {"arm_mat_mult_q31", T_Q31, 0, 0, 0, call_mat_mult_q31, 2147483648.0, 1.0},
+        {"arm_mat_mult_opt_q31", T_Q31, 0, 1, 0, call_mat_mult_opt_q31, 2147483648.0, 1.0},
+        {"arm_mat_mult_q15", T_Q15, 0, 1, 1, call_mat_mult_q15, 32768.0, 1.0},
+        {"arm_mat_mult_q7", T_Q7, 0, 1, 1, call_mat_mult_q7, 128.0, 1.0},
+        {"arm_mat_cmplx_mult_f16", T_F16, 1, 0, 0, call_mat_cmplx_mult_f16, 1.0, 0.004},
+        {"arm_mat_cmplx_mult_f32", T_F32, 1, 0, 0, call_mat_cmplx_mult_f32, 1.0, 1e-6},
+        {"arm_mat_cmplx_mult_q31", T_Q31, 1, 0, 0, call_mat_cmplx_mult_q31, 2147483648.0, 1.0},
+        {"arm_mat_cmplx_mult_q15", T_Q15, 1, 1, 0, call_mat_cmplx_mult_q15, 32768.0, 1.0},
     };
     for (unsigned j = 0; j < sizeof(k) / sizeof(k[0]); ++j)
         for (unsigned s = 0; s < PRODUCT_SHAPES; ++s)
@@ -337,9 +348,12 @@ static int run_products(void)
                         else
                             re += ar * br;
                     }
-                    double tol = k[j].tol * (double)(C + 1U) * (k[j].cplx ? 2.0 : 1.0);
+                    double tol = k[j].flat ? k[j].tol
+                                           : k[j].tol * (double)(C + 1U) * (k[j].cplx ? 2.0 : 1.0);
                     unsigned o = d * (r * Q + q);
-                    if (k[j].t == T_F32 && regression_nonfinite_f32(result[2] + o * sz))
+                    if (k[j].t == T_Q7)
+                        re = re > 127.0 * 128.0 ? 127.0 * 128.0 : re < -128.0 * 128.0 ? -128.0 * 128.0 : re;
+                    if (nonfinite(k[j].t, result[2], o) || (k[j].cplx && nonfinite(k[j].t, result[2], o + 1U)))
                     {
                         printf("FAIL: %s nonfinite result %ux%ux%u index=%u\n", k[j].name, R, C, Q, o);
                         return 1;
@@ -376,7 +390,7 @@ static int run_qr(void)
 {
     static const struct { const char *name; int t; call_fn call; double tol; } k[] = {
         {"arm_mat_qr_f32", T_F32, call_qr_f32, 1e-5},
-        {"arm_mat_qr_f16", T_F16, call_qr_f16, 0.02},
+        {"arm_mat_qr_f16", T_F16, call_qr_f16, 1e-3},
     };
     for (unsigned j = 0; j < sizeof(k) / sizeof(k[0]); ++j)
         for (C = 1; C <= 12U; ++C)
@@ -395,6 +409,12 @@ static int run_qr(void)
                     return 1;
                 if (k[j].t == T_F32)
                     REGRESSION_CONTROL_NAN_F32(result[1]); /* NaN control; no-op otherwise */
+                for (unsigned i = 0; i < R * R; ++i)
+                    if (nonfinite(k[j].t, result[2], i))
+                    {
+                        printf("FAIL: %s nonfinite Q %ux%u index=%u\n", k[j].name, R, C, i);
+                        return 1;
+                    }
                 /* Q times the upper triangle of R must reconstruct the input. */
                 for (unsigned r = 0; r < R; ++r)
                     for (unsigned c = 0; c < C; ++c)
@@ -402,7 +422,7 @@ static int run_qr(void)
                         double s = 0.0;
                         for (unsigned i = 0; i <= c && i < R; ++i)
                             s += get(k[j].t, result[2], r * R + i) * get(k[j].t, result[1], i * C + c);
-                        if (k[j].t == T_F32 && regression_nonfinite_f32(result[1] + (r * C + c) * sz))
+                        if (nonfinite(k[j].t, result[1], r * C + c))
                         {
                             printf("FAIL: %s nonfinite R %ux%u index=%u\n", k[j].name, R, C, r * C + c);
                             return 1;

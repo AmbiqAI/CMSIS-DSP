@@ -153,9 +153,12 @@ unknown = set(replacements) - {Path(s).name for s in group['sources']} - set(gro
 if unknown:
     parser.error(f'--source names not in group {args.group}: {sorted(unknown)}')
 sources = [replacements.get(Path(s).name, repo / 'Source' / s) for s in group['sources']]
-# A replaced header is found first through an include directory of its own.
+# A replaced header is found first through an include directory of its own,
+# emptied first so that one left by an earlier control run is not used.
 header_dir = build / 'replaced-headers'
 header_dir.mkdir(exist_ok=True)
+for old in header_dir.iterdir():
+    old.unlink()
 for name in group.get('headers', []):
     if name in replacements:
         (header_dir / name).write_bytes(replacements[name].read_bytes())

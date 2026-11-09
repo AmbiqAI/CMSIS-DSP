@@ -198,11 +198,15 @@ compilers, where the unpredicated load is emitted as written; the runner's
 The Helium matrix kernels below loaded the final partial block of a row,
 column or reflector with an unpredicated whole-vector load or gather and
 applied the tail predicate only to the arithmetic or store that follows, so
-they read up to one vector minus one element past an operand:
+they read past an operand: a contiguous load up to one vector minus one
+element, and a transpose's tail gather, whose lanes step by a source row, up
+to one row short of a vector of rows (112 elements for f16 and q15 in the
+survey below):
 
 - `arm_mat_trans` and `arm_mat_cmplx_trans` (f16, f32, q15, q31), through the
   tail gathers of the transpose helpers in `Include/arm_helium_utils.h`; the
-  Q15 and Q7 multiplies and `arm_mat_mult_opt_q31` transpose B through them;
+  Q15 multiply and `arm_mat_mult_opt_q31` transpose B through them (the Q7
+  multiply transposes B with `arm_mat_trans_q7`, predicated by #15);
 - `arm_mat_cmplx_mult` (f16, f32, q31: A; q15: B), `arm_mat_mult_q31` (A);
 - `arm_mat_mult_opt_q31`, `arm_mat_mult_q15` and `arm_mat_mult_q7` (A and the
   transposed B in `pState`), whose two-row loop also loaded a whole vector of
@@ -224,7 +228,10 @@ elements; the declarations in `Include/dsp/matrix_functions.h` now state it.
 readable padding and then once per operand with that operand ending at an
 MPU guard (inputs, outputs and scratch alike); every operand must equal the
 padded run byte for byte, and the padded run is checked against a
-double-precision reference. Transposes of 1 to 17 by 1 to 17; products of
+double-precision reference: every f16 and f32 output, Q and R included,
+must be finite by its bits; the real Q15 and Q7 products must be within one
+LSB of the (saturated) reference, with Q7 inputs at 2^5 so that each term
+spans several LSB; QR must reconstruct its input within 4e-5·n (f32) or 4e-3·n (f16). Transposes of 1 to 17 by 1 to 17; products of
 1 to 5 rows of A by 1 to 17 columns of A by 1 to 5 columns of B, and the
 square sizes 2, 3 and 4; QR of n x n matrices, n = 1 to 12: 3040 cases.
 `run_mve_tail_loads.py --group matrix` builds without `DISABLEFLOAT16` and
