@@ -343,6 +343,11 @@ this range and is not changed here: at 29–31 taps it still reads up to three
 elements past the documented length (`32 - numTaps - blockSize mod 4`, where
 positive), which #41 fixes.
 
+`--compiler` takes Arm GNU or an ATfE clang. With clang the test and library
+sources compile with `--target=arm-none-eabihf`, and the Arm GNU driver named
+by `--linker` (default `arm-none-eabi-gcc`) compiles the device startup files
+and links (`fvp_build.py`).
+
 ```sh
 python3 Testing/Regression/run_mve_fir_q31_state_bound.py <dependency options> \
   --build-dir /path/to/build
