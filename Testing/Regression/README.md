@@ -321,3 +321,43 @@ followed by `FAIL: 1 of 20 kernels`.
 ## GCC 15.0–15.2 `__QSUB`/`__QADD` workaround canary
 
 `gcc15_qsub_ifcvt_canary.c` is the reproducer of GCC PR rtl-optimization/122170: the ACLE `__qsub` builtin under a condition, compiled without the workaround in `Include/arm_math_types.h`. Arm GNU 15.2.1 stops on it with an internal compiler error in RTL pass `ce1` at `-O1` and above on any core with the DSP extension; Arm GNU 14.3.1, 15.3.1 and ATfE 22.1.0 compile it. `run_gcc15_qsub_ifcvt_canary.py --compiler <gcc or clang> --cmsis-core <CMSIS-Core directory> [--cpu cortex-m4]` finds whether the compiler is in the workaround's range from the marker `ARM_MATH_GCC15_QSUB_WORKAROUND` in the `-dM -E` output of `arm_math_types.h`, which the block defines for that range with CMSIS-Core 6 and 5.x alike. It compiles the canary at `-O1`, `-O2`, `-O3` and `-Os`, and requires the crash at every level exactly when the marker is defined. It then compiles the six Q31 sources that crashed (`arm_abs_q31.c`, `arm_atan2_q31.c`, `arm_absmax_q31.c`, `arm_absmin_q31.c`, `arm_absmax_no_idx_q31.c`, `arm_absmin_no_idx_q31.c`) and the three `FASTBUILD` aggregates that include them at the same levels with `-DARM_MATH_LOOPUNROLL`, with soft float and with hard float; on a core with MVE, hard float builds the Helium kernels, and a third configuration adds `ARM_MATH_AUTOVECTORIZE`. It expects `PASS: canary agrees with the workaround gate at 4 levels; 72 source compilations succeed` for Cortex-M4 and `108` for Cortex-M55. A compiler inside the gate that compiles the canary reports `narrow the gate`; one outside it that crashes reports `widen the gate`. Workflow `gcc15-qsub-ifcvt.yml` runs it for Cortex-M4 and Cortex-M55 under Arm GNU 14.3.1, 15.2.1, 15.3.1 and ATfE 22.1.0 on every pull request that changes `Include/` or `Source/`, against CMSIS_6 from its default branch.
+
+## FIR f16 input and state bounds
+
+Arm documents the Helium `arm_fir_f16` state as
+`numTaps + 8 * ceil(blockSize / 8) + blockSize - 1` elements, of which the
+first `8 * ceil(blockSize / 8)` are scratch for the partial sums of the
+general kernel (more than 8 taps). The kernel read up to 7 elements past the
+input block (the copy of the last partial vector into the state) and up to 10
+past the state (the lanes of the last vector beyond blockSize, the
+zero-padded taps of the final tap group, and the history copy). With Inf or
+NaN there, the zero-padded taps and unused lanes turned those values into NaN
+outputs. The input copies, the last vector of each tap group and the general
+kernel's history copy now load under the tail predicate (the history copies
+of the 1–4 and 5–8 tap kernels stay within the state unchanged); in the
+general kernel the final tap group's loop runs over
+the vectors whose padded taps stay within the state, and the remaining
+outputs use the real taps only.
+
+`mve_fir_f16_bound.c` filters two consecutive blocks for 1 to 40 taps and 24
+block sizes from 1 to 40 (960 cases): with the state sized exactly to the
+documented length and ending at an MPU guard, and each input block ending at
+a second guard; and unguarded with zero, +Inf and NaN around the state and
+the input. The unguarded outputs must be finite, identical bit for bit across
+the paddings and close to a double-precision reference, and the guarded run
+must complete with the same outputs. `--opt` sets the optimization level
+(default `O3`); `--control` builds the sparse-read and NaN controls.
+
+`--compiler` takes Arm GNU or an ATfE clang. With clang the test and library
+sources compile with `--target=arm-none-eabihf`, and the Arm GNU driver named
+by `--linker` (default `arm-none-eabi-gcc`) compiles the device startup files
+and links (`fvp_build.py`).
+
+```sh
+python3 Testing/Regression/run_mve_fir_f16_bound.py <dependency options> \
+  --build-dir /path/to/build
+```
+
+For the negative control, pass the previous `arm_fir_f16.c` through
+`--fir-source`; the run must report `FAIL: 920 of 960 MVE FIR f16 bound
+cases (faults 920, nonfinite 690, padding-dependent 690, ...)`.
