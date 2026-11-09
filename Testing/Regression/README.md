@@ -342,6 +342,11 @@ because these general kernels copy input into the state ahead of use, 8
 (q15) or 16 (q7) samples per 4 outputs, reading the input and writing the
 state past their documented lengths, which this regression does not test.
 
+`--compiler` takes Arm GNU or an ATfE clang. With clang the test and library
+sources compile with `--target=arm-none-eabihf`, and the Arm GNU driver named
+by `--linker` (default `arm-none-eabi-gcc`) compiles the device startup files
+and links (`fvp_build.py`).
+
 ```sh
 python3 Testing/Regression/run_mve_fir_q15_q7_remainder.py <dependency options> \
   --build-dir /path/to/build
