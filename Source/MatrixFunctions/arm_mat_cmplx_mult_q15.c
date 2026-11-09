@@ -195,13 +195,13 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_cmplx_mult_q15(
             if (blkCnt > 0U)
             {
                 mve_pred16_t p0 = vctp16q(blkCnt);
-                vecB = vldrhq_gather_shifted_offset(pInB, vecOffs);
+                vecB = vldrhq_gather_shifted_offset_z_s16(pInB, vecOffs, p0);
 
                 vecA = vldrhq_z_s16(pSrcAVec, p0);
 
                 acc0 = vmlsldavaq_s16(acc0, vecA, vecB);
                 acc1 = vmlaldavaxq_s16(acc1, vecA, vecB);
-                vecB2 = vldrhq_gather_shifted_offset(pInB2, vecOffs);
+                vecB2 = vldrhq_gather_shifted_offset_z_s16(pInB2, vecOffs, p0);
 
                 /*
                  * move Matrix B read offsets, 4 rows down
@@ -284,7 +284,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_cmplx_mult_q15(
             if (blkCnt > 0U)
             {
                 mve_pred16_t p0 = vctp16q(blkCnt);
-                vecB = vldrhq_gather_shifted_offset(pInB, vecOffs);
+                vecB = vldrhq_gather_shifted_offset_z_s16(pInB, vecOffs, p0);
                 vecA = vldrhq_z_s16(pSrcAVec, p0);
 
                 acc0 = vmlsldavaq_s16(acc0, vecA, vecB);

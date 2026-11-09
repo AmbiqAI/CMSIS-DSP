@@ -372,7 +372,9 @@ void arm_mat_vec_mult_f32(
    * @param[in]  pSrcA   points to the first input matrix structure
    * @param[in]  pSrcB   points to the second input matrix structure
    * @param[out] pDst    points to output matrix structure
-   * @param[in]  pState  points to the array for storing intermediate results
+   * @param[in]  pState  points to the array for storing intermediate results.
+   *                     The Helium kernel stores the transpose of pSrcB there, so it
+   *                     needs numRowsB * numColsB elements.
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
@@ -398,7 +400,10 @@ void arm_mat_vec_mult_q7(
    * @param[in]  pSrcA   points to the first input matrix structure
    * @param[in]  pSrcB   points to the second input matrix structure
    * @param[out] pDst    points to output matrix structure
-   * @param[in]  pState  points to the array for storing intermediate results
+   * @param[in]  pState  points to the array for storing intermediate results.
+   *                     The Helium kernel and the scalar kernel with the DSP extension
+   *                     store the transpose of pSrcB there, so they need
+   *                     numRowsB * numColsB elements.
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */
@@ -452,7 +457,9 @@ arm_status arm_mat_mult_q31(
    * @param[in]  pSrcA  points to the first input matrix structure
    * @param[in]  pSrcB  points to the second input matrix structure
    * @param[out] pDst   points to output matrix structure
-   * @param[in]  pState  points to the array for storing intermediate results
+   * @param[in]  pState  points to the array for storing intermediate results.
+   *                     The Helium kernel stores the transpose of pSrcB there, so it
+   *                     needs numRowsB * numColsB elements.
    * @return     The function returns either
    * <code>ARM_MATH_SIZE_MISMATCH</code> or <code>ARM_MATH_SUCCESS</code> based on the outcome of size checking.
    */

@@ -680,10 +680,10 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_cmplx_mult_q31(
                 vecOffs = vecOffs + (uint32_t) (numColsB * 2 * CMPLX_DIM);
                
                 
-                vecA = vld1q(pSrcA0Vec);
+                vecA = vld1q_z(pSrcA0Vec, p0);
                 acc0 =  vmlsldavaq(acc0, vecA, vecB);
                 acc1 =  vmlaldavaxq(acc1, vecA, vecB);
-                vecA = vld1q(pSrcA1Vec);
+                vecA = vld1q_z(pSrcA1Vec, p0);
                 acc2 =  vmlsldavaq(acc2, vecA, vecB);
                 acc3 =  vmlaldavaxq(acc3, vecA, vecB);
                 
@@ -796,7 +796,7 @@ ARM_DSP_ATTRIBUTE arm_status arm_mat_cmplx_mult_q31(
                  */
                 vecOffs = vecOffs + (uint32_t) (numColsB * 2 * CMPLX_DIM);
                
-                vecA = vld1q(pSrcA0Vec);
+                vecA = vld1q_z(pSrcA0Vec, p0);
                
 
                 acc0 =  vmlsldavaq(acc0, vecA, vecB);
