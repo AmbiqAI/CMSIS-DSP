@@ -332,8 +332,10 @@ input block (the copy of the last partial vector into the state) and up to 10
 past the state (the lanes of the last vector beyond blockSize, the
 zero-padded taps of the final tap group, and the history copy). With Inf or
 NaN there, the zero-padded taps and unused lanes turned those values into NaN
-outputs. The copies and the last vector of each tap group now load under the
-tail predicate; in the general kernel the final tap group's loop runs over
+outputs. The input copies, the last vector of each tap group and the general
+kernel's history copy now load under the tail predicate (the history copies
+of the 1–4 and 5–8 tap kernels stay within the state unchanged); in the
+general kernel the final tap group's loop runs over
 the vectors whose padded taps stay within the state, and the remaining
 outputs use the real taps only.
 
