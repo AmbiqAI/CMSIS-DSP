@@ -9,8 +9,12 @@
  * for bit with an integer reference that follows the scalar kernel: the
  * 64-bit sum of products shifted right by 31. Inputs are scaled down by
  * log2(numTaps) bits, as Arm requires to avoid accumulator overflow, so the
- * reference equals the scalar kernel's result. Output buffers start filled
- * with a canary, so an output that is not written fails. Taps 29 to 32,
+ * reference equals the scalar kernel's result. The Helium kernel rounds
+ * each 64-bit partial sum at bit 8 (vrmlaldavhaq), so on other inputs it can
+ * differ from that reference by one LSB; on these inputs the two agree.
+ * Output buffers start filled with a canary, so an output that is not
+ * written fails, and the four words after the block must keep it, so an
+ * output written past the block fails. Taps 29 to 32,
  * block sizes 32 to 48 and 61 to 67; small and full-scale coefficients.
  */
 #include "ARMCM55.h"
@@ -80,6 +84,14 @@ int main(void)
                                        output[n] == CANARY ? " (not written)" : "");
                         }
                     }
+                    for (unsigned n = b; n < b + 4U && ok; ++n)
+                        if (output[n] != CANARY)
+                        {
+                            ok = 0;
+                            if (failures == 0U)
+                                printf("first failure: arm_fir_q31 numTaps=%u blockSize=%u block %u "
+                                       "wrote output %u past the block\n", t, b, blk, n);
+                        }
                 }
                 ++cases;
                 if (!ok)

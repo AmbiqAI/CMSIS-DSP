@@ -379,8 +379,10 @@ the kernel's loops compile on their own.
 taps and block sizes 32 to 48 and 61 to 67, with small and full-scale
 coefficients and inputs scaled down by log2(numTaps) bits as Arm requires,
 and compares every output bit for bit with the scalar kernel's arithmetic
-(the 64-bit sum shifted right by 31); output canaries catch unwritten
-outputs. 192 cases; `--opt` sets the optimization level (default `O3`).
+(the 64-bit sum shifted right by 31), which these inputs reproduce (the
+Helium kernel rounds its partial sums at bit 8 and can differ by one LSB on
+other inputs); output canaries catch unwritten outputs and outputs written
+past the block. 192 cases; `--opt` sets the optimization level (default `O3`).
 
 ```sh
 python3 Testing/Regression/run_mve_fir_q31_29_32_remainder.py <dependency options> \
