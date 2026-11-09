@@ -10,13 +10,10 @@
  * positive definite input, a symmetric indefinite (diagonally dominant)
  * input and a rank-deficient input (a positive definite block of n/2 rows,
  * zeros elsewhere), 69 cases. Every result must be finite (checked by its
- * bits) with permutation entries below n. The positive definite and
- * indefinite results are checked against P A P^t = L D L^t in double
- * precision, with P built from the permutation vector as Arm's tests build
- * it. The rank-deficient inputs exercise the zeroing of the columns after
- * the last pivot; their reconstruction is not checked, because every
- * arm_mat_ldlt_f32 path (and arm_mat_ldlt_f64) leaves the last nonzero pivot
- * out of D when it stops early.
+ * bits) with permutation entries below n, and is checked against
+ * P A P^t = L D L^t in double precision, with P built from the permutation
+ * vector as Arm's tests build it. The rank-deficient inputs exercise the
+ * zeroing of the columns after the last pivot and the early stop.
  */
 #include "ARMCM55.h"
 #include "dsp/matrix_functions.h"
@@ -212,7 +209,7 @@ int main(void)
                     printf("FAIL: arm_mat_ldlt_f32 %s n=%u permutation entry %u\n", kind_name[kind], n, p[i]);
                     return 1;
                 }
-            double err = kind == 2 ? 0.0 : reconstruction_error(a, l, d, p, n);
+            double err = reconstruction_error(a, l, d, p, n);
             if (err > 1e-5 * (double)n)
             {
                 printf("FAIL: arm_mat_ldlt_f32 %s n=%u reconstruction error %.3e\n", kind_name[kind], n, err);

@@ -4,13 +4,19 @@
 /* arm_mat_ldlt_f32 and arm_mat_ldlt_f64 on rank-deficient and positive
  * definite inputs.
  *
- * Each case checks P A P^t = L D L^t, with P built from pp by the successive
- * row and column swaps Arm's tests use, within an absolute error of 1e-5
- * (f32) or 1e-10 (f64), relative to the largest element of A; D must be zero
- * off its diagonal and L unit lower triangular on its first rank columns.
+ * Each case checks that the status is ARM_MATH_SUCCESS, that every entry of
+ * L and D is finite (by its bits) and every pp entry is below n, and that
+ * P A P^t = L D L^t, with P built from pp by the successive row and column
+ * swaps Arm's tests use, within 1e-5 (f32) or 1e-10 (f64) times
+ * max(1, max |A|); D must be zero off its diagonal and L zero above it.
  * Inputs:
  *   - exact rank-deficient matrices: [[4, 0], [0, 0]], a rank-2 3x3, the
- *     all-ones 3x3 and a 5x5 of rank 2;
+ *     all-ones 3x3 and a 5x5 of rank 2 (whose f64 elimination does not stop
+ *     early, since its residual pivots are about 1e-16);
+ *   - block matrices that stop exactly at rank m = n/2 in both types, for
+ *     n = 4, 6, 8, 12, 16 and 24: a positive definite m x m block (B B^t + m I,
+ *     with B from a fixed generator) and zeros, the block first and, forcing
+ *     row swaps, last;
  *   - Arm's semidefinite ("SDPO") and positive definite ("DPO") LDL^t test
  *     patterns from Testing/Patterns, which the runner turns into
  *     ldlt_patterns.h.
@@ -24,6 +30,15 @@
 #include <string.h>
 
 #include "ldlt_patterns.h"
+#include "regression_checks.h"
+
+static int nonfinite_f64(const void *p)
+{
+    uint64_t u;
+    memcpy(&u, p, sizeof(u));
+    return ((u >> 52) & 0x7FFU) == 0x7FFU;
+}
+#define nonfinite_f32(p) regression_nonfinite_f32(p)
 
 extern void regression_console_init(void);
 
@@ -42,6 +57,21 @@ static void check_##TAG(const char *name, unsigned n, const T *a)               
     arm_matrix_instance_##TAG SL = {(uint16_t)n, (uint16_t)n, L};                           \
     arm_matrix_instance_##TAG SD = {(uint16_t)n, (uint16_t)n, D};                           \
     arm_status status = arm_mat_ldlt_##TAG(&SA, &SL, &SD, pp);                              \
+    int bad = 0;                                                                            \
+    for (unsigned i = 0; i < n * n; ++i)                                                    \
+        if (nonfinite_##TAG(&L[i]) || nonfinite_##TAG(&D[i]))                              \
+            bad = 1;                                                                        \
+    for (unsigned i = 0; i < n; ++i)                                                        \
+        if (pp[i] >= n)                                                                     \
+            bad = 2;                                                                        \
+    if (bad)                                                                                \
+    {                                                                                       \
+        ++cases;                                                                            \
+        ++failures;                                                                         \
+        printf("FAIL: arm_mat_ldlt_" #TAG " %s n=%u: %s\n", name, n,                        \
+               bad == 1 ? "nonfinite L or D" : "permutation entry not below n");            \
+        return;                                                                             \
+    }                                                                                       \
     memcpy(PA, a, sizeof(T) * n * n);                                                       \
     double scale = 0.0;                                                                     \
     for (unsigned i = 0; i < n * n; ++i)                                                    \
@@ -106,6 +136,41 @@ static void exact_cases(void)
     }
 }
 
+/* A positive definite m x m block B B^t + m I and zeros, the block in the
+ * leading rows and columns or (last != 0) in the trailing ones; rank m. The
+ * entries of B are multiples of 1/8 in [-1, 1) from a fixed generator. */
+static void block_cases(void)
+{
+    static const unsigned sizes[] = {4, 6, 8, 12, 16, 24};
+    static double m[MAXN * MAXN], b[MAXN * MAXN];
+    static float32_t f[MAXN * MAXN];
+    uint32_t seed = 12345U;
+    for (unsigned s = 0; s < sizeof(sizes) / sizeof(sizes[0]); ++s)
+        for (int last = 0; last < 2; ++last)
+        {
+            unsigned n = sizes[s], r = n / 2U, o = last ? n - r : 0U;
+            for (unsigned i = 0; i < r * r; ++i)
+            {
+                seed = seed * 1664525U + 1013904223U;
+                b[i] = ((double)(seed >> 28) - 8.0) / 8.0;
+            }
+            memset(m, 0, sizeof(m));
+            for (unsigned i = 0; i < r; ++i)
+                for (unsigned j = 0; j < r; ++j)
+                {
+                    double t = i == j ? (double)r : 0.0;
+                    for (unsigned k = 0; k < r; ++k)
+                        t += b[i * r + k] * b[j * r + k];
+                    m[(o + i) * n + o + j] = t;
+                }
+            for (unsigned i = 0; i < n * n; ++i)
+                f[i] = (float32_t)m[i];
+            const char *name = last ? "trailing-block rank n/2" : "leading-block rank n/2";
+            check_f32(name, n, f);
+            check_f64(name, n, m);
+        }
+}
+
 #define PATTERN_CASES(TAG, NAME, DIMS, NDIMS, DATA)                                          \
     do {                                                                                    \
         unsigned off = 0;                                                                   \
@@ -125,6 +190,7 @@ int main(void)
     printf("arm_mat_ldlt_f32: scalar code\n");
 #endif
     exact_cases();
+    block_cases();
     PATTERN_CASES(f32, "SDPO pattern", sdpo_dims, SDPO_N, sdpo_f32);
     PATTERN_CASES(f64, "SDPO pattern", sdpo_dims, SDPO_N, sdpo_f64);
     PATTERN_CASES(f32, "DPO pattern", dpo_dims, DPO_N, dpo_f32);

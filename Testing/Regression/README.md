@@ -337,11 +337,10 @@ against an MPU guard for sizes 1 to 16, 17, 20, 23, 24, 31, 32 and 33, with
 a positive definite, an indefinite (diagonally dominant) and a
 rank-deficient input (69 cases); a MemManage fault reports the operand and
 the offset past its end. Results must be finite with permutation entries
-below `n`; the positive definite and indefinite results are checked against
-`P A P^t = L D L^t` in double precision. The rank-deficient inputs exercise
-the zeroing of the columns after the last pivot; their reconstruction is not
-checked, because every `arm_mat_ldlt_f32` path and `arm_mat_ldlt_f64` leave
-the last nonzero pivot out of D when they stop early. `--opt` sets the
+below `n`, and are checked against `P A P^t = L D L^t` in double precision.
+The rank-deficient inputs exercise the zeroing of the columns after the last
+pivot and the early stop; their reconstruction is checked since the fix of
+the next section, which the previous kernel fails at `n=2`. `--opt` sets the
 optimization level (default `O3`).
 
 `--compiler` takes Arm GNU or an ATfE clang. With clang the test and library
@@ -367,15 +366,21 @@ They then decremented the pivot count before copying the pivots into D, so
 the last valid pivot was left out of D and stayed on the diagonal of L, and
 P A P^t differed from L D L^t while the status was `ARM_MATH_SUCCESS`. The
 decrement is removed in the Helium and scalar f32 code and in the f64 code;
-full-rank inputs do not reach it.
+full-rank inputs do not reach it. Inputs outside the documented positive
+semi-definite domain are unchanged: for an indefinite input such as
+`[[0, 1], [1, 0]]` the pivot search can still stop early with
+`ARM_MATH_SUCCESS`.
 
-`mat_ldlt_rank_deficient.c` checks P A P^t = L D L^t (P from `pp`, as in
-Arm's tests) within 1e-5 (f32) and 1e-10 (f64) relative to the largest
-element, and that D is diagonal and L lower triangular, on exact
-rank-deficient matrices and on Arm's semidefinite and positive definite
-LDLt patterns (`Testing/Patterns/DSP/Matrix/Unary`), which the runner turns
-into a header. The runner builds it with the Helium kernels and with the
-scalar code (Cortex-M55 and Cortex-M55+nomve); 44 cases in each.
+`mat_ldlt_rank_deficient.c` checks the status, that every entry of L and D
+is finite (by its bits) and every `pp` entry is below `n`, and that
+P A P^t = L D L^t (P from `pp`, as in Arm's tests) within 1e-5 (f32) and
+1e-10 (f64) times max(1, max |A|), with D diagonal and L zero above its
+diagonal. The inputs are exact rank-deficient matrices; block matrices of
+rank n/2 (a positive definite block, leading or trailing, and zeros) for
+n = 4 to 24, which stop exactly in both types; and Arm's semidefinite and
+positive definite LDLt patterns (`Testing/Patterns/DSP/Matrix/Unary`), which
+the runner turns into a header. The runner builds it with the Helium kernels
+and with the scalar code (Cortex-M55 and Cortex-M55+nomve); 68 cases in each.
 
 ```sh
 python3 Testing/Regression/run_mat_ldlt_rank_deficient.py <dependency options> \
@@ -384,5 +389,5 @@ python3 Testing/Regression/run_mat_ldlt_rank_deficient.py <dependency options> \
 
 For the negative control, pass a directory holding the previous
 `arm_mat_ldlt_f32.c` and `arm_mat_ldlt_f64.c` through `--ldlt-source-dir`;
-the run must report `FAIL: 7 of 44 LDLt reconstruction cases` for the
-Helium build and `FAIL: 8 of 44` for the scalar build.
+the run must report `FAIL: 31 of 68 LDLt reconstruction cases` for the
+Helium build and `FAIL: 32 of 68` for the scalar build.
