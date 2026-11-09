@@ -344,6 +344,11 @@ checked, because every `arm_mat_ldlt_f32` path and `arm_mat_ldlt_f64` leave
 the last nonzero pivot out of D when they stop early. `--opt` sets the
 optimization level (default `O3`).
 
+`--compiler` takes Arm GNU or an ATfE clang. With clang the test and library
+sources compile with `--target=arm-none-eabihf`, and the Arm GNU driver named
+by `--linker` (default `arm-none-eabi-gcc`) compiles the device startup files
+and links (`fvp_build.py`).
+
 ```sh
 python3 Testing/Regression/run_mve_mat_ldlt_f32_bounds.py <dependency options> \
   --build-dir /path/to/build
