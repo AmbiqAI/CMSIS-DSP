@@ -382,6 +382,13 @@ positive definite LDLt patterns (`Testing/Patterns/DSP/Matrix/Unary`), which
 the runner turns into a header. The runner builds it with the Helium kernels
 and with the scalar code (Cortex-M55 and Cortex-M55+nomve); 68 cases in each.
 
+`--opt` sets the optimization level (default `O3`), and the run passes only
+with `PASS: 68 LDLt reconstruction cases` from both builds. `--compiler` takes
+Arm GNU or an ATfE clang. With clang the test and library sources compile with
+`--target=arm-none-eabihf`, and the Arm GNU driver named by `--linker`
+(default `arm-none-eabi-gcc`) compiles the device startup files and links
+(`fvp_build.py`).
+
 ```sh
 python3 Testing/Regression/run_mat_ldlt_rank_deficient.py <dependency options> \
   --build-dir /path/to/build

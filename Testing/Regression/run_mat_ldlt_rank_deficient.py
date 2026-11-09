@@ -9,12 +9,16 @@ from pathlib import Path
 import struct
 import subprocess
 
+from fvp_build import compile_and_link
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--cmsis-core', type=Path, required=True, help='CMSIS/Core directory')
 parser.add_argument('--cortex-dfp', type=Path, required=True)
 parser.add_argument('--platform-linker', type=Path, required=True)
 parser.add_argument('--fvp-root', type=Path, required=True, help='Corstone-300 model package root')
-parser.add_argument('--compiler', default='arm-none-eabi-gcc')
+parser.add_argument('--compiler', default='arm-none-eabi-gcc',
+                    help='arm-none-eabi-gcc, or an ATfE clang (compiles with --target=arm-none-eabihf)')
+parser.add_argument('--linker', default='arm-none-eabi-gcc', help='Arm GNU driver used to link')
 parser.add_argument('--opt', choices=['O2', 'O3'], default='O3')
 parser.add_argument('--build-dir', type=Path, required=True)
 parser.add_argument('--ldlt-source-dir', type=Path,
@@ -74,7 +78,7 @@ for cpu in ('cortex-m55', 'cortex-m55+nomve'):
             str(device / 'Source/startup_ARMCM55.c'), str(device / 'Source/system_ARMCM55.c'),
             '-T' + str(args.platform_linker.resolve()), '--specs=nosys.specs', '-Wl,--gc-sections',
             '-lm', '-o', str(elf)]
-    subprocess.run(cmd, check=True)
+    compile_and_link(cmd, args.linker)
     run = [str(fvp / 'models/Linux64_GCC-9.3/FVP_Corstone_SSE-300_Ethos-U55'), '-a', str(elf)]
     for setting in ['mps3_board.visualisation.disable-visualisation=1',
                     'mps3_board.uart0.out_file=-', 'mps3_board.uart0.unbuffered_output=1',
@@ -88,7 +92,7 @@ for cpu in ('cortex-m55', 'cortex-m55+nomve'):
     print(f'== {cpu}')
     print(log)
     # The UART shutdown path returns zero even when the test reports failure.
-    if result.returncode or 'FAIL:' in log or 'PASS: ' not in log:
+    if result.returncode or 'FAIL:' in log or 'PASS: 68 LDLt reconstruction cases' not in log:
         failed = True
 if failed:
     raise SystemExit(1)
