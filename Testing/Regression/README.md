@@ -363,7 +363,7 @@ among the lanes holding the minimum, and the q7 path above 256 elements
 keeps the first block on a tie.
 
 `mve_absmin_fixed_tie_index.c` calls the three kernels on inputs whose
-minimum saturated absolute value occurs more than once: a smaller magnitude
+minimum saturated absolute value can occur more than once: a smaller magnitude
 at 2 to 4 random positions among random magnitudes, every element the most
 negative value or ± the most positive value, and one magnitude at every
 element with random signs, for 52 lengths from 1 to 513 (every tail
@@ -379,5 +379,9 @@ python3 Testing/Regression/run_mve_absmin_fixed_tie_index.py <dependency options
 
 For the negative control, pass a directory holding the three kernels of the
 saturation fix (#31) through `--absmin-source-dir`; they must report
-`FAIL: 3316 of 5616 MVE absmin fixed-point tie-index cases` with Arm GNU
-14.3.1 at `-O3` (3274 with ATfE 22.1.0), and each of the three alone fails.
+`FAIL: 3316 of 5616 MVE absmin fixed-point tie-index cases`, and each of the
+three alone fails (q7 772, q15 1153, q31 1391).
+
+The q15 and q31 kernels keep the index in 16 bits (`uint16_t idx`, and q15's
+16-bit index lanes), so as in Arm's code their index is correct only for
+`blockSize` up to 65535; this change does not alter that.

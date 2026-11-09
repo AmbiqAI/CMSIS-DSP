@@ -1,8 +1,8 @@
 /* Copyright (c) 2026 Ambiq Micro, Inc.
  * SPDX-License-Identifier: Apache-2.0
  */
-/* arm_absmin_q7/q15/q31 on inputs whose minimum absolute value occurs more
- * than once.
+/* arm_absmin_q7/q15/q31 on inputs whose minimum absolute value can occur
+ * more than once.
  *
  * The scalar paths return the first element with the minimum saturated
  * absolute value (they replace the minimum only on a strictly smaller value).
@@ -11,8 +11,9 @@
  *
  * Inputs, for 52 lengths from 1 to 513 (every tail remainder of each type and
  * the q7 path above 256 elements), 12 draws each:
- *   dup   random magnitudes in [max/8, max/2] with random signs, and a smaller
- *         magnitude at 2 to 4 random positions
+ *   dup   random magnitudes from max/8 (below max/2; below max/8 + 2^24 for
+ *         q31) with random signs, and a smaller magnitude at 2 to 4 random
+ *         positions, which can coincide
  *   sat   every element the most negative value or +-max, so the saturated
  *         absolute values all tie
  *   const one random magnitude at every element, with random signs
@@ -67,7 +68,10 @@ static unsigned cases, failures;
         T small = (T)(rnd() % (uint32_t)(TMAX / 8));                                         \
         uint32_t copies = 2U + rnd() % 3U;                                                   \
         for (uint32_t c = 0; c < copies; c++)                                                \
-            in_##S[rnd() % n] = sign_##S(small);                                             \
+        {                                                                                    \
+            uint32_t at = rnd() % n;                                                         \
+            in_##S[at] = sign_##S(small);                                                    \
+        }                                                                                    \
     }                                                                                        \
     static void run_##S(void)                                                                \
     {                                                                                        \
