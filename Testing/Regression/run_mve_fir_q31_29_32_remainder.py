@@ -7,12 +7,16 @@ import os
 from pathlib import Path
 import subprocess
 
+from fvp_build import compile_and_link
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--cmsis-core', type=Path, required=True, help='CMSIS/Core directory')
 parser.add_argument('--cortex-dfp', type=Path, required=True)
 parser.add_argument('--platform-linker', type=Path, required=True)
 parser.add_argument('--fvp-root', type=Path, required=True, help='Corstone-300 model package root')
-parser.add_argument('--compiler', default='arm-none-eabi-gcc')
+parser.add_argument('--compiler', default='arm-none-eabi-gcc',
+                    help='arm-none-eabi-gcc, or an ATfE clang (compiles with --target=arm-none-eabihf)')
+parser.add_argument('--linker', default='arm-none-eabi-gcc', help='Arm GNU driver used to link')
 parser.add_argument('--opt', choices=['O2', 'O3'], default='O3')
 parser.add_argument('--build-dir', type=Path, required=True)
 parser.add_argument('--fir-source-dir', type=Path,
@@ -36,7 +40,7 @@ cmd += [str(repo / 'Source/FilteringFunctions' / 'arm_fir_init_q31.c')]
 cmd += [str(device / 'Source/startup_ARMCM55.c'),
         str(device / 'Source/system_ARMCM55.c'), '-T' + str(args.platform_linker.resolve()),
         '--specs=nosys.specs', '-Wl,--gc-sections', '-o', str(elf)]
-subprocess.run(cmd, check=True)
+compile_and_link(cmd, args.linker)
 fvp = args.fvp_root.resolve()
 env = os.environ.copy()
 env['LD_LIBRARY_PATH'] = ':'.join([str(fvp / x) for x in
