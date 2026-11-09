@@ -348,6 +348,11 @@ the paddings and close to a double-precision reference, and the guarded run
 must complete with the same outputs. `--opt` sets the optimization level
 (default `O3`); `--control` builds the sparse-read and NaN controls.
 
+`--compiler` takes Arm GNU or an ATfE clang. With clang the test and library
+sources compile with `--target=arm-none-eabihf`, and the Arm GNU driver named
+by `--linker` (default `arm-none-eabi-gcc`) compiles the device startup files
+and links (`fvp_build.py`).
+
 ```sh
 python3 Testing/Regression/run_mve_fir_f16_bound.py <dependency options> \
   --build-dir /path/to/build
