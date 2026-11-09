@@ -342,10 +342,10 @@ ARM_DSP_ATTRIBUTE void arm_fir_q7(
                 vecIn0 = vld1q(pSamplesTmp);
                 acc0 = vmladavaq(acc0, vecIn0, vecCoeffs);
 
-                vecIn0 = vld1q(&pSamplesTmp[4]);
+                vecIn0 = vld1q(&pSamplesTmp[1]);
                 acc1 = vmladavaq(acc1, vecIn0, vecCoeffs);
 
-                vecIn0 = vld1q(&pSamplesTmp[8]);
+                vecIn0 = vld1q(&pSamplesTmp[2]);
                 acc2 = vmladavaq(acc2, vecIn0, vecCoeffs);
 
                 pSamplesTmp += 16;
@@ -381,7 +381,7 @@ ARM_DSP_ATTRIBUTE void arm_fir_q7(
                 vecIn0 = vld1q(pSamplesTmp);
                 acc0 = vmladavaq(acc0, vecIn0, vecCoeffs);
 
-                vecIn0 = vld1q(&pSamplesTmp[4]);
+                vecIn0 = vld1q(&pSamplesTmp[1]);
                 acc1 = vmladavaq(acc1, vecIn0, vecCoeffs);
 
                 pSamplesTmp += 16;
