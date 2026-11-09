@@ -339,7 +339,9 @@ checked against a double-precision reference within one LSB per vector of
 taps plus one. The initializer must clear the documented length and write
 nothing past it. `--opt` sets the optimization level (default `O3`); the 29–32
 tap path, which the kernel takes only from 32 samples per block, is outside
-this range.
+this range and is not changed here: at 29–31 taps it still reads up to three
+elements past the documented length (`32 - numTaps - blockSize mod 4`, where
+positive), which #41 fixes.
 
 ```sh
 python3 Testing/Regression/run_mve_fir_q31_state_bound.py <dependency options> \
