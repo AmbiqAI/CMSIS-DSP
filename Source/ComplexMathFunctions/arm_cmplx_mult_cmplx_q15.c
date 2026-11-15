@@ -52,124 +52,62 @@
  */
 
 #if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE)
-
+/* Each output is formed as in the scalar code below, from two products
+   shifted right by 17 (the high half, shifted right by 1), so that no product
+   saturates and the result equals the scalar result bit for bit. The
+   saturating doubling pair vqdmlsdhq/vqdmladhxq used before clipped a
+   product component of magnitude 1 or more (ARM-software/CMSIS-DSP#47). */
 ARM_DSP_ATTRIBUTE void arm_cmplx_mult_cmplx_q15(
   const q15_t * pSrcA,
   const q15_t * pSrcB,
         q15_t * pDst,
         uint32_t numSamples)
 {
-   int32_t         blkCnt;
-    q15x8_t         vecSrcA, vecSrcB;
-    q15x8_t         vecSrcC, vecSrcD;
-    q15x8_t         vecDst;
+    int32_t         blkCnt;
+    q15x8x2_t       vecA, vecB, vecDst;
 
-    blkCnt = (numSamples >> 3);
-    blkCnt -= 1;
-    if (blkCnt > 0) 
-    {
-        /* should give more freedom to generate stall free code */
-        vecSrcA = vld1q(pSrcA);
-        vecSrcB = vld1q(pSrcB);
+    /* 8 complex samples at a time, real and imaginary parts de-interleaved */
+    blkCnt = numSamples >> 3;
+    while (blkCnt > 0) {
+        vecA = vld2q(pSrcA);
+        vecB = vld2q(pSrcB);
+
+        /* C[2 * i] = A[2 * i] * B[2 * i] - A[2 * i + 1] * B[2 * i + 1].  */
+        vecDst.val[0] = vsubq(vshrq(vmulhq(vecA.val[0], vecB.val[0]), 1),
+                              vshrq(vmulhq(vecA.val[1], vecB.val[1]), 1));
+        /* C[2 * i + 1] = A[2 * i] * B[2 * i + 1] + A[2 * i + 1] * B[2 * i].  */
+        vecDst.val[1] = vaddq(vshrq(vmulhq(vecA.val[0], vecB.val[1]), 1),
+                              vshrq(vmulhq(vecA.val[1], vecB.val[0]), 1));
+        vst2q(pDst, vecDst);
+
+        pSrcA += 16;
+        pSrcB += 16;
+        pDst += 16;
+        blkCnt--;
+    }
+
+    /*
+     * tail: interleaved, under the tail predicate
+     */
+    blkCnt = CMPLX_DIM * (numSamples & 7);
+    while (blkCnt > 0) {
+        mve_pred16_t    p = vctp16q(blkCnt);
+        q15x8_t         vecSrcA = vldrhq_z_s16(pSrcA, p);
+        q15x8_t         vecSrcB = vldrhq_z_s16(pSrcB, p);
+        /* (a c, b d) and (a d, b c), each shifted as in the scalar code */
+        q15x8_t         vecSame = vshrq(vmulhq(vecSrcA, vecSrcB), 1);
+        q15x8_t         vecCross = vshrq(vmulhq(vecSrcA, vrev32q(vecSrcB)), 1);
+
+        /* even lanes: a c - b d; odd lanes: a d + b c */
+        vecSame = vsubq(vecSame, vrev32q(vecSame));
+        vecCross = vaddq(vecCross, vrev32q(vecCross));
+        vstrhq_p_s16(pDst, vpselq(vecSame, vecCross, (mve_pred16_t) 0x3333), p);
+
         pSrcA += 8;
         pSrcB += 8;
-
-        while (blkCnt > 0) 
-        {
-
-            /* C[2 * i] = A[2 * i] * B[2 * i] - A[2 * i + 1] * B[2 * i + 1].  */
-            vecDst = vqdmlsdhq(vuninitializedq_s16(), vecSrcA, vecSrcB);
-            vecSrcC = vld1q(pSrcA);
-            pSrcA += 8;
-
-            /* C[2 * i + 1] = A[2 * i] * B[2 * i + 1] + A[2 * i + 1] * B[2 * i].  */
-            vecDst = vqdmladhxq(vecDst, vecSrcA, vecSrcB);
-            vecSrcD = vld1q(pSrcB);
-            pSrcB += 8;
-
-            vstrhq_s16(pDst, vshrq(vecDst, 2));
-            pDst += 8;
-
-            vecDst = vqdmlsdhq(vuninitializedq_s16(), vecSrcC, vecSrcD);
-            vecSrcA = vld1q(pSrcA);
-            pSrcA += 8;
-
-            vecDst = vqdmladhxq(vecDst, vecSrcC, vecSrcD);
-            vecSrcB = vld1q(pSrcB);
-            pSrcB += 8;
-
-            vstrhq_s16(pDst, vshrq(vecDst, 2));
-            pDst += 8;
-
-            /*
-             * Decrement the blockSize loop counter
-             */
-            blkCnt--;
-        }
-
-        /* process last elements out of the loop avoid the armclang breaking the SW pipeline */
-        vecDst = vqdmlsdhq(vuninitializedq_s16(), vecSrcA, vecSrcB);
-        vecSrcC = vld1q(pSrcA);
-
-        vecDst = vqdmladhxq(vecDst, vecSrcA, vecSrcB);
-        vecSrcD = vld1q(pSrcB);
-
-        vstrhq_s16(pDst, vshrq(vecDst, 2));
         pDst += 8;
-
-        vecDst = vqdmlsdhq(vuninitializedq_s16(), vecSrcC, vecSrcD);
-        vecDst = vqdmladhxq(vecDst, vecSrcC, vecSrcD);
-
-        vstrhq_s16(pDst, vshrq(vecDst, 2));
-        pDst += 8;
-
-        /*
-         * tail
-         */
-        blkCnt = CMPLX_DIM * (numSamples & 7);
-        do 
-        {
-            mve_pred16_t    p = vctp16q(blkCnt);
-
-            pSrcA += 8;
-            pSrcB += 8;
-
-            vecSrcA = vldrhq_z_s16(pSrcA, p);
-            vecSrcB = vldrhq_z_s16(pSrcB, p);
-
-            vecDst = vqdmlsdhq_m(vuninitializedq_s16(), vecSrcA, vecSrcB, p);
-            vecDst = vqdmladhxq_m(vecDst, vecSrcA, vecSrcB, p);
-
-            vecDst = vshrq_m(vuninitializedq_s16(), vecDst, 2, p);
-            vstrhq_p_s16(pDst, vecDst, p);
-            pDst += 8;
-
-            blkCnt -= 8;
-        }
-        while ((int32_t) blkCnt > 0);
-    } 
-    else 
-    {
-        blkCnt = numSamples * CMPLX_DIM;
-        while (blkCnt > 0) {
-            mve_pred16_t    p = vctp16q(blkCnt);
-
-            vecSrcA = vldrhq_z_s16(pSrcA, p);
-            vecSrcB = vldrhq_z_s16(pSrcB, p);
-
-            vecDst = vqdmlsdhq_m(vuninitializedq_s16(), vecSrcA, vecSrcB, p);
-            vecDst = vqdmladhxq_m(vecDst, vecSrcA, vecSrcB, p);
-
-            vecDst = vshrq_m(vuninitializedq_s16(), vecDst, 2, p);
-            vstrhq_p_s16(pDst, vecDst, p);
-
-            pDst += 8;
-            pSrcA += 8;
-            pSrcB += 8;
-
-            blkCnt -= 8;
+        blkCnt -= 8;
     }
-  }
 }
 #else
 ARM_DSP_ATTRIBUTE void arm_cmplx_mult_cmplx_q15(
