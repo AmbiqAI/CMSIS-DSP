@@ -239,6 +239,8 @@ function(generate_suite_sources suite gen_var)
         WORKING_DIRECTORY ${gen}
         COMMENT "Generating sources for ${suite}"
         VERBATIM)
+    # The images of one suite share these sources, so one target owns the rule and the images depend on it.
+    add_custom_target(dsp_gen_${suite} DEPENDS ${generated})
 endfunction()
 
 # add_dsp_test_suite(<suite> [NAME <test>] [EXPECT_FAILURES] [SOURCES <extra sources>...])
@@ -277,6 +279,7 @@ function(add_dsp_test_suite suite)
     target_include_directories(${name} PRIVATE ${TESTING_DIR}/Include/Tests)
     target_compile_options(${name} PRIVATE ${CMSISDSP_TEST_OPT})
     target_link_libraries(${name} PRIVATE dsp_test_framework)
+    add_dependencies(${name} dsp_gen_${suite})
 
     set(status_args)
     if(arg_EXPECT_FAILURES)
