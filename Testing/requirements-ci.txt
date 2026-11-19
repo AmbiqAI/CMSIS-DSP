@@ -1,0 +1,13 @@
+# Pinned environment for running Arm's test framework in Ambiq CI (Python 3.12).
+# Parsing the test descriptions and generating the C sources needs only the first block.
+pyparsing==3.2.3
+colorama==0.4.6
+
+# Pattern generators (PatternGeneration/*.py).
+# scipy stays below 1.14: Interpolate.py uses interp2d, which 1.14 removed.
+numpy==1.26.4
+scipy==1.13.1
+statsmodels==0.14.4
+scikit-learn==1.5.2
+pyquaternion==0.9.9
+matplotlib==3.9.4
