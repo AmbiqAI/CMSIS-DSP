@@ -20,19 +20,29 @@ cmake_path(ABSOLUTE_PATH TESTING_DIR NORMALIZE)
 # build directory always matches its name.
 #   Host:        A: loop unrolling (the default)    B: no loop unrolling
 #                C: ARM_MATH_MATRIX_CHECK and ARM_MATH_ROUNDING    I: DISABLEFLOAT16
+#   MPS2 AN386 on QEMU (toolchains/arm-none-eabi-gcc.cmake):
+#                D: Cortex-M4F with the DSP extension, loop unrolling    E: the same without loop unrolling
 #   Corstone-300 (toolchains/arm-none-eabi-gcc.cmake):
 #                F: Cortex-M55, scalar code written for auto-vectorization (AUTOVECTORIZE), no MVE intrinsics
 #                G: Cortex-M55, Helium intrinsics (MVE-F and MVE-I)
 #                H: Cortex-M55 without MVE floating point (+nomve.fp): MVE-I intrinsics, scalar float code
-set(CMSISDSP_TEST_VARIANT "A" CACHE STRING "Build variant: A, B, C, I (host) or F, G, H (Corstone-300)")
-set_property(CACHE CMSISDSP_TEST_VARIANT PROPERTY STRINGS A B C I F G H)
+set(CMSISDSP_TEST_VARIANT "A" CACHE STRING "Build variant: A, B, C, I (host), D, E (MPS2 AN386) or F, G, H (Corstone-300)")
+set_property(CACHE CMSISDSP_TEST_VARIANT PROPERTY STRINGS A B C I D E F G H)
 set(variant_A LOOPUNROLL=ON  MATRIXCHECK=OFF ROUNDING=OFF DISABLEFLOAT16=OFF AUTOVECTORIZE=OFF HELIUM=OFF MVEI=OFF)
 set(variant_B LOOPUNROLL=OFF MATRIXCHECK=OFF ROUNDING=OFF DISABLEFLOAT16=OFF AUTOVECTORIZE=OFF HELIUM=OFF MVEI=OFF)
 set(variant_C LOOPUNROLL=ON  MATRIXCHECK=ON  ROUNDING=ON  DISABLEFLOAT16=OFF AUTOVECTORIZE=OFF HELIUM=OFF MVEI=OFF)
 set(variant_I LOOPUNROLL=ON  MATRIXCHECK=OFF ROUNDING=OFF DISABLEFLOAT16=ON  AUTOVECTORIZE=OFF HELIUM=OFF MVEI=OFF)
+set(variant_D LOOPUNROLL=ON  MATRIXCHECK=OFF ROUNDING=OFF DISABLEFLOAT16=OFF AUTOVECTORIZE=OFF HELIUM=OFF MVEI=OFF)
+set(variant_E LOOPUNROLL=OFF MATRIXCHECK=OFF ROUNDING=OFF DISABLEFLOAT16=OFF AUTOVECTORIZE=OFF HELIUM=OFF MVEI=OFF)
 set(variant_F LOOPUNROLL=ON  MATRIXCHECK=OFF ROUNDING=OFF DISABLEFLOAT16=OFF AUTOVECTORIZE=ON  HELIUM=OFF MVEI=OFF)
 set(variant_G LOOPUNROLL=ON  MATRIXCHECK=OFF ROUNDING=OFF DISABLEFLOAT16=OFF AUTOVECTORIZE=OFF HELIUM=ON  MVEI=OFF)
 set(variant_H LOOPUNROLL=ON  MATRIXCHECK=OFF ROUNDING=OFF DISABLEFLOAT16=OFF AUTOVECTORIZE=OFF HELIUM=OFF MVEI=ON)
+foreach(v D E)
+    set(target_${v} mps2_an386)
+    set(cpu_flags_${v} -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard)
+    # GCC has no __fp16 for Cortex-M4, so the float16 kernels compile to nothing.
+    set(no_f16_${v} "Cortex-M4 has no __fp16")
+endforeach()
 foreach(v F G H)
     set(target_${v} corstone300)
 endforeach()
@@ -40,7 +50,7 @@ set(cpu_flags_F -mcpu=cortex-m55 -mfloat-abi=hard)
 set(cpu_flags_G -mcpu=cortex-m55 -mfloat-abi=hard)
 set(cpu_flags_H -mcpu=cortex-m55+nomve.fp -mfloat-abi=hard)
 if(NOT DEFINED variant_${CMSISDSP_TEST_VARIANT})
-    message(FATAL_ERROR "Unknown CMSISDSP_TEST_VARIANT '${CMSISDSP_TEST_VARIANT}': use A, B, C, I, F, G or H")
+    message(FATAL_ERROR "Unknown CMSISDSP_TEST_VARIANT '${CMSISDSP_TEST_VARIANT}': use A, B, C, D, E, F, G, H or I")
 endif()
 if(DEFINED target_${CMSISDSP_TEST_VARIANT})
     set(test_target ${target_${CMSISDSP_TEST_VARIANT}})
@@ -70,22 +80,32 @@ else()
 endif()
 set(CMSISDSP_TEST_OPT "${default_opt}" CACHE STRING "Optimization options for CMSIS-DSP and the tests")
 
-if(test_target STREQUAL "corstone300")
+if(NOT test_target STREQUAL "host")
     set(CMSIS_CORE "" CACHE PATH "CMSIS_6 CMSIS/Core directory")
     set(CORTEX_DFP "" CACHE PATH "Cortex_DFP directory")
-    set(CORSTONE300_FVP "" CACHE FILEPATH "FVP_Corstone_SSE-300_Ethos-U55 executable")
-    option(CMSISDSP_TEST_BUILD_ONLY "Build the images without registering FVP tests" OFF)
-    set(CMSISDSP_TEST_TIMEOUT 300 CACHE STRING "Seconds one suite may run on the FVP")
-    set(device ${CORTEX_DFP}/Device/ARMCM55)
+    option(CMSISDSP_TEST_BUILD_ONLY "Build the images without registering tests that run them" OFF)
+    set(CMSISDSP_TEST_TIMEOUT 300 CACHE STRING "Seconds one suite may run on the model")
+    set(device_corstone300 ARMCM55)
+    set(device_mps2_an386 ARMCM4)
+    set(device_name ${device_${test_target}})
+    set(device ${CORTEX_DFP}/Device/${device_name})
     if(NOT EXISTS ${CMSIS_CORE}/Include/cmsis_compiler.h)
         message(FATAL_ERROR "CMSIS_CORE must name CMSIS_6 CMSIS/Core (no Include/cmsis_compiler.h in '${CMSIS_CORE}')")
     endif()
-    if(NOT EXISTS ${device}/Source/startup_ARMCM55.c)
-        message(FATAL_ERROR "CORTEX_DFP must name a Cortex_DFP (no Device/ARMCM55 in '${CORTEX_DFP}')")
+    if(NOT EXISTS ${device}/Source/startup_${device_name}.c)
+        message(FATAL_ERROR "CORTEX_DFP must name a Cortex_DFP (no Device/${device_name} in '${CORTEX_DFP}')")
     endif()
-    if(NOT CMSISDSP_TEST_BUILD_ONLY AND NOT EXISTS "${CORSTONE300_FVP}")
-        message(FATAL_ERROR "CORSTONE300_FVP must name the FVP_Corstone_SSE-300_Ethos-U55 executable "
-            "(or set CMSISDSP_TEST_BUILD_ONLY=ON to build without running)")
+    if(test_target STREQUAL "corstone300")
+        set(CORSTONE300_FVP "" CACHE FILEPATH "FVP_Corstone_SSE-300_Ethos-U55 executable")
+        set(model "${CORSTONE300_FVP}")
+        set(model_hint "CORSTONE300_FVP must name the FVP_Corstone_SSE-300_Ethos-U55 executable")
+    else()
+        find_program(QEMU_SYSTEM_ARM qemu-system-arm)
+        set(model "${QEMU_SYSTEM_ARM}")
+        set(model_hint "QEMU_SYSTEM_ARM must name the qemu-system-arm executable (found '${QEMU_SYSTEM_ARM}')")
+    endif()
+    if(NOT CMSISDSP_TEST_BUILD_ONLY AND NOT EXISTS "${model}")
+        message(FATAL_ERROR "${model_hint} (or set CMSISDSP_TEST_BUILD_ONLY=ON to build without running)")
     endif()
     add_compile_options(${cpu_flags_${CMSISDSP_TEST_VARIANT}})
     add_link_options(${cpu_flags_${CMSISDSP_TEST_VARIANT}})
@@ -132,9 +152,9 @@ set(FRAMEWORK_SOURCES
     ArrayMemory.cpp Calibrate.cpp Error.cpp FPGA.cpp Generators.cpp IORunner.cpp
     Pattern.cpp PatternMgr.cpp Test.cpp Timing.cpp)
 list(TRANSFORM FRAMEWORK_SOURCES PREPEND ${TESTING_DIR}/FrameworkSource/)
-if(test_target STREQUAL "corstone300")
+if(NOT test_target STREQUAL "host")
     add_library(dsp_test_device INTERFACE)
-    target_compile_definitions(dsp_test_device INTERFACE ARMCM55)
+    target_compile_definitions(dsp_test_device INTERFACE ${device_name} CMSIS_device_header="${device_name}.h")
     target_include_directories(dsp_test_device INTERFACE
         ${CMSIS_CORE}/Include ${device}/Include ${CMAKE_CURRENT_LIST_DIR}/target)
 endif()
@@ -145,16 +165,20 @@ target_compile_definitions(dsp_test_framework PUBLIC EMBEDDED NOTIMING)
 target_compile_options(dsp_test_framework PRIVATE ${CMSISDSP_TEST_OPT})
 target_link_libraries(dsp_test_framework PUBLIC CMSISDSP $<TARGET_NAME_IF_EXISTS:dsp_test_device>)
 
-if(test_target STREQUAL "corstone300")
+if(NOT test_target STREQUAL "host")
     add_library(dsp_test_target OBJECT
-        ${device}/Source/startup_ARMCM55.c
-        ${device}/Source/system_ARMCM55.c
-        ${TESTING_DIR}/Regression/corstone300_console.c
-        ${CMAKE_CURRENT_LIST_DIR}/target/corstone300_glue.c)
+        ${device}/Source/startup_${device_name}.c
+        ${device}/Source/system_${device_name}.c
+        ${CMAKE_CURRENT_LIST_DIR}/target/runtime.c
+        ${CMAKE_CURRENT_LIST_DIR}/target/${test_target}_glue.c)
     target_link_libraries(dsp_test_target PUBLIC dsp_test_device)
     target_link_options(dsp_test_target INTERFACE
-        -T${CMAKE_CURRENT_LIST_DIR}/target/corstone300_tests.ld --specs=nosys.specs -Wl,--gc-sections)
+        -L${CMAKE_CURRENT_LIST_DIR}/target -T${CMAKE_CURRENT_LIST_DIR}/target/${test_target}_tests.ld
+        --specs=nosys.specs -Wl,--gc-sections)
     target_link_libraries(dsp_test_target INTERFACE m)
+endif()
+if(test_target STREQUAL "corstone300")
+    target_sources(dsp_test_target PRIVATE ${TESTING_DIR}/Regression/corstone300_console.c)
     set(fvp_settings
         mps3_board.visualisation.disable-visualisation=1
         mps3_board.uart0.out_file=-
@@ -166,6 +190,10 @@ if(test_target STREQUAL "corstone300")
         mps3_board.telnetterminal2.start_telnet=0
         mps3_board.telnetterminal5.start_telnet=0)
     list(TRANSFORM fvp_settings PREPEND "-C;")
+    set(run_image ${CORSTONE300_FVP} ${fvp_settings} -a)
+elseif(test_target STREQUAL "mps2_an386")
+    set(run_image ${QEMU_SYSTEM_ARM} -M mps2-an386 -cpu cortex-m4 -display none -monitor none -serial stdio
+        -semihosting-config enable=on,target=native -kernel)
 endif()
 
 enable_testing()
@@ -178,6 +206,8 @@ function(add_dsp_test_suite suite)
     if(suite MATCHES "F16$")
         if(DISABLEFLOAT16)
             message(FATAL_ERROR "Suite ${suite} needs float16, which variant ${CMSISDSP_TEST_VARIANT} disables")
+        elseif(DEFINED no_f16_${CMSISDSP_TEST_VARIANT})
+            message(FATAL_ERROR "Suite ${suite} needs float16: ${no_f16_${CMSISDSP_TEST_VARIANT}}")
         endif()
         set(pickle ${PICKLE_F16} dsp_pickle_f16)
     else()
@@ -237,8 +267,7 @@ function(add_dsp_test_suite suite)
         if(NOT CMSISDSP_TEST_BUILD_ONLY)
             add_test(NAME ${suite}
                 COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/suite_status.py
-                        --timeout ${CMSISDSP_TEST_TIMEOUT} -- ${CORSTONE300_FVP} ${fvp_settings}
-                        -a $<TARGET_FILE:${suite}>)
+                        --timeout ${CMSISDSP_TEST_TIMEOUT} -- ${run_image} $<TARGET_FILE:${suite}>)
         endif()
     endif()
 endfunction()
