@@ -106,12 +106,17 @@ add_custom_command(OUTPUT ${PICKLE_F32}
     COMMAND Python3::Interpreter ${TESTING_DIR}/preprocess.py -f ${TESTING_DIR}/desc.txt -o ${PICKLE_F32}
     DEPENDS ${TESTING_DIR}/desc.txt
     WORKING_DIRECTORY ${TESTING_DIR}
+    COMMENT "Parsing desc.txt"
     VERBATIM)
 add_custom_command(OUTPUT ${PICKLE_F16}
     COMMAND Python3::Interpreter ${TESTING_DIR}/preprocess.py -f ${TESTING_DIR}/desc_f16.txt -o ${PICKLE_F16}
     DEPENDS ${TESTING_DIR}/desc_f16.txt
     WORKING_DIRECTORY ${TESTING_DIR}
+    COMMENT "Parsing desc_f16.txt"
     VERBATIM)
+# Each pickle is built by its own target, so suites that share it never run the parser concurrently.
+add_custom_target(dsp_pickle_f32 DEPENDS ${PICKLE_F32})
+add_custom_target(dsp_pickle_f16 DEPENDS ${PICKLE_F16})
 
 set(FRAMEWORK_SOURCES
     ArrayMemory.cpp Calibrate.cpp Error.cpp FPGA.cpp Generators.cpp IORunner.cpp
@@ -164,9 +169,9 @@ function(add_dsp_test_suite suite)
         if(DISABLEFLOAT16)
             message(FATAL_ERROR "Suite ${suite} needs float16, which variant ${CMSISDSP_TEST_VARIANT} disables")
         endif()
-        set(pickle ${PICKLE_F16})
+        set(pickle ${PICKLE_F16} dsp_pickle_f16)
     else()
-        set(pickle ${PICKLE_F32})
+        set(pickle ${PICKLE_F32} dsp_pickle_f32)
     endif()
 
     # processTests.py also writes TestDesc.txt into its working directory, so each suite gets its own.
@@ -177,10 +182,17 @@ function(add_dsp_test_suite suite)
         ${gen}/GeneratedInclude/TestDesc.h
         ${gen}/GeneratedInclude/TestDrive.h
         ${gen}/GeneratedInclude/Patterns.h)
+    # The depfile lists the pattern and parameter files the suite embeds, so editing one regenerates it.
+    list(GET pickle 0 pickle_file)
+    list(GET generated 0 first_output)
     add_custom_command(OUTPUT ${generated}
-        COMMAND Python3::Interpreter ${TESTING_DIR}/processTests.py -f ${pickle}
+        COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/generate_suite.py
+                --depfile ${gen}/sources.d --output ${first_output}
+                -- ${TESTING_DIR}/processTests.py -f ${pickle_file}
                 -p ${TESTING_DIR}/Patterns -d ${TESTING_DIR}/Parameters -gen ${gen} -e ${suite}
         DEPENDS ${pickle} ${TESTING_DIR}/processTests.py ${TESTING_DIR}/TestScripts/CodeGen.py
+                ${CMAKE_CURRENT_LIST_DIR}/generate_suite.py
+        DEPFILE ${gen}/sources.d
         WORKING_DIRECTORY ${gen}
         COMMENT "Generating sources for ${suite}"
         VERBATIM)
@@ -226,5 +238,5 @@ foreach(suite IN LISTS CMSISDSP_TEST_SUITES)
 endforeach()
 
 add_test(NAME suite_status_selftest
-    COMMAND Python3::Interpreter -m unittest -v test_suite_status
+    COMMAND Python3::Interpreter -m unittest -v test_suite_status test_generate_suite
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
