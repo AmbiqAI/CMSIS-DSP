@@ -193,11 +193,15 @@ endif()
 
 enable_testing()
 
-function(add_dsp_test_suite suite)
-    set(test_source ${TESTING_DIR}/Source/Tests/${suite}.cpp)
-    if(NOT EXISTS ${test_source})
-        message(FATAL_ERROR "No test source for suite ${suite}: ${test_source}")
+# Generates the framework sources for one suite class, once, however many images use them.
+function(generate_suite_sources suite gen_var)
+    set(gen ${CMAKE_BINARY_DIR}/gen/${suite})
+    set(${gen_var} ${gen} PARENT_SCOPE)
+    get_property(done GLOBAL PROPERTY dsp_generated_${suite})
+    if(done)
+        return()
     endif()
+    set_property(GLOBAL PROPERTY dsp_generated_${suite} TRUE)
     if(suite MATCHES "F16$")
         if(DISABLEFLOAT16)
             message(FATAL_ERROR "Suite ${suite} needs float16, which variant ${CMSISDSP_TEST_VARIANT} disables")
@@ -210,22 +214,38 @@ function(add_dsp_test_suite suite)
     endif()
 
     # processTests.py also writes TestDesc.txt into its working directory, so each suite gets its own.
-    set(gen ${CMAKE_BINARY_DIR}/gen/${suite})
     file(MAKE_DIRECTORY ${gen}/GeneratedSource ${gen}/GeneratedInclude)
-    set(generated
-        ${gen}/GeneratedSource/TestDesc.cpp
-        ${gen}/GeneratedInclude/TestDesc.h
-        ${gen}/GeneratedInclude/TestDrive.h
-        ${gen}/GeneratedInclude/Patterns.h)
-    add_custom_command(OUTPUT ${generated}
+    add_custom_command(OUTPUT
+            ${gen}/GeneratedSource/TestDesc.cpp
+            ${gen}/GeneratedInclude/TestDesc.h
+            ${gen}/GeneratedInclude/TestDrive.h
+            ${gen}/GeneratedInclude/Patterns.h
         COMMAND Python3::Interpreter ${TESTING_DIR}/processTests.py -f ${pickle}
                 -p ${TESTING_DIR}/Patterns -d ${TESTING_DIR}/Parameters -gen ${gen} -e ${suite}
         DEPENDS ${pickle} ${TESTING_DIR}/processTests.py ${TESTING_DIR}/TestScripts/CodeGen.py
         WORKING_DIRECTORY ${gen}
         COMMENT "Generating sources for ${suite}"
         VERBATIM)
+endfunction()
 
-    add_executable(${suite}
+# add_dsp_test_suite(<suite> [NAME <test>] [EXPECT_FAILURES] [SOURCES <extra sources>...])
+# Builds one image of a suite class and registers a test that runs it. EXPECT_FAILURES makes the test a
+# negative control (suite_status.py --expect-failures).
+function(add_dsp_test_suite suite)
+    cmake_parse_arguments(PARSE_ARGV 1 arg "EXPECT_FAILURES" "NAME" "SOURCES")
+    set(name ${suite})
+    if(arg_NAME)
+        set(name ${arg_NAME})
+    endif()
+    set(test_source ${TESTING_DIR}/Source/Tests/${suite}.cpp)
+    if(NOT EXISTS ${test_source})
+        message(FATAL_ERROR "No test source for suite ${suite}: ${test_source}")
+    endif()
+    generate_suite_sources(${suite} gen)
+
+    # The extra sources come first, so their definitions replace the library's.
+    add_executable(${name}
+        ${arg_SOURCES}
         ${TESTING_DIR}/main.cpp
         ${TESTING_DIR}/testmain.cpp
         ${TESTING_DIR}/patterndata.c
@@ -234,28 +254,33 @@ function(add_dsp_test_suite suite)
     if(suite MATCHES "^MFCC")
         string(REGEX REPLACE "^MFCC" "" kind ${suite})
         if(kind STREQUAL "F16")
-            target_sources(${suite} PRIVATE ${TESTING_DIR}/Source/Tests/mfccdata_f16.c)
+            target_sources(${name} PRIVATE ${TESTING_DIR}/Source/Tests/mfccdata_f16.c)
         else()
-            target_sources(${suite} PRIVATE ${TESTING_DIR}/Source/Tests/mfccdata.c)
+            target_sources(${name} PRIVATE ${TESTING_DIR}/Source/Tests/mfccdata.c)
         endif()
     endif()
     # The generated headers come first, so a stale Testing/GeneratedInclude is never used.
-    target_include_directories(${suite} BEFORE PRIVATE ${gen}/GeneratedInclude)
-    target_include_directories(${suite} PRIVATE ${TESTING_DIR}/Include/Tests)
-    target_compile_options(${suite} PRIVATE ${CMSISDSP_TEST_OPT})
-    target_link_libraries(${suite} PRIVATE dsp_test_framework)
+    target_include_directories(${name} BEFORE PRIVATE ${gen}/GeneratedInclude)
+    target_include_directories(${name} PRIVATE ${TESTING_DIR}/Include/Tests)
+    target_compile_options(${name} PRIVATE ${CMSISDSP_TEST_OPT})
+    target_link_libraries(${name} PRIVATE dsp_test_framework)
 
+    set(status_args)
+    if(arg_EXPECT_FAILURES)
+        list(APPEND status_args --expect-failures)
+    endif()
     if(test_target STREQUAL "host")
-        add_test(NAME ${suite}
-            COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/suite_status.py -- $<TARGET_FILE:${suite}>)
+        add_test(NAME ${name}
+            COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/suite_status.py ${status_args}
+                    -- $<TARGET_FILE:${name}>)
     else()
-        set_target_properties(${suite} PROPERTIES SUFFIX .elf)
-        target_link_libraries(${suite} PRIVATE dsp_test_target)
-        target_link_options(${suite} PRIVATE -Wl,-Map=$<TARGET_FILE:${suite}>.map)
+        set_target_properties(${name} PROPERTIES SUFFIX .elf)
+        target_link_libraries(${name} PRIVATE dsp_test_target)
+        target_link_options(${name} PRIVATE -Wl,-Map=$<TARGET_FILE:${name}>.map)
         if(NOT CMSISDSP_TEST_BUILD_ONLY)
-            add_test(NAME ${suite}
-                COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/suite_status.py
-                        --timeout ${CMSISDSP_TEST_TIMEOUT} -- ${run_image} $<TARGET_FILE:${suite}>)
+            add_test(NAME ${name}
+                COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/suite_status.py ${status_args}
+                        --timeout ${CMSISDSP_TEST_TIMEOUT} -- ${run_image} $<TARGET_FILE:${name}>)
         endif()
     endif()
 endfunction()
@@ -263,6 +288,11 @@ endfunction()
 foreach(suite IN LISTS CMSISDSP_TEST_SUITES)
     add_dsp_test_suite(${suite})
 endforeach()
+
+# Every build also runs a control that must fail, so a model, console or parser that loses failures is
+# caught on the target where it happens.
+add_dsp_test_suite(BasicTestsF32 NAME planted_failure_control EXPECT_FAILURES
+    SOURCES ${CMAKE_CURRENT_LIST_DIR}/planted_failure.c)
 
 add_test(NAME suite_status_selftest
     COMMAND Python3::Interpreter -m unittest -v test_suite_status
