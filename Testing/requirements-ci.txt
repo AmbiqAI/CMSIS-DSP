@@ -15,16 +15,24 @@ matplotlib==3.9.4
 # statsmodels 0.14.4 fails to import its submodules with pandas 3.
 pandas==2.2.3
 
+# Coverage reports (Testing/cmake/host_coverage.py).
+gcovr==8.4
+
 # Transitive dependencies of the packages above.
 cloudpickle==3.1.3
+colorlog==6.12.0
 contourpy==1.3.3
 cycler==0.12.1
 fonttools==4.68.0
+jinja2==3.1.6
 joblib==1.6.0
 kiwisolver==1.5.1
+lxml==6.1.3
+markupsafe==3.0.4
 packaging==26.3
 patsy==1.0.3
 pillow==13.0.0
+pygments==2.21.0
 python-dateutil==4.0.0
 pytz==2026.6
 threadpoolctl==3.8.0
