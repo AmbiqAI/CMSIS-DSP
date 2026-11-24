@@ -1,6 +1,6 @@
 """Run one test-suite executable and decide pass or fail from its output.
 
-usage: suite_status.py [--timeout SECONDS] [--expect-failures] -- <command> [args...]
+usage: suite_status.py [--timeout SECONDS] [--expect-failures] [--transcript FILE] -- <command> [args...]
 
 The framework always exits 0 (testmain.cpp), so the verdict comes from its status lines (FPGA.cpp):
 "S: <id> 0 0 <cycles> Y" for a passed test, "S: <id> <error> <line> 0 N" for a failed one, "S: g|s <id>"
@@ -8,8 +8,12 @@ opening a group or suite and "S: p" closing it.
 
 With --expect-failures the run is a negative control: it passes only if the run itself is sound and both
 passed and failed tests are reported, which shows that a wrong result reaches the verdict.
+
+--transcript writes the run's output to FILE, also when the run times out or cannot start, so a coverage
+stream on the console (target/gcov_dump.c) can be decoded after the run.
 """
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -64,11 +68,19 @@ def verdict(output, returncode):
     return passed, failures, problems
 
 
+def save_transcript(path, output):
+    if path:
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        with open(path, "w") as transcript:
+            transcript.write(output)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--timeout", type=float, default=600.0)
     parser.add_argument("--expect-failures", action="store_true",
                         help="negative control: require a sound run that reports failed and passed tests")
+    parser.add_argument("--transcript", help="write the run's output to this file")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
@@ -78,12 +90,16 @@ def main(argv=None):
         run = subprocess.run(command, capture_output=True, text=True, errors="replace", timeout=args.timeout)
     except subprocess.TimeoutExpired as exc:
         partial = exc.stdout or ""
-        sys.stdout.write(partial.decode(errors="replace") if isinstance(partial, bytes) else partial)
+        partial = partial.decode(errors="replace") if isinstance(partial, bytes) else partial
+        save_transcript(args.transcript, partial)
+        sys.stdout.write(partial)
         print(f"FAIL: timed out after {args.timeout:g} s")
         return 1
     except OSError as exc:
+        save_transcript(args.transcript, "")
         print(f"FAIL: cannot run {command[0]}: {exc}")
         return 1
+    save_transcript(args.transcript, run.stdout)
     sys.stdout.write(run.stdout)
     sys.stderr.write(run.stderr)
     passed, failures, problems = verdict(run.stdout, run.returncode)

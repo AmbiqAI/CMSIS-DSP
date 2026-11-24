@@ -1,6 +1,6 @@
 """Coverage data of a host test build: clear the counters before a run, export them after it.
 
-usage: host_coverage.py reset --build-dir DIR
+usage: host_coverage.py reset --build-dir DIR [--transcripts DIR]
        host_coverage.py report --build-dir DIR --root DIR --gcov COMMAND --output FILE --summary FILE
 
 The report covers Source/ (except CommonTables, which only holds data) and the inline functions in
@@ -20,7 +20,7 @@ def counter_files(build_dir):
                 yield os.path.join(directory, name)
 
 
-def reset(build_dir):
+def reset(build_dir, transcripts=None):
     if not os.path.isdir(build_dir):
         print(f"host_coverage.py: no build directory {build_dir}", file=sys.stderr)
         return 1
@@ -29,6 +29,13 @@ def reset(build_dir):
         os.remove(path)
         removed += 1
     print(f"host_coverage.py: removed {removed} counter file(s)")
+    # A target run's counters arrive in its console transcript; one left from an earlier run must never be
+    # decoded as this run's.
+    if transcripts and os.path.isdir(transcripts):
+        old = [name for name in os.listdir(transcripts) if name.endswith(".txt")]
+        for name in old:
+            os.remove(os.path.join(transcripts, name))
+        print(f"host_coverage.py: removed {len(old)} transcript(s)")
     return 0
 
 
@@ -77,12 +84,13 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     reset_parser = commands.add_parser("reset")
     reset_parser.add_argument("--build-dir", required=True)
+    reset_parser.add_argument("--transcripts")
     report_parser = commands.add_parser("report")
     for option in ("--build-dir", "--root", "--gcov", "--output", "--summary"):
         report_parser.add_argument(option, required=True)
     args = parser.parse_args(argv)
     if args.command == "reset":
-        return reset(args.build_dir)
+        return reset(args.build_dir, args.transcripts)
     return report(args.build_dir, args.root, args.gcov, args.output, args.summary)
 
 

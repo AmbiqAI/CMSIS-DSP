@@ -26,6 +26,21 @@ class Coverage(unittest.TestCase):
         self.assertFalse(any(os.path.exists(path) for path in counters))
         self.assertTrue(os.path.exists(notes))
 
+    def test_reset_removes_old_transcripts(self):
+        console = os.path.join(self.build, "coverage", "console")
+        os.makedirs(console)
+        old = os.path.join(console, "BasicTestsF32.txt")
+        other = os.path.join(console, "notes.md")
+        for path in (old, other):
+            open(path, "w").close()
+        self.assertEqual(host_coverage.main(["reset", "--build-dir", self.build, "--transcripts", console]), 0)
+        self.assertFalse(os.path.exists(old))
+        self.assertTrue(os.path.exists(other))
+
+    def test_reset_before_the_first_transcript(self):
+        console = os.path.join(self.build, "coverage", "console")
+        self.assertEqual(host_coverage.main(["reset", "--build-dir", self.build, "--transcripts", console]), 0)
+
     def test_reset_of_missing_directory_fails(self):
         self.assertEqual(host_coverage.main(["reset", "--build-dir", os.path.join(self.dir.name, "none")]), 1)
 

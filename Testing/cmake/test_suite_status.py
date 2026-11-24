@@ -1,4 +1,6 @@
+import os
 import sys
+import tempfile
 import unittest
 
 from suite_status import main, verdict
@@ -74,6 +76,33 @@ class Main(unittest.TestCase):
 
     def test_missing_executable(self):
         self.assertEqual(main(["--", "/nonexistent/suite"]), 1)
+
+
+class Transcript(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.path = os.path.join(self.dir.name, "console", "suite.txt")
+
+    def read(self):
+        with open(self.path) as transcript:
+            return transcript.read()
+
+    def test_passing_run(self):
+        self.assertEqual(main(["--transcript", self.path, "--", sys.executable, "-c", f"print({GOOD!r})"]), 0)
+        self.assertIn("S: 2 0 0 0 Y", self.read())
+
+    def test_timed_out_run_keeps_partial_output(self):
+        script = "import sys, time; print('GCOV-BEGIN'); sys.stdout.flush(); time.sleep(5)"
+        self.assertEqual(main(["--timeout", "0.5", "--transcript", self.path, "--", sys.executable, "-c", script]), 1)
+        self.assertIn("GCOV-BEGIN", self.read())
+
+    def test_run_that_cannot_start_leaves_an_empty_transcript(self):
+        os.makedirs(os.path.dirname(self.path))
+        with open(self.path, "w") as stale:
+            stale.write("GCOV-BEGIN\n")
+        self.assertEqual(main(["--transcript", self.path, "--", "/nonexistent/suite"]), 1)
+        self.assertEqual(self.read(), "")
 
 
 class ExpectFailures(unittest.TestCase):
