@@ -20,6 +20,7 @@ never leaves an old report behind.
 import argparse
 import json
 import os
+import posixpath
 import re
 import shutil
 import subprocess
@@ -34,6 +35,9 @@ class ReportError(Exception):
 
 
 def in_scope(path):
+    # gcovr writes paths relative to --root in normal form; any other spelling could hide its real place.
+    if not isinstance(path, str) or "\\" in path or posixpath.normpath(path) != path:
+        return False
     return (path.startswith("Source/") and not path.startswith("Source/CommonTables/")) or \
         path.startswith("Include/dsp/")
 
@@ -54,7 +58,7 @@ def read_report(path):
         raise ReportError(f"{path}: not a gcovr JSON report")
     if not data["files"]:
         raise ReportError(f"{path}: the report covers no file")
-    outside = [entry.get("file") for entry in data["files"] if not in_scope(str(entry.get("file")))]
+    outside = [entry.get("file") for entry in data["files"] if not in_scope(entry.get("file"))]
     if outside:
         raise ReportError(f"{path}: {len(outside)} file(s) outside the scope, first {outside[0]}")
     # GCC's gcov gives each function its start and end ("pos"); llvm-cov gives none.

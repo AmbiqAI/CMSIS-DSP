@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import os
 import tempfile
@@ -70,13 +72,17 @@ class Merge(unittest.TestCase):
         counts = {entry["line_number"]: entry["count"] for entry in self.merged_file()["lines"]}
         self.assertEqual(counts, {116: 5, 130: 64, 150: 5})
 
-    def rejects(self, *reports):
-        os.makedirs(os.path.join(self.out, "html"))
+    def rejects(self, *reports, reason=None):
+        os.makedirs(os.path.join(self.out, "html"), exist_ok=True)
         stale = os.path.join(self.out, "coverage.json")
         with open(stale, "w") as out:
             out.write("{}")
-        self.assertEqual(self.merge(*reports), 1)
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            self.assertEqual(self.merge(*reports), 1)
         self.assertFalse(os.path.exists(stale), "an earlier report survived a failed merge")
+        if reason:
+            self.assertIn(reason, errors.getvalue())
 
     def test_same_variant_twice(self):
         first = self.report("A", SCALAR)
@@ -97,6 +103,16 @@ class Merge(unittest.TestCase):
 
     def test_common_tables(self):
         self.rejects(self.report("A", dict(SCALAR, file="Source/CommonTables/arm_common_tables.c")))
+
+    def test_path_not_in_normal_form(self):
+        for path in ("Source/../Testing/FrameworkSource/Test.cpp", "Source/./CommonTables/arm_common_tables.c",
+                     "Source//CommonTables/arm_common_tables.c", "Include/dsp/../../Testing/x.h",
+                     "Source/..\\Testing\\x.cpp", "Source/BasicMathFunctions/"):
+            with self.subTest(path=path):
+                self.rejects(self.report("A", SCALAR, dict(SCALAR, file=path)), reason="outside the scope")
+
+    def test_file_entry_without_a_path(self):
+        self.rejects(self.report("A", {k: v for k, v in SCALAR.items() if k != "file"}), reason="outside the scope")
 
     def test_report_name_without_variant(self):
         self.rejects(self.report("A", SCALAR, name="summary-A.json"))
