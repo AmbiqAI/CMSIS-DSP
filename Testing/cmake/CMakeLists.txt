@@ -80,6 +80,59 @@ else()
 endif()
 set(CMSISDSP_TEST_OPT "${default_opt}" CACHE STRING "Optimization options for CMSIS-DSP and the tests")
 
+option(CMSISDSP_TEST_COVERAGE "Instrument the build for coverage; ctest then writes coverage/coverage-<variant>.json" OFF)
+if(CMSISDSP_TEST_COVERAGE)
+    if(NOT test_target STREQUAL "host")
+        message(FATAL_ERROR "CMSISDSP_TEST_COVERAGE supports the host variants only (variant ${CMSISDSP_TEST_VARIANT} "
+            "runs on ${test_target})")
+    endif()
+    # Coverage is measured at -O0, whatever CMSISDSP_TEST_OPT says, so each line keeps its own code. The
+    # optimized builds of the same variant check the results at the shipped flags.
+    set(dsp_test_opt -O0)
+    add_compile_options(--coverage)
+    add_link_options(--coverage)
+    if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
+        set(default_gcov "xcrun llvm-cov gcov")
+    elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+        string(REGEX MATCH "^[0-9]+" clang_major ${CMAKE_C_COMPILER_VERSION})
+        find_program(llvm_cov NAMES llvm-cov-${clang_major} llvm-cov)
+        set(default_gcov "${llvm_cov} gcov")
+    else()
+        # gcc-13 pairs with gcov-13 and x86_64-linux-gnu-gcc-13 with x86_64-linux-gnu-gcov-13; the real path
+        # matters, since the compiler is often reached through cc or c++.
+        file(REAL_PATH ${CMAKE_C_COMPILER} compiler_path)
+        get_filename_component(compiler_dir ${compiler_path} DIRECTORY)
+        get_filename_component(compiler_name ${compiler_path} NAME)
+        string(REGEX MATCH "^[0-9]+" gcc_major ${CMAKE_C_COMPILER_VERSION})
+        if(compiler_name MATCHES "gcc")
+            string(REPLACE "gcc" "gcov" gcov_name ${compiler_name})
+            set(default_gcov ${compiler_dir}/${gcov_name})
+        else()
+            find_program(gcov_by_version NAMES gcov-${gcc_major} gcov NO_CACHE)
+            set(default_gcov ${gcov_by_version})
+        endif()
+    endif()
+    set(CMSISDSP_TEST_GCOV "${default_gcov}" CACHE STRING "gcov command that reads this compiler's coverage data")
+    separate_arguments(gcov_command NATIVE_COMMAND "${CMSISDSP_TEST_GCOV}")
+    execute_process(COMMAND ${gcov_command} --version
+        RESULT_VARIABLE gcov_status OUTPUT_VARIABLE gcov_version ERROR_QUIET)
+    if(NOT gcov_status EQUAL 0 OR NOT gcov_version MATCHES "gcov|LLVM")
+        message(FATAL_ERROR "CMSISDSP_TEST_GCOV '${CMSISDSP_TEST_GCOV}' is not a working gcov")
+    endif()
+    # A gcov from another GCC release cannot read this compiler's data files.
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND NOT gcov_version MATCHES "gcov[^\n]* ${gcc_major}\\.")
+        message(FATAL_ERROR "CMSISDSP_TEST_GCOV '${CMSISDSP_TEST_GCOV}' does not match GCC ${CMAKE_C_COMPILER_VERSION}")
+    endif()
+    execute_process(COMMAND ${Python3_EXECUTABLE} -m gcovr --version
+        RESULT_VARIABLE gcovr_status OUTPUT_QUIET ERROR_QUIET)
+    if(NOT gcovr_status EQUAL 0)
+        message(FATAL_ERROR "gcovr is not installed for ${Python3_EXECUTABLE}: "
+            "pip install -r ${TESTING_DIR}/requirements-ci.txt")
+    endif()
+else()
+    set(dsp_test_opt ${CMSISDSP_TEST_OPT})
+endif()
+
 if(NOT test_target STREQUAL "host")
     set(CMSIS_CORE "" CACHE PATH "CMSIS_6 CMSIS/Core directory")
     set(CORTEX_DFP "" CACHE PATH "Cortex_DFP directory")
@@ -130,7 +183,7 @@ endif()
 target_compile_definitions(CMSISDSP PRIVATE ARM_DSP_CUSTOM_CONFIG)
 target_compile_definitions(CMSISDSP PUBLIC ARM_DSP_TESTING)
 target_include_directories(CMSISDSP PRIVATE ${TESTING_DIR})
-target_compile_options(CMSISDSP PRIVATE ${CMSISDSP_TEST_OPT} -g)
+target_compile_options(CMSISDSP PRIVATE ${dsp_test_opt} -g)
 
 set(PICKLE_F32 ${CMAKE_BINARY_DIR}/Output.pickle)
 set(PICKLE_F16 ${CMAKE_BINARY_DIR}/Output_f16.pickle)
@@ -166,7 +219,7 @@ target_include_directories(dsp_test_framework PUBLIC ${TESTING_DIR}/FrameworkInc
 target_compile_definitions(dsp_test_framework PUBLIC EMBEDDED NOTIMING)
 # -ffast-math lets GCC drop the isnan/isinf guards in Error.cpp, and a NaN SNR then passes `snr < threshold`.
 # The framework's checks build without it; the kernels and the suites keep the shipped flags.
-target_compile_options(dsp_test_framework PRIVATE ${CMSISDSP_TEST_OPT} -fno-fast-math)
+target_compile_options(dsp_test_framework PRIVATE ${dsp_test_opt} -fno-fast-math)
 target_link_libraries(dsp_test_framework PUBLIC CMSISDSP $<TARGET_NAME_IF_EXISTS:dsp_test_device>)
 
 if(NOT test_target STREQUAL "host")
@@ -283,7 +336,7 @@ function(add_dsp_test_suite suite)
     # The generated headers come first, so a stale Testing/GeneratedInclude is never used.
     target_include_directories(${name} BEFORE PRIVATE ${gen}/GeneratedInclude)
     target_include_directories(${name} PRIVATE ${TESTING_DIR}/Include/Tests)
-    target_compile_options(${name} PRIVATE ${CMSISDSP_TEST_OPT})
+    target_compile_options(${name} PRIVATE ${dsp_test_opt})
     target_link_libraries(${name} PRIVATE dsp_test_framework)
     add_dependencies(${name} dsp_gen_${suite})
 
@@ -295,6 +348,9 @@ function(add_dsp_test_suite suite)
         add_test(NAME ${name}
             COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/suite_status.py ${status_args}
                     -- $<TARGET_FILE:${name}>)
+        if(CMSISDSP_TEST_COVERAGE)
+            set_tests_properties(${name} PROPERTIES FIXTURES_REQUIRED dsp_coverage)
+        endif()
     else()
         set_target_properties(${name} PROPERTIES SUFFIX .elf)
         target_link_libraries(${name} PRIVATE dsp_test_target)
@@ -312,31 +368,50 @@ foreach(suite IN LISTS CMSISDSP_TEST_SUITES)
 endforeach()
 
 # Every build also runs a control that must fail, so a model, console or parser that loses failures is
-# caught on the target where it happens.
-add_dsp_test_suite(BasicTestsF32 NAME planted_failure_control EXPECT_FAILURES
-    SOURCES ${CMAKE_CURRENT_LIST_DIR}/planted_failure.c)
-# The suite's calls are renamed at compile time, not overridden at link time: with FASTBUILD the library's
-# arm_add_f32 shares an archive member with functions the suite needs, and the two definitions collide.
-target_compile_definitions(planted_failure_control PRIVATE arm_add_f32=planted_arm_add_f32)
-
-add_executable(framework_nan_control ${CMAKE_CURRENT_LIST_DIR}/framework_nan_control.cpp)
-target_compile_options(framework_nan_control PRIVATE ${CMSISDSP_TEST_OPT})
-target_link_libraries(framework_nan_control PRIVATE dsp_test_framework)
-if(test_target STREQUAL "host")
-    add_test(NAME framework_nan_control COMMAND framework_nan_control)
+# caught on the target where it happens. A coverage build leaves it out: it shares the library's counters,
+# so its runs would count as coverage. The optimized build of the same variant runs it.
+if(NOT CMSISDSP_TEST_COVERAGE)
+    add_dsp_test_suite(BasicTestsF32 NAME planted_failure_control EXPECT_FAILURES
+        SOURCES ${CMAKE_CURRENT_LIST_DIR}/planted_failure.c)
+    # The suite's calls are renamed at compile time, not overridden at link time: with FASTBUILD the library's
+    # arm_add_f32 shares an archive member with functions the suite needs, and the two definitions collide.
+    target_compile_definitions(planted_failure_control PRIVATE arm_add_f32=planted_arm_add_f32)
 else()
-    set_target_properties(framework_nan_control PROPERTIES SUFFIX .elf)
-    target_link_libraries(framework_nan_control PRIVATE dsp_test_target)
-    if(NOT CMSISDSP_TEST_BUILD_ONLY)
-        add_test(NAME framework_nan_control COMMAND ${run_image} $<TARGET_FILE:framework_nan_control>)
-        set_tests_properties(framework_nan_control PROPERTIES TIMEOUT ${CMSISDSP_TEST_TIMEOUT})
-    endif()
+    # Counters are cleared before the suites run and exported after the last one, so a report only ever
+    # holds the current run.
+    add_test(NAME coverage_reset
+        COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/host_coverage.py reset --build-dir ${CMAKE_BINARY_DIR})
+    add_test(NAME coverage_report
+        COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/host_coverage.py report
+                --build-dir ${CMAKE_BINARY_DIR} --root ${TESTING_DIR}/.. --gcov ${CMSISDSP_TEST_GCOV}
+                --output ${CMAKE_BINARY_DIR}/coverage/coverage-${CMSISDSP_TEST_VARIANT}.json
+                --summary ${CMAKE_BINARY_DIR}/coverage/summary-${CMSISDSP_TEST_VARIANT}.json)
+    set_tests_properties(coverage_reset PROPERTIES FIXTURES_SETUP dsp_coverage)
+    set_tests_properties(coverage_report PROPERTIES FIXTURES_CLEANUP dsp_coverage)
 endif()
-if(TEST framework_nan_control)
-    # The FVP exits 0 whatever the program returns, so the verdict comes from the output on every target.
-    set_tests_properties(framework_nan_control PROPERTIES
-        PASS_REGULAR_EXPRESSION "NAN-CONTROL PASS"
-        FAIL_REGULAR_EXPRESSION "NAN-CONTROL FAIL;E: HardFault")
+
+# The NaN control checks the framework at the build's flags. A coverage build (-O0, no fast-math) leaves it
+# out, like the planted-failure control, so its runs never count as coverage.
+if(NOT CMSISDSP_TEST_COVERAGE)
+    add_executable(framework_nan_control ${CMAKE_CURRENT_LIST_DIR}/framework_nan_control.cpp)
+    target_compile_options(framework_nan_control PRIVATE ${dsp_test_opt})
+    target_link_libraries(framework_nan_control PRIVATE dsp_test_framework)
+    if(test_target STREQUAL "host")
+        add_test(NAME framework_nan_control COMMAND framework_nan_control)
+    else()
+        set_target_properties(framework_nan_control PROPERTIES SUFFIX .elf)
+        target_link_libraries(framework_nan_control PRIVATE dsp_test_target)
+        if(NOT CMSISDSP_TEST_BUILD_ONLY)
+            add_test(NAME framework_nan_control COMMAND ${run_image} $<TARGET_FILE:framework_nan_control>)
+            set_tests_properties(framework_nan_control PROPERTIES TIMEOUT ${CMSISDSP_TEST_TIMEOUT})
+        endif()
+    endif()
+    if(TEST framework_nan_control)
+        # The FVP exits 0 whatever the program returns, so the verdict comes from the output on every target.
+        set_tests_properties(framework_nan_control PROPERTIES
+            PASS_REGULAR_EXPRESSION "NAN-CONTROL PASS"
+            FAIL_REGULAR_EXPRESSION "NAN-CONTROL FAIL;E: HardFault")
+    endif()
 endif()
 
 if(NOT test_target STREQUAL "host")
@@ -354,5 +429,5 @@ if(NOT test_target STREQUAL "host")
 endif()
 
 add_test(NAME suite_status_selftest
-    COMMAND Python3::Interpreter -m unittest -v test_suite_status test_generate_suite
+    COMMAND Python3::Interpreter -m unittest -v test_suite_status test_generate_suite test_host_coverage
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
