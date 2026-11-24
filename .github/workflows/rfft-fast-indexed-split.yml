@@ -1,0 +1,25 @@
+name: RFFT fast indexed split
+
+on:
+  pull_request:
+    paths:
+      - 'Scripts/genRfftFastBinIndexTables.py'
+      - 'Source/TransformFunctions/**'
+      - 'Source/CommonTables/arm_common_tables.c'
+      - 'Include/arm_common_tables.h'
+      - 'Include/dsp/transform_functions.h'
+      - 'Source/configDsp.cmake'
+      - 'Testing/Regression/rfft_fast_f32_indexed_split.c'
+      - 'Testing/Regression/run_rfft_fast_f32_indexed_split.py'
+      - '.github/workflows/rfft-fast-indexed-split.yml'
+  workflow_dispatch:
+
+jobs:
+  indexed-split:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generated tables match the generator
+        run: python3 Scripts/genRfftFastBinIndexTables.py --check
+      - name: Indexed split against the default path on the host library
+        run: python3 Testing/Regression/run_rfft_fast_f32_indexed_split.py --build-dir build/rfft-fast-indexed-split

@@ -16,6 +16,10 @@ if (MATRIXCHECK)
   target_compile_definitions(${project} PRIVATE ARM_MATH_MATRIX_CHECK)
 endif()
 
+if (RFFTFASTINDEXEDSPLIT)
+  target_compile_definitions(${project} PRIVATE ARM_MATH_RFFT_FAST_INDEXED_SPLIT)
+endif()
+
 # These options affect public headers and must also reach consumers.
 if (AUTOVECTORIZE)
     target_compile_definitions(${project} PUBLIC ARM_MATH_AUTOVECTORIZE)
