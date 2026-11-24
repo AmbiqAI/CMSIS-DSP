@@ -36,6 +36,10 @@ class Verdict(unittest.TestCase):
     def test_out_of_memory(self):
         self.assertIn("framework reported: NOT ENOUGH MEMORY", verdict("NOT ENOUGH MEMORY\n", 0)[2])
 
+    def test_fault_after_a_passing_transcript(self):
+        # The fault handler's line, as target/runtime.c prints it; the FVP still exits 0.
+        self.assertIn("error detail: HardFault", verdict(GOOD + "\nE: HardFault\n", 0)[2])
+
     def test_nonzero_exit(self):
         self.assertIn("exit status -11", verdict(GOOD, -11)[2])
 

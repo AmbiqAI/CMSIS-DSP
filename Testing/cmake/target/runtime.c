@@ -29,10 +29,11 @@ void *_sbrk(ptrdiff_t increment)
     return previous;
 }
 
-/* A fault ends the run at once, instead of spinning in the default handler until the run times out. */
+/* A fault ends the run at once, instead of spinning in the default handler until the run times out. The
+ * FVP exits 0 whatever the status, so the line is one suite_status.py fails on: "E: <detail>". */
 void HardFault_Handler(void)
 {
-    static const char message[] = "\nHardFault\n";
+    static const char message[] = "\nE: HardFault\n";
 
     _write(1, message, (int)sizeof message - 1);
     _exit(1);
