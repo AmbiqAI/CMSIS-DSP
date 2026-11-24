@@ -162,7 +162,9 @@ endif()
 add_library(dsp_test_framework STATIC ${FRAMEWORK_SOURCES})
 target_include_directories(dsp_test_framework PUBLIC ${TESTING_DIR}/FrameworkInclude)
 target_compile_definitions(dsp_test_framework PUBLIC EMBEDDED NOTIMING)
-target_compile_options(dsp_test_framework PRIVATE ${CMSISDSP_TEST_OPT})
+# -ffast-math lets GCC drop the isnan/isinf guards in Error.cpp, and a NaN SNR then passes `snr < threshold`.
+# The framework's checks build without it; the kernels and the suites keep the shipped flags.
+target_compile_options(dsp_test_framework PRIVATE ${CMSISDSP_TEST_OPT} -fno-fast-math)
 target_link_libraries(dsp_test_framework PUBLIC CMSISDSP $<TARGET_NAME_IF_EXISTS:dsp_test_device>)
 
 if(NOT test_target STREQUAL "host")
@@ -309,6 +311,26 @@ endforeach()
 # caught on the target where it happens.
 add_dsp_test_suite(BasicTestsF32 NAME planted_failure_control EXPECT_FAILURES
     SOURCES ${CMAKE_CURRENT_LIST_DIR}/planted_failure.c)
+
+add_executable(framework_nan_control ${CMAKE_CURRENT_LIST_DIR}/framework_nan_control.cpp)
+target_compile_options(framework_nan_control PRIVATE ${CMSISDSP_TEST_OPT})
+target_link_libraries(framework_nan_control PRIVATE dsp_test_framework)
+if(test_target STREQUAL "host")
+    add_test(NAME framework_nan_control COMMAND framework_nan_control)
+else()
+    set_target_properties(framework_nan_control PROPERTIES SUFFIX .elf)
+    target_link_libraries(framework_nan_control PRIVATE dsp_test_target)
+    if(NOT CMSISDSP_TEST_BUILD_ONLY)
+        add_test(NAME framework_nan_control COMMAND ${run_image} $<TARGET_FILE:framework_nan_control>)
+        set_tests_properties(framework_nan_control PROPERTIES TIMEOUT ${CMSISDSP_TEST_TIMEOUT})
+    endif()
+endif()
+if(TEST framework_nan_control)
+    # The FVP exits 0 whatever the program returns, so the verdict comes from the output on every target.
+    set_tests_properties(framework_nan_control PROPERTIES
+        PASS_REGULAR_EXPRESSION "NAN-CONTROL PASS"
+        FAIL_REGULAR_EXPRESSION "NAN-CONTROL FAIL")
+endif()
 
 add_test(NAME suite_status_selftest
     COMMAND Python3::Interpreter -m unittest -v test_suite_status test_generate_suite
