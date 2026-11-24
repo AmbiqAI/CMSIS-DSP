@@ -316,6 +316,119 @@ No stage merge functions defined here for Neon.
 
 */
 #else
+#if defined(ARM_MATH_RFFT_FAST_INDEXED_SPLIT)
+#include "arm_common_tables.h"
+
+/*
+  Index table of the split stage for a complex FFT of length L: entry l is the
+  complex index, in the buffer arm_cfft_f32 leaves when called without bit
+  reversal, of frequency bin l. The selection by length references the eight
+  tables, so a link keeps all of them whichever lengths are initialized.
+*/
+static const uint16_t * rfft_fast_bin_index_f32(
+        uint32_t L)
+{
+   switch (L)
+   {
+   case 16:
+      return armCfftBinIndexTable16;
+   case 32:
+      return armCfftBinIndexTable32;
+   case 64:
+      return armCfftBinIndexTable64;
+   case 128:
+      return armCfftBinIndexTable128;
+   case 256:
+      return armCfftBinIndexTable256;
+   case 512:
+      return armCfftBinIndexTable512;
+   case 1024:
+      return armCfftBinIndexTable1024;
+   case 2048:
+      return armCfftBinIndexTable2048;
+   default:
+      return NULL;
+   }
+}
+
+/*
+  Split stage on the output of arm_cfft_f32 called without bit reversal.
+  The bins are read through pIdx. Bins l and L - l take the same two inputs
+  and twiddle factors that differ by the sign of one component
+  (TW(L - l) = -conj(TW(l))), so both are produced from one complex product.
+*/
+static void stage_rfft_indexed_f32(
+  const arm_rfft_fast_instance_f32 * S,
+  const float32_t * p,
+  const uint16_t * pIdx,
+        float32_t * pOut)
+{
+        uint32_t  L = (S->Sint).fftLen;             /* Length of the complex FFT */
+        uint32_t  l;                                /* Loop Counter */
+  const float32_t * pCoeff = S->pTwiddleRFFT;       /* Points to RFFT Twiddle factors */
+  const float32_t * pA;                             /* bin l */
+  const float32_t * pB;                             /* bin L - l */
+        float32_t twR, twI;                         /* RFFT Twiddle coefficients */
+        float32_t xAR, xAI, xBR, xBI;               /* temporary variables */
+        float32_t t1a, t1b;                         /* temporary variables */
+        float32_t sR, dI, u, v;                     /* temporary variables */
+
+   /* Bin 0 is at index 0. Pack first and last sample of the frequency domain together */
+   xAR = p[0];
+   xAI = p[1];
+
+   pOut[0] = xAR + xAI;
+   pOut[1] = xAR - xAI;
+
+   /* Bin L/2: XA = XB */
+   pA  = p + 2U * pIdx[L >> 1];
+   xAR = pA[0];
+   xAI = pA[1];
+
+   twR = pCoeff[L];
+   twI = pCoeff[L + 1U];
+
+   t1b = xAI + xAI;
+
+   pOut[L]      = 0.5f * (xAR + xAR + twI * t1b);
+   pOut[L + 1U] = 0.5f * (-(twR * t1b));
+
+   for (l = 1U; l < (L >> 1); l++)
+   {
+      /*
+         XA = X(l), XB = X(L - l), TW = TW(l)
+         out(l)     = 1/2 * (XA + conj(XB) + TW * (conj(XB) - XA))
+         out(L - l) = 1/2 * (XB + conj(XA) + conj(TW) * (XB - conj(XA)))
+      */
+      pA = p + 2U * pIdx[l];
+      pB = p + 2U * pIdx[L - l];
+
+      xAR = pA[0];
+      xAI = pA[1];
+      xBR = pB[0];
+      xBI = pB[1];
+
+      twR = pCoeff[2U * l];
+      twI = pCoeff[2U * l + 1U];
+
+      t1a = xBR - xAR;
+      t1b = xBI + xAI;
+
+      sR = 0.5f * (xAR + xBR);
+      dI = 0.5f * (xAI - xBI);
+
+      // real(tw * (xB - xA)) = twR * (xBR - xAR) - twI * (xBI - xAI);
+      // imag(tw * (xB - xA)) = twI * (xBR - xAR) + twR * (xBI - xAI);
+      u = 0.5f * (twR * t1a + twI * t1b);
+      v = 0.5f * (twI * t1a - twR * t1b);
+
+      pOut[2U * l]            = sR + u;
+      pOut[2U * l + 1U]       = dI + v;
+      pOut[2U * (L - l)]      = sR - u;
+      pOut[2U * (L - l) + 1U] = v - dI;
+   }
+}
+#else
 static void stage_rfft_f32(
   const arm_rfft_fast_instance_f32 * S,
   const float32_t * p,
@@ -403,6 +516,7 @@ static void stage_rfft_f32(
       k--;
    } while (k > 0);
 }
+#endif /* defined(ARM_MATH_RFFT_FAST_INDEXED_SPLIT) */
 
 /* Prepares data for inverse cfft */
 static void merge_rfft_f32(
@@ -641,6 +755,16 @@ static void merge_rfft_f32(
                 uint8_t ifftFlag);
   @endcode
 
+  @par Indexed split stage
+                     When ARM_MATH_RFFT_FAST_INDEXED_SPLIT is defined, the forward
+                     transform of the scalar version (no Helium, no Neon) does not
+                     run the bit reversal pass of the internal complex FFT: the stage
+                     that follows reads the frequency bins through an index table.
+                     The output is the same to within rounding. On return the source
+                     buffer holds the internal complex FFT in the order the kernel
+                     leaves it, where without the macro it holds it in normal order.
+                     The inverse transform is not affected.
+
   @par Size of buffers according to the target architecture and datatype:
        They are described on the page \ref transformbuffers "transform buffers".
 */
@@ -693,11 +817,27 @@ ARM_DSP_ATTRIBUTE void arm_rfft_fast_f32(
    }
    else
    {
+#if defined(ARM_MATH_RFFT_FAST_INDEXED_SPLIT) && !(defined(ARM_MATH_MVEF) && !defined(ARM_MATH_AUTOVECTORIZE))
+      const uint16_t * pIdx = rfft_fast_bin_index_f32(Sint->fftLen);
+
+      /* Lengths that arm_rfft_fast_init_f32 rejects are not transformed */
+      if (pIdx == NULL)
+      {
+         return;
+      }
+
+      /* Calculation of RFFT of input, left in the order of the kernel */
+      arm_cfft_f32( Sint, p, ifftFlag, 0);
+
+      /*  Real FFT extraction */
+      stage_rfft_indexed_f32(S, p, pIdx, pOut);
+#else
       /* Calculation of RFFT of input */
       arm_cfft_f32( Sint, p, ifftFlag, 1);
 
       /*  Real FFT extraction */
       stage_rfft_f32(S, p, pOut);
+#endif
    }
 }
 #endif

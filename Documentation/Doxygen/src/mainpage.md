@@ -102,6 +102,9 @@ Each library project has different preprocessor macros.
  - `ARM_MATH_LOOPUNROLL`:
    - Define macro ARM_MATH_LOOPUNROLL to enable manual loop unrolling in DSP functions
 
+ - `ARM_MATH_RFFT_FAST_INDEXED_SPLIT`:
+   - Define macro ARM_MATH_RFFT_FAST_INDEXED_SPLIT to make the forward transform of the scalar version of arm_rfft_fast_f32 skip the bit reversal pass and read the frequency bins through index tables. It adds 8160 bytes of tables whichever transform lengths are used, and changes the content left in the source buffer. It has no effect on the Helium and Neon versions.
+
  - `ARM_MATH_NEON`:
    - Define macro ARM_MATH_NEON to enable Neon versions of the DSP functions. It is not enabled by default when Neon is available because performances are dependent on the compiler and target architecture.
 
