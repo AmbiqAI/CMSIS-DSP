@@ -62,6 +62,14 @@ SECTIONS
     *(.rodata*)
   } > DATA
 
+  /* Coverage builds (-fprofile-info-section) list their counters here for gcov_dump.c. */
+  .gcov_info :
+  {
+    PROVIDE(__gcov_info_start = .);
+    KEEP(*(.gcov_info))
+    PROVIDE(__gcov_info_end = .);
+  } > DATA
+
   .data : ALIGN(4)
   {
     __data_start__ = .;

@@ -82,15 +82,18 @@ set(CMSISDSP_TEST_OPT "${default_opt}" CACHE STRING "Optimization options for CM
 
 option(CMSISDSP_TEST_COVERAGE "Instrument the build for coverage; ctest then writes coverage/coverage-<variant>.json" OFF)
 if(CMSISDSP_TEST_COVERAGE)
-    if(NOT test_target STREQUAL "host")
-        message(FATAL_ERROR "CMSISDSP_TEST_COVERAGE supports the host variants only (variant ${CMSISDSP_TEST_VARIANT} "
-            "runs on ${test_target})")
-    endif()
     # Coverage is measured at -O0, whatever CMSISDSP_TEST_OPT says, so each line keeps its own code. The
     # optimized builds of the same variant check the results at the shipped flags.
     set(dsp_test_opt -O0)
-    add_compile_options(--coverage)
     add_link_options(--coverage)
+    if(test_target STREQUAL "host")
+        add_compile_options(--coverage)
+    else()
+        # A target has no file system to write .gcda files to. Each object lists its counters in .gcov_info
+        # instead of registering them from a constructor, and target/gcov_dump.c prints them at exit. The
+        # options are spelled out, since -fno-profile-arcs cannot undo --coverage for the target support.
+        add_compile_options(-fprofile-arcs -ftest-coverage -fprofile-info-section)
+    endif()
     if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
         set(default_gcov "xcrun llvm-cov gcov")
     elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
@@ -122,6 +125,22 @@ if(CMSISDSP_TEST_COVERAGE)
     # A gcov from another GCC release cannot read this compiler's data files.
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND NOT gcov_version MATCHES "gcov[^\n]* ${gcc_major}\\.")
         message(FATAL_ERROR "CMSISDSP_TEST_GCOV '${CMSISDSP_TEST_GCOV}' does not match GCC ${CMAKE_C_COMPILER_VERSION}")
+    endif()
+    if(NOT test_target STREQUAL "host")
+        if(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU")
+            message(FATAL_ERROR "Coverage on ${test_target} needs GCC (-fprofile-info-section), not "
+                "${CMAKE_C_COMPILER_ID}")
+        endif()
+        # decode_gcov.py turns the console streams into .gcda files with this compiler's gcov-tool.
+        string(REPLACE "gcc" "gcov-tool" gcov_tool_name ${compiler_name})
+        set(CMSISDSP_TEST_GCOV_TOOL ${compiler_dir}/${gcov_tool_name} CACHE FILEPATH
+            "gcov-tool that merges the targets' coverage streams")
+        execute_process(COMMAND ${CMSISDSP_TEST_GCOV_TOOL} --version
+            RESULT_VARIABLE gcov_tool_status OUTPUT_VARIABLE gcov_tool_version ERROR_QUIET)
+        if(NOT gcov_tool_status EQUAL 0 OR NOT gcov_tool_version MATCHES "gcov-tool[^\n]* ${gcc_major}\\.")
+            message(FATAL_ERROR "CMSISDSP_TEST_GCOV_TOOL '${CMSISDSP_TEST_GCOV_TOOL}' is not the gcov-tool of "
+                "GCC ${CMAKE_C_COMPILER_VERSION}")
+        endif()
     endif()
     execute_process(COMMAND ${Python3_EXECUTABLE} -m gcovr --version
         RESULT_VARIABLE gcovr_status OUTPUT_QUIET ERROR_QUIET)
@@ -236,6 +255,12 @@ if(NOT test_target STREQUAL "host")
     set_property(TARGET dsp_test_target APPEND PROPERTY INTERFACE_LINK_DEPENDS
         ${CMAKE_CURRENT_LIST_DIR}/target/${test_target}_tests.ld ${CMAKE_CURRENT_LIST_DIR}/target/tests_sections.ld)
     target_link_libraries(dsp_test_target INTERFACE m)
+    if(CMSISDSP_TEST_COVERAGE)
+        target_sources(dsp_test_target PRIVATE ${CMAKE_CURRENT_LIST_DIR}/target/gcov_dump.c)
+        # Start-up code runs before the counters are set up and the export runs while they are written, so
+        # none of the target support is measured.
+        target_compile_options(dsp_test_target PRIVATE -fno-profile-arcs -fno-test-coverage)
+    endif()
 endif()
 if(test_target STREQUAL "corstone300")
     target_sources(dsp_test_target PRIVATE ${TESTING_DIR}/Regression/corstone300_console.c)
@@ -356,9 +381,18 @@ function(add_dsp_test_suite suite)
         target_link_libraries(${name} PRIVATE dsp_test_target)
         target_link_options(${name} PRIVATE -Wl,-Map=$<TARGET_FILE:${name}>.map)
         if(NOT CMSISDSP_TEST_BUILD_ONLY)
+            if(CMSISDSP_TEST_COVERAGE)
+                # The console carries the image's counters; decode_gcov.py reads them from this transcript.
+                set(transcript ${CMAKE_BINARY_DIR}/coverage/console/${name}.txt)
+                list(APPEND status_args --transcript ${transcript})
+                set_property(GLOBAL APPEND PROPERTY dsp_coverage_transcripts ${transcript})
+            endif()
             add_test(NAME ${name}
                 COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/suite_status.py ${status_args}
                         --timeout ${CMSISDSP_TEST_TIMEOUT} -- ${run_image} $<TARGET_FILE:${name}>)
+            if(CMSISDSP_TEST_COVERAGE)
+                set_tests_properties(${name} PROPERTIES FIXTURES_REQUIRED dsp_coverage)
+            endif()
         endif()
     endif()
 endfunction()
@@ -376,11 +410,13 @@ if(NOT CMSISDSP_TEST_COVERAGE)
     # The suite's calls are renamed at compile time, not overridden at link time: with FASTBUILD the library's
     # arm_add_f32 shares an archive member with functions the suite needs, and the two definitions collide.
     target_compile_definitions(planted_failure_control PRIVATE arm_add_f32=planted_arm_add_f32)
-else()
+elseif(test_target STREQUAL "host" OR NOT CMSISDSP_TEST_BUILD_ONLY)
     # Counters are cleared before the suites run and exported after the last one, so a report only ever
     # holds the current run.
+    set(transcript_dir ${CMAKE_BINARY_DIR}/coverage/console)
     add_test(NAME coverage_reset
-        COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/host_coverage.py reset --build-dir ${CMAKE_BINARY_DIR})
+        COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/host_coverage.py reset --build-dir ${CMAKE_BINARY_DIR}
+                --transcripts ${transcript_dir})
     add_test(NAME coverage_report
         COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/host_coverage.py report
                 --build-dir ${CMAKE_BINARY_DIR} --root ${TESTING_DIR}/.. --gcov ${CMSISDSP_TEST_GCOV}
@@ -388,6 +424,16 @@ else()
                 --summary ${CMAKE_BINARY_DIR}/coverage/summary-${CMSISDSP_TEST_VARIANT}.json)
     set_tests_properties(coverage_reset PROPERTIES FIXTURES_SETUP dsp_coverage)
     set_tests_properties(coverage_report PROPERTIES FIXTURES_CLEANUP dsp_coverage)
+    if(NOT test_target STREQUAL "host")
+        # Every suite's transcript must hold a complete stream. A failed decode merges nothing, and the report
+        # that follows then fails for want of counters.
+        get_property(transcripts GLOBAL PROPERTY dsp_coverage_transcripts)
+        add_test(NAME coverage_decode
+            COMMAND Python3::Interpreter ${CMAKE_CURRENT_LIST_DIR}/decode_gcov.py
+                    --gcov-tool ${CMSISDSP_TEST_GCOV_TOOL} --build-dir ${CMAKE_BINARY_DIR} ${transcripts})
+        set_tests_properties(coverage_decode PROPERTIES FIXTURES_CLEANUP dsp_coverage)
+        set_tests_properties(coverage_report PROPERTIES DEPENDS coverage_decode)
+    endif()
 endif()
 
 # The NaN control checks the framework at the build's flags. A coverage build (-O0, no fast-math) leaves it
@@ -430,4 +476,5 @@ endif()
 
 add_test(NAME suite_status_selftest
     COMMAND Python3::Interpreter -m unittest -v test_suite_status test_generate_suite test_host_coverage
+            test_decode_gcov
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
