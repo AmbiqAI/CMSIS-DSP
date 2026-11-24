@@ -215,7 +215,9 @@ endif()
 add_library(dsp_test_framework STATIC ${FRAMEWORK_SOURCES})
 target_include_directories(dsp_test_framework PUBLIC ${TESTING_DIR}/FrameworkInclude)
 target_compile_definitions(dsp_test_framework PUBLIC EMBEDDED NOTIMING)
-target_compile_options(dsp_test_framework PRIVATE ${dsp_test_opt})
+# -ffast-math lets GCC drop the isnan/isinf guards in Error.cpp, and a NaN SNR then passes `snr < threshold`.
+# The framework's checks build without it; the kernels and the suites keep the shipped flags.
+target_compile_options(dsp_test_framework PRIVATE ${dsp_test_opt} -fno-fast-math)
 target_link_libraries(dsp_test_framework PUBLIC CMSISDSP $<TARGET_NAME_IF_EXISTS:dsp_test_device>)
 
 if(NOT test_target STREQUAL "host")
@@ -379,6 +381,30 @@ else()
                 --summary ${CMAKE_BINARY_DIR}/coverage/summary-${CMSISDSP_TEST_VARIANT}.json)
     set_tests_properties(coverage_reset PROPERTIES FIXTURES_SETUP dsp_coverage)
     set_tests_properties(coverage_report PROPERTIES FIXTURES_CLEANUP dsp_coverage)
+endif()
+
+# The NaN control checks the framework at the build's flags. A coverage build (-O0, no fast-math) leaves it
+# out, like the planted-failure control, so its runs never count as coverage.
+if(NOT CMSISDSP_TEST_COVERAGE)
+    add_executable(framework_nan_control ${CMAKE_CURRENT_LIST_DIR}/framework_nan_control.cpp)
+    target_compile_options(framework_nan_control PRIVATE ${dsp_test_opt})
+    target_link_libraries(framework_nan_control PRIVATE dsp_test_framework)
+    if(test_target STREQUAL "host")
+        add_test(NAME framework_nan_control COMMAND framework_nan_control)
+    else()
+        set_target_properties(framework_nan_control PROPERTIES SUFFIX .elf)
+        target_link_libraries(framework_nan_control PRIVATE dsp_test_target)
+        if(NOT CMSISDSP_TEST_BUILD_ONLY)
+            add_test(NAME framework_nan_control COMMAND ${run_image} $<TARGET_FILE:framework_nan_control>)
+            set_tests_properties(framework_nan_control PROPERTIES TIMEOUT ${CMSISDSP_TEST_TIMEOUT})
+        endif()
+    endif()
+    if(TEST framework_nan_control)
+        # The FVP exits 0 whatever the program returns, so the verdict comes from the output on every target.
+        set_tests_properties(framework_nan_control PROPERTIES
+            PASS_REGULAR_EXPRESSION "NAN-CONTROL PASS"
+            FAIL_REGULAR_EXPRESSION "NAN-CONTROL FAIL")
+    endif()
 endif()
 
 add_test(NAME suite_status_selftest
