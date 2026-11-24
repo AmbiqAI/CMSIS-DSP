@@ -7,14 +7,17 @@ target/gcov_dump.c writes each image's counters to the console as a gcov-tool me
     <hex lines>
     GCOV-END <length> <crc32>
 Each transcript (suite_status.py --transcript) must hold exactly one complete stream whose length and CRC-32
-match. All of them are checked before any is merged, so a run that stopped early, a stream cut short or
-corrupted, or a target that reported GCOV-ERROR leaves the counters as they were and fails the decode. If a
-merge itself fails, every counter file under the build directory is removed, so no partial report follows.
+match, and every object in it must name a .gcda file of this build (one with its .gcno beside it). All of
+them are checked before any is merged, so a run that stopped early, a stream cut short or corrupted, a
+target that reported GCOV-ERROR, or a transcript from another build leaves the counters as they were and
+fails the decode. If a merge itself fails, every counter file under the build directory is removed, so no
+partial report follows.
 """
 import argparse
 import os
 import re
 import shlex
+import struct
 import subprocess
 import sys
 import tempfile
@@ -26,6 +29,11 @@ BEGIN = "GCOV-BEGIN"
 END = re.compile(r"^GCOV-END ([0-9a-f]{8}) ([0-9a-f]{8})$")
 ERROR = "GCOV-ERROR"
 HEX = re.compile(r"^(?:[0-9a-f]{2})+$")
+# libgcov's merge-stream layout (gcov-io.h): per object, a "gcfn" record naming the .gcda file, then the
+# .gcda data: a header and tag/length records, ended by a zero tag. A negative length marks counters that
+# are all zero and carry no payload.
+GCFN_MAGIC = 0x6763666E
+GCDA_MAGIC = 0x67636461
 
 
 class StreamError(Exception):
@@ -60,6 +68,58 @@ def extract(text):
     raise StreamError("no GCOV-END: the stream was cut short")
 
 
+def destinations(data):
+    """Return the .gcda path of each object in a stream, or raise StreamError if the layout is broken."""
+    paths = []
+    offset = 0
+
+    def words(count, what):
+        nonlocal offset
+        if offset + 4 * count > len(data):
+            raise StreamError(f"stream ends inside {what} at byte {offset}")
+        values = struct.unpack_from(f"<{count}I", data, offset)
+        offset += 4 * count
+        return values
+
+    while offset < len(data):
+        magic, version, length = words(3, "a file name record")
+        if magic != GCFN_MAGIC:
+            raise StreamError(f"no file name record at byte {offset - 12}")
+        if offset + length > len(data) or length == 0:
+            raise StreamError(f"file name record at byte {offset - 12} has a bad length {length}")
+        paths.append(data[offset:offset + length].rstrip(b"\0").decode(errors="replace"))
+        offset += length
+        magic, gcda_version, _, _ = words(4, "a .gcda header")
+        if magic != GCDA_MAGIC or gcda_version != version:
+            raise StreamError(f"no .gcda header for {paths[-1]}")
+        while True:
+            (tag,) = words(1, f"the records of {paths[-1]}")
+            if tag == 0:
+                break
+            (size,) = words(1, f"the records of {paths[-1]}")
+            if size < 0x80000000:
+                if offset + size > len(data):
+                    raise StreamError(f"stream ends inside a record of {paths[-1]}")
+                offset += size
+    return paths
+
+
+def check_destinations(paths, build_dir):
+    """Return why the paths do not all belong to this build, or None."""
+    build = os.path.realpath(build_dir) + os.sep
+    for path in paths:
+        if not path.endswith(".gcda") or not os.path.realpath(path).startswith(build):
+            return f"names {path}, which is not a counter file of {build_dir}"
+        if not os.path.isfile(path[:-len(".gcda")] + ".gcno"):
+            return f"names {path}, whose object this build did not compile"
+    return None
+
+
+def tool_command(spec):
+    """An existing path is one argument, spaces and all; anything else is parsed as a command line."""
+    return [spec] if os.path.isfile(spec) else shlex.split(spec)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--gcov-tool", required=True, help="gcov-tool of the compiler that built the images")
@@ -72,7 +132,10 @@ def main(argv=None):
     for path in args.transcripts:
         try:
             with open(path, errors="replace") as transcript:
-                streams.append((path, extract(transcript.read())))
+                data = extract(transcript.read())
+            if problem := check_destinations(destinations(data), args.build_dir):
+                raise StreamError(problem)
+            streams.append((path, data))
         except OSError as exc:
             errors.append(f"{path}: cannot read: {exc.strerror}")
         except StreamError as exc:
@@ -84,15 +147,11 @@ def main(argv=None):
               file=sys.stderr)
         return 1
 
-    if failure := merge(shlex.split(args.gcov_tool), streams):
+    if failure := merge(tool_command(args.gcov_tool), streams):
         partial = list(counter_files(args.build_dir))
         for path in partial:
             os.remove(path)
         print(f"decode_gcov.py: {failure}; removed {len(partial)} counter file(s)", file=sys.stderr)
-        return 1
-    if not any(True for _ in counter_files(args.build_dir)):
-        print(f"decode_gcov.py: the streams wrote no counter file under {args.build_dir}: "
-              "the images come from another build", file=sys.stderr)
         return 1
     return 0
 

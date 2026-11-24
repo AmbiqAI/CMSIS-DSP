@@ -122,8 +122,11 @@ if(CMSISDSP_TEST_COVERAGE)
     if(NOT gcov_status EQUAL 0 OR NOT gcov_version MATCHES "gcov|LLVM")
         message(FATAL_ERROR "CMSISDSP_TEST_GCOV '${CMSISDSP_TEST_GCOV}' is not a working gcov")
     endif()
-    # A gcov from another GCC release cannot read this compiler's data files.
-    if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND NOT gcov_version MATCHES "gcov[^\n]* ${gcc_major}\\.")
+    # A gcov from another GCC release cannot read this compiler's data files: their version names the major
+    # and the minor release.
+    string(REGEX MATCH "^[0-9]+\\.[0-9]+" gcc_release "${CMAKE_C_COMPILER_VERSION}")
+    string(REPLACE "." "\\." gcc_release_regex "${gcc_release}")
+    if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND NOT gcov_version MATCHES "gcov[^\n]* ${gcc_release_regex}\\.")
         message(FATAL_ERROR "CMSISDSP_TEST_GCOV '${CMSISDSP_TEST_GCOV}' does not match GCC ${CMAKE_C_COMPILER_VERSION}")
     endif()
     if(NOT test_target STREQUAL "host")
@@ -137,7 +140,7 @@ if(CMSISDSP_TEST_COVERAGE)
             "gcov-tool that merges the targets' coverage streams")
         execute_process(COMMAND ${CMSISDSP_TEST_GCOV_TOOL} --version
             RESULT_VARIABLE gcov_tool_status OUTPUT_VARIABLE gcov_tool_version ERROR_QUIET)
-        if(NOT gcov_tool_status EQUAL 0 OR NOT gcov_tool_version MATCHES "gcov-tool[^\n]* ${gcc_major}\\.")
+        if(NOT gcov_tool_status EQUAL 0 OR NOT gcov_tool_version MATCHES "gcov-tool[^\n]* ${gcc_release_regex}\\.")
             message(FATAL_ERROR "CMSISDSP_TEST_GCOV_TOOL '${CMSISDSP_TEST_GCOV_TOOL}' is not the gcov-tool of "
                 "GCC ${CMAKE_C_COMPILER_VERSION}")
         endif()

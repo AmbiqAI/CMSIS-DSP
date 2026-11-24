@@ -1,4 +1,6 @@
 import os
+import shlex
+import struct
 import sys
 import tempfile
 import textwrap
@@ -6,7 +8,7 @@ import unittest
 import zlib
 
 import decode_gcov
-from decode_gcov import StreamError, extract
+from decode_gcov import StreamError, destinations, extract
 
 PAYLOAD = bytes(range(200))
 
@@ -83,33 +85,89 @@ class Extract(unittest.TestCase):
         self.rejects(stream(b""), "stream is empty")
 
 
-# Stands in for gcov-tool: merge-stream writes <build>/<name>.gcda for each stream it is given, records the
-# call, and fails when the stream holds the bytes "FAIL".
+VERSION = 0x4234332A  # "B43*", GCC 14.3
+
+
+def gcfn(*paths, records=((0x01000000, b"\0" * 12), (0x01A10000, -16))):
+    """A merge-stream in libgcov's layout: per path, a file name record, a .gcda header and its records. A
+    negative record length is an all-zero counter record without payload."""
+    data = bytearray()
+    for path in paths:
+        name = path.encode() + b"\0" * (4 - len(path.encode()) % 4)
+        data += struct.pack("<III", decode_gcov.GCFN_MAGIC, VERSION, len(name)) + name
+        data += struct.pack("<IIII", decode_gcov.GCDA_MAGIC, VERSION, 0x1234, 0x5678)
+        for tag, payload in records:
+            if isinstance(payload, int):
+                data += struct.pack("<Ii", tag, payload)
+            else:
+                data += struct.pack("<II", tag, len(payload)) + payload
+        data += struct.pack("<I", 0)
+    return bytes(data)
+
+
+class Destinations(unittest.TestCase):
+    def test_every_object(self):
+        self.assertEqual(destinations(gcfn("/b/x.gcda", "/b/y.gcda")), ["/b/x.gcda", "/b/y.gcda"])
+
+    def rejects(self, data, reason):
+        with self.assertRaises(StreamError) as caught:
+            destinations(data)
+        self.assertIn(reason, str(caught.exception))
+
+    def test_cut_inside_a_record(self):
+        data = gcfn("/b/x.gcda")
+        for cut in range(1, len(data)):
+            with self.subTest(cut=cut), self.assertRaises(StreamError):
+                destinations(data[:cut])
+
+    def test_no_file_name_record(self):
+        self.rejects(b"\0" * 16, "no file name record")
+
+    def test_name_longer_than_the_stream(self):
+        self.rejects(struct.pack("<III", decode_gcov.GCFN_MAGIC, VERSION, 400) + b"/b", "bad length")
+
+    def test_versions_differ(self):
+        data = bytearray(gcfn("/b/x.gcda"))
+        struct.pack_into("<I", data, 12 + 12 + 4, VERSION + 1)
+        self.rejects(bytes(data), "no .gcda header")
+
+
+# Stands in for gcov-tool: merge-stream records the call and creates each .gcda file the stream names, and
+# fails when one of them is named FAIL.gcda.
 FAKE_TOOL = textwrap.dedent("""\
-    import os, sys
-    build, log = sys.argv[1], sys.argv[2]
-    command, path = sys.argv[3], sys.argv[4]
-    data = open(path, "rb").read()
+    import sys
+    sys.path.insert(0, sys.argv[1])
+    import decode_gcov
+    log, command, path = sys.argv[2], sys.argv[3], sys.argv[4]
     with open(log, "a") as out:
         out.write(command + "\\n")
-    if data == b"FAIL":
+    names = decode_gcov.destinations(open(path, "rb").read())
+    if any(name.endswith("FAIL.gcda") for name in names):
         sys.stderr.write("merge-stream: bad stream\\n")
         sys.exit(1)
-    open(os.path.join(build, data.decode() + ".gcda"), "w").close()
+    for name in names:
+        open(name, "w").close()
 """)
 
 
 class Main(unittest.TestCase):
     def setUp(self):
-        self.dir = tempfile.TemporaryDirectory()
+        self.dir = tempfile.TemporaryDirectory(prefix="decode gcov ")
         self.addCleanup(self.dir.cleanup)
         self.build = os.path.join(self.dir.name, "build")
-        os.makedirs(self.build)
+        os.makedirs(os.path.join(self.build, "obj"))
         self.log = os.path.join(self.dir.name, "calls.log")
         tool = os.path.join(self.dir.name, "fake_tool.py")
         with open(tool, "w") as out:
             out.write(FAKE_TOOL)
-        self.tool = f"{sys.executable} {tool} {self.build} {self.log}"
+        here = os.path.dirname(os.path.abspath(__file__))
+        self.tool = shlex.join([sys.executable, tool, here, self.log])
+
+    def object(self, name):
+        """The .gcda path of an object this build compiled (its .gcno exists)."""
+        base = os.path.join(self.build, "obj", name)
+        open(base + ".gcno", "w").close()
+        return base + ".gcda"
 
     def transcript(self, name, text):
         path = os.path.join(self.dir.name, name + ".txt")
@@ -117,49 +175,73 @@ class Main(unittest.TestCase):
             out.write(text)
         return path
 
-    def decode(self, *paths):
-        return decode_gcov.main(["--gcov-tool", self.tool, "--build-dir", self.build, *paths])
+    def decode(self, *paths, tool=None):
+        return decode_gcov.main(["--gcov-tool", tool or self.tool, "--build-dir", self.build, *paths])
 
     def calls(self):
         return open(self.log).read().split() if os.path.exists(self.log) else []
 
     def gcda(self):
-        return sorted(name for name in os.listdir(self.build) if name.endswith(".gcda"))
+        return sorted(name for name in os.listdir(os.path.join(self.build, "obj")) if name.endswith(".gcda"))
 
     def test_merges_every_transcript(self):
-        self.assertEqual(self.decode(self.transcript("a", stream(b"a")), self.transcript("b", stream(b"b"))), 0)
+        a = self.transcript("a", stream(gcfn(self.object("a"))))
+        b = self.transcript("b", stream(gcfn(self.object("b"), self.object("c"))))
+        self.assertEqual(self.decode(a, b), 0)
         self.assertEqual(self.calls(), ["merge-stream", "merge-stream"])
-        self.assertEqual(self.gcda(), ["a.gcda", "b.gcda"])
+        self.assertEqual(self.gcda(), ["a.gcda", "b.gcda", "c.gcda"])
 
     def test_one_bad_transcript_merges_nothing(self):
-        good = self.transcript("good", stream(b"a"))
-        bad = self.transcript("bad", stream(b"b").split("GCOV-END")[0])
+        good = self.transcript("good", stream(gcfn(self.object("a"))))
+        bad = self.transcript("bad", stream(gcfn(self.object("b"))).split("GCOV-END")[0])
         self.assertEqual(self.decode(good, bad), 1)
         self.assertEqual(self.calls(), [])
         self.assertEqual(self.gcda(), [])
 
     def test_missing_transcript_merges_nothing(self):
-        self.assertEqual(self.decode(self.transcript("a", stream(b"a")), os.path.join(self.dir.name, "none.txt")), 1)
+        good = self.transcript("a", stream(gcfn(self.object("a"))))
+        self.assertEqual(self.decode(good, os.path.join(self.dir.name, "none.txt")), 1)
+        self.assertEqual(self.calls(), [])
+
+    def test_transcript_of_another_build_merges_nothing(self):
+        other = os.path.join(self.dir.name, "other", "x.gcda")
+        os.makedirs(os.path.dirname(other))
+        open(other[:-5] + ".gcno", "w").close()
+        good = self.transcript("good", stream(gcfn(self.object("a"))))
+        foreign = self.transcript("foreign", stream(gcfn(self.object("b"), other)))
+        self.assertEqual(self.decode(good, foreign), 1)
+        self.assertEqual(self.calls(), [])
+
+    def test_path_that_leaves_the_build(self):
+        escape = os.path.join(self.build, "obj", "..", "..", "x.gcda")
+        open(os.path.join(self.dir.name, "x.gcno"), "w").close()
+        self.assertEqual(self.decode(self.transcript("a", stream(gcfn(escape)))), 1)
+        self.assertEqual(self.calls(), [])
+
+    def test_object_this_build_did_not_compile(self):
+        stale = os.path.join(self.build, "obj", "removed.gcda")
+        self.assertEqual(self.decode(self.transcript("a", stream(gcfn(stale)))), 1)
         self.assertEqual(self.calls(), [])
 
     def test_failed_merge_removes_every_counter_file(self):
-        open(os.path.join(self.build, "earlier.gcda"), "w").close()
-        first = self.transcript("first", stream(b"a"))
-        failing = self.transcript("failing", stream(b"FAIL"))
+        open(os.path.join(self.build, "obj", "earlier.gcda"), "w").close()
+        first = self.transcript("first", stream(gcfn(self.object("a"))))
+        failing = self.transcript("failing", stream(gcfn(self.object("FAIL"))))
         self.assertEqual(self.decode(first, failing), 1)
         self.assertEqual(self.gcda(), [])
 
     def test_missing_gcov_tool(self):
-        result = decode_gcov.main(["--gcov-tool", os.path.join(self.dir.name, "no-gcov-tool"),
-                                   "--build-dir", self.build, self.transcript("a", stream(b"a"))])
-        self.assertEqual(result, 1)
+        good = self.transcript("a", stream(gcfn(self.object("a"))))
+        self.assertEqual(self.decode(good, tool=os.path.join(self.dir.name, "no-gcov-tool")), 1)
 
-    def test_streams_of_another_build(self):
-        other = os.path.join(self.dir.name, "other")
-        os.makedirs(other)
-        result = decode_gcov.main(["--gcov-tool", self.tool, "--build-dir", other,
-                                   self.transcript("a", stream(b"a"))])
-        self.assertEqual(result, 1)
+    def test_tool_path_with_spaces(self):
+        self.assertIn(" ", self.dir.name)
+        tool = os.path.join(self.dir.name, "gcov tool")
+        with open(tool, "w") as out:
+            out.write("#!/bin/sh\nexit 0\n")
+        os.chmod(tool, 0o755)
+        self.assertEqual(decode_gcov.tool_command(tool), [tool])
+        self.assertEqual(decode_gcov.tool_command(self.tool)[0], sys.executable)
 
 
 if __name__ == "__main__":
