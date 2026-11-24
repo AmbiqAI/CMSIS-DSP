@@ -15,15 +15,21 @@
 #define ADP_STOPPED_APPLICATION_EXIT        0x20026UL
 #define ADP_STOPPED_RUN_TIME_ERROR_UNKNOWN  0x20023UL
 
+void target_console_init(void);
 void testmain_hook(void);
 int _write(int file, const char *buffer, int length);
 void _exit(int status);
 
-/* testmain.cpp calls this weak hook before any output. */
-void testmain_hook(void)
+void target_console_init(void)
 {
     UART_BAUDDIV = 16UL;
     UART_CTRL = UART_CTRL_TXEN;
+}
+
+/* testmain.cpp calls this weak hook before any output. */
+void testmain_hook(void)
+{
+    target_console_init();
 }
 
 int _write(int file, const char *buffer, int length)

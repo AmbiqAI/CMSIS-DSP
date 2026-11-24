@@ -179,6 +179,9 @@ if(NOT test_target STREQUAL "host")
     target_link_options(dsp_test_target INTERFACE
         -L${CMAKE_CURRENT_LIST_DIR}/target -T${CMAKE_CURRENT_LIST_DIR}/target/${test_target}_tests.ld
         --specs=nosys.specs -Wl,--gc-sections)
+    # -T and the script's INCLUDE are not dependencies CMake sees; without this an edited layout reuses old images.
+    set_property(TARGET dsp_test_target APPEND PROPERTY INTERFACE_LINK_DEPENDS
+        ${CMAKE_CURRENT_LIST_DIR}/target/${test_target}_tests.ld ${CMAKE_CURRENT_LIST_DIR}/target/tests_sections.ld)
     target_link_libraries(dsp_test_target INTERFACE m)
 endif()
 if(test_target STREQUAL "corstone300")
@@ -332,6 +335,20 @@ if(TEST framework_nan_control)
     set_tests_properties(framework_nan_control PROPERTIES
         PASS_REGULAR_EXPRESSION "NAN-CONTROL PASS"
         FAIL_REGULAR_EXPRESSION "NAN-CONTROL FAIL;E: HardFault")
+endif()
+
+if(NOT test_target STREQUAL "host")
+    # A fault before main(), before testmain_hook() starts the console, must still report and end the run.
+    add_executable(startup_fault_control ${CMAKE_CURRENT_LIST_DIR}/startup_fault_control.c)
+    set_target_properties(startup_fault_control PROPERTIES SUFFIX .elf)
+    target_link_libraries(startup_fault_control PRIVATE dsp_test_target)
+    if(NOT CMSISDSP_TEST_BUILD_ONLY)
+        add_test(NAME startup_fault_control COMMAND ${run_image} $<TARGET_FILE:startup_fault_control>)
+        set_tests_properties(startup_fault_control PROPERTIES
+            TIMEOUT 60
+            PASS_REGULAR_EXPRESSION "E: HardFault"
+            FAIL_REGULAR_EXPRESSION "STARTUP-FAULT-CONTROL REACHED MAIN")
+    endif()
 endif()
 
 add_test(NAME suite_status_selftest
