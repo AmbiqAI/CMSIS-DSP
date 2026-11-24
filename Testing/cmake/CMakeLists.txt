@@ -265,7 +265,6 @@ function(add_dsp_test_suite suite)
     endif()
     generate_suite_sources(${suite} gen)
 
-    # The extra sources come first, so their definitions replace the library's.
     add_executable(${name}
         ${arg_SOURCES}
         ${TESTING_DIR}/main.cpp
@@ -316,6 +315,9 @@ endforeach()
 # caught on the target where it happens.
 add_dsp_test_suite(BasicTestsF32 NAME planted_failure_control EXPECT_FAILURES
     SOURCES ${CMAKE_CURRENT_LIST_DIR}/planted_failure.c)
+# The suite's calls are renamed at compile time, not overridden at link time: with FASTBUILD the library's
+# arm_add_f32 shares an archive member with functions the suite needs, and the two definitions collide.
+target_compile_definitions(planted_failure_control PRIVATE arm_add_f32=planted_arm_add_f32)
 
 add_executable(framework_nan_control ${CMAKE_CURRENT_LIST_DIR}/framework_nan_control.cpp)
 target_compile_options(framework_nan_control PRIVATE ${CMSISDSP_TEST_OPT})
