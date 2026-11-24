@@ -6,6 +6,7 @@
 
 void *_sbrk(ptrdiff_t increment);
 void HardFault_Handler(void);
+void target_console_init(void);
 int _write(int file, const char *buffer, int length);
 void _exit(int status);
 
@@ -30,11 +31,13 @@ void *_sbrk(ptrdiff_t increment)
 }
 
 /* A fault ends the run at once, instead of spinning in the default handler until the run times out. The
- * FVP exits 0 whatever the status, so the line is one suite_status.py fails on: "E: <detail>". */
+ * FVP exits 0 whatever the status, so the line is one suite_status.py fails on: "E: <detail>". The console
+ * is started here too: a fault in SystemInit or a static constructor comes before testmain_hook(). */
 void HardFault_Handler(void)
 {
     static const char message[] = "\nE: HardFault\n";
 
+    target_console_init();
     _write(1, message, (int)sizeof message - 1);
     _exit(1);
 }
