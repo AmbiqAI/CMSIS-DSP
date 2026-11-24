@@ -39,6 +39,15 @@ class Coverage(unittest.TestCase):
         self.assertEqual(self.report(), 1)
         self.assertFalse(os.path.exists(os.path.join(self.dir.name, "out", "c.json")))
 
+    def test_report_without_counters_removes_previous_reports(self):
+        out = os.path.join(self.dir.name, "out")
+        os.makedirs(out)
+        stale = [os.path.join(out, "c.json"), os.path.join(out, "s.json")]
+        for path in stale:
+            open(path, "w").close()
+        self.assertEqual(self.report(), 1)
+        self.assertFalse(any(os.path.exists(path) for path in stale))
+
     def test_gcovr_failure_propagates(self):
         self.touch("a.gcda")
         self.assertNotEqual(self.report(), 0)
@@ -56,6 +65,9 @@ class Coverage(unittest.TestCase):
         self.assertTrue(re.match(excludes[0], os.path.join(root, "Source", "CommonTables", "arm_common_tables.c")))
         self.assertFalse(re.match(filters[0], os.path.join(root, "SourceExtra", "x.c")))
         self.assertEqual(command[command.index("--gcov-executable") + 1], "xcrun llvm-cov gcov")
+        # The only search path is the build directory: by default gcovr also searches --root, which can hold
+        # the counters of another build.
+        self.assertEqual(command[-1], os.path.realpath(self.build))
 
 
 if __name__ == "__main__":

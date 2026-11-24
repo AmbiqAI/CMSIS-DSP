@@ -47,18 +47,21 @@ def gcovr_command(build_dir, root, gcov, output, summary):
             "--exclude", under("Source", "CommonTables"),
             "--json", output,
             "--json-summary", summary,
-            "--print-summary"]
+            "--print-summary",
+            # The only search path: by default gcovr also searches --root, which can hold another build's counters.
+            os.path.realpath(build_dir)]
 
 
 def report(build_dir, root, gcov, output, summary):
-    if not any(True for _ in counter_files(build_dir)):
-        print(f"host_coverage.py: no counter files under {build_dir}: run the tests of a coverage build first",
-              file=sys.stderr)
-        return 1
+    # Old reports go first, so a run that fails here never leaves the previous run's coverage to be collected.
     for path in (output, summary):
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         if os.path.exists(path):
             os.remove(path)
+    if not any(True for _ in counter_files(build_dir)):
+        print(f"host_coverage.py: no counter files under {build_dir}: run the tests of a coverage build first",
+              file=sys.stderr)
+        return 1
     status = subprocess.run(gcovr_command(build_dir, root, gcov, output, summary)).returncode
     if status != 0:
         print(f"host_coverage.py: gcovr exited with status {status}", file=sys.stderr)
