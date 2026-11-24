@@ -10,8 +10,8 @@ Each transcript (suite_status.py --transcript) must hold exactly one complete st
 match, and every object in it must name a .gcda file of this build (one with its .gcno beside it). All of
 them are checked before any is merged, so a run that stopped early, a stream cut short or corrupted, a
 target that reported GCOV-ERROR, or a transcript from another build leaves the counters as they were and
-fails the decode. If a merge itself fails, every counter file under the build directory is removed, so no
-partial report follows.
+fails the decode. If a merge itself fails, or leaves a named .gcda file missing, every counter file under
+the build directory is removed, so no partial report follows.
 """
 import argparse
 import os
@@ -128,14 +128,17 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     streams = []
+    expected = []
     errors = []
     for path in args.transcripts:
         try:
             with open(path, errors="replace") as transcript:
                 data = extract(transcript.read())
-            if problem := check_destinations(destinations(data), args.build_dir):
+            named = destinations(data)
+            if problem := check_destinations(named, args.build_dir):
                 raise StreamError(problem)
             streams.append((path, data))
+            expected.extend(named)
         except OSError as exc:
             errors.append(f"{path}: cannot read: {exc.strerror}")
         except StreamError as exc:
@@ -147,7 +150,10 @@ def main(argv=None):
               file=sys.stderr)
         return 1
 
-    if failure := merge(tool_command(args.gcov_tool), streams):
+    failure = merge(tool_command(args.gcov_tool), streams)
+    if not failure and (missing := [path for path in expected if not os.path.isfile(path)]):
+        failure = f"gcov-tool wrote no {missing[0]} ({len(missing)} of {len(expected)} counter files missing)"
+    if failure:
         partial = list(counter_files(args.build_dir))
         for path in partial:
             os.remove(path)

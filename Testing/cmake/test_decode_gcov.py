@@ -230,6 +230,24 @@ class Main(unittest.TestCase):
         self.assertEqual(self.decode(first, failing), 1)
         self.assertEqual(self.gcda(), [])
 
+    def tool_that_writes(self, count):
+        """A gcov-tool that succeeds but writes only the first count files a stream names."""
+        tool = os.path.join(self.dir.name, f"writes_{count}.py")
+        with open(tool, "w") as out:
+            out.write(FAKE_TOOL.replace("for name in names:", f"for name in names[:{count}]:"))
+        here = os.path.dirname(os.path.abspath(__file__))
+        return shlex.join([sys.executable, tool, here, self.log])
+
+    def test_merge_that_writes_nothing(self):
+        good = self.transcript("a", stream(gcfn(self.object("a"))))
+        self.assertEqual(self.decode(good, tool=self.tool_that_writes(0)), 1)
+        self.assertEqual(self.calls(), ["merge-stream"])
+
+    def test_merge_that_writes_some_files(self):
+        good = self.transcript("a", stream(gcfn(self.object("a"), self.object("b"))))
+        self.assertEqual(self.decode(good, tool=self.tool_that_writes(1)), 1)
+        self.assertEqual(self.gcda(), [])
+
     def test_missing_gcov_tool(self):
         good = self.transcript("a", stream(gcfn(self.object("a"))))
         self.assertEqual(self.decode(good, tool=os.path.join(self.dir.name, "no-gcov-tool")), 1)
