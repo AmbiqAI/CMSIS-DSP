@@ -487,3 +487,8 @@ add_test(NAME suite_status_selftest
     COMMAND Python3::Interpreter -m unittest -v test_suite_status test_generate_suite test_host_coverage
             test_decode_gcov
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+
+# The gate's own tests need no coverage build; they make their reports and a Git checkout themselves.
+add_test(NAME coverage_gate_selftest
+    COMMAND Python3::Interpreter -m unittest -v test_coverage_gate
+    WORKING_DIRECTORY ${TESTING_DIR}/coverage)
