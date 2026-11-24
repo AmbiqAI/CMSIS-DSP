@@ -438,6 +438,12 @@ elseif(test_target STREQUAL "host" OR NOT CMSISDSP_TEST_BUILD_ONLY)
         set_tests_properties(coverage_report PROPERTIES DEPENDS coverage_decode)
     endif()
 endif()
+if(CMSISDSP_TEST_COVERAGE)
+    # Runs gcovr, which configure checks only in coverage builds.
+    add_test(NAME coverage_merge_selftest
+        COMMAND Python3::Interpreter -m unittest -v test_merge
+        WORKING_DIRECTORY ${TESTING_DIR}/coverage)
+endif()
 
 # The NaN control checks the framework at the build's flags. A coverage build (-O0, no fast-math) leaves it
 # out, like the planted-failure control, so its runs never count as coverage.
