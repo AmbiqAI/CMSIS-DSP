@@ -13,18 +13,25 @@ E:
 S: p
 S: p
 """
+ONE_FAILED = GOOD.replace("S: 2 0 0 0 Y\nE: ", "S: 2 3 117 0 N\nE: 12 >= 15")
+
+
+def run_printing(output, status=0):
+    return [sys.executable, "-c", f"import sys; print({output!r}); sys.exit({status})"]
 
 
 class Verdict(unittest.TestCase):
     def test_all_passed(self):
-        self.assertEqual(verdict(GOOD, 0), (2, 0, []))
+        self.assertEqual(verdict(GOOD, 0), (2, [], []))
 
     def test_failed_test(self):
-        out = GOOD.replace("S: 2 0 0 0 Y\nE: ", "S: 2 3 117 0 N\nE: 12 >= 15")
-        passed, failed, problems = verdict(out, 0)
-        self.assertEqual((passed, failed), (1, 1))
-        self.assertIn("test 2 failed: error 3 at line 117", problems)
-        self.assertIn("error detail: 12 >= 15", problems)
+        self.assertEqual(verdict(ONE_FAILED, 0),
+                         (1, ["test 2 failed: error 3 at line 117", "error detail: 12 >= 15"], []))
+
+    def test_only_failures_still_report_a_status(self):
+        out = ONE_FAILED.replace("S: 1 0 0 t Y", "S: 1 2 40 0 N")
+        passed, failures, problems = verdict(out, 0)
+        self.assertEqual((passed, len(failures), problems), (0, 3, []))
 
     def test_stopped_early(self):
         out = GOOD.rsplit("S: p", 1)[0]
@@ -38,7 +45,7 @@ class Verdict(unittest.TestCase):
 
     def test_fault_after_a_passing_transcript(self):
         # The fault handler's line, as target/runtime.c prints it; the FVP still exits 0.
-        self.assertIn("error detail: HardFault", verdict(GOOD + "\nE: HardFault\n", 0)[2])
+        self.assertIn("target reported a HardFault", verdict(GOOD + "\nE: HardFault\n", 0)[2])
 
     def test_nonzero_exit(self):
         self.assertIn("exit status -11", verdict(GOOD, -11)[2])
@@ -54,7 +61,10 @@ class Verdict(unittest.TestCase):
 
 class Main(unittest.TestCase):
     def test_passing_command(self):
-        self.assertEqual(main(["--", sys.executable, "-c", f"print({GOOD!r})"]), 0)
+        self.assertEqual(main(["--", *run_printing(GOOD)]), 0)
+
+    def test_failed_test_fails_the_run(self):
+        self.assertEqual(main(["--", *run_printing(ONE_FAILED)]), 1)
 
     def test_failing_command(self):
         self.assertEqual(main(["--", sys.executable, "-c", "import sys; sys.exit(3)"]), 1)
@@ -64,6 +74,36 @@ class Main(unittest.TestCase):
 
     def test_missing_executable(self):
         self.assertEqual(main(["--", "/nonexistent/suite"]), 1)
+
+
+class ExpectFailures(unittest.TestCase):
+    def control(self, output, status=0):
+        return main(["--expect-failures", "--", *run_printing(output, status)])
+
+    def test_control_that_catches_the_failure(self):
+        self.assertEqual(self.control(ONE_FAILED), 0)
+
+    def test_control_without_a_failure(self):
+        self.assertEqual(self.control(GOOD), 1)
+
+    def test_control_without_a_pass(self):
+        self.assertEqual(self.control(ONE_FAILED.replace("S: 1 0 0 t Y", "S: 1 2 40 0 N")), 1)
+
+    def test_control_that_crashed(self):
+        self.assertEqual(self.control(ONE_FAILED, status=3), 1)
+
+    def test_control_that_stopped_early(self):
+        self.assertEqual(self.control(ONE_FAILED.rsplit("S: p", 1)[0]), 1)
+
+    def test_control_that_faulted(self):
+        self.assertEqual(self.control(ONE_FAILED + "E: HardFault\n"), 1)
+
+    def test_control_with_fatal_message(self):
+        self.assertEqual(self.control(ONE_FAILED + "NOT ENOUGH MEMORY\n"), 1)
+
+    def test_control_timeout(self):
+        command = [sys.executable, "-c", "import time; time.sleep(5)"]
+        self.assertEqual(main(["--expect-failures", "--timeout", "0.5", "--", *command]), 1)
 
 
 if __name__ == "__main__":
