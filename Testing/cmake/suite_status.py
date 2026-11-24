@@ -19,6 +19,8 @@ FAILED = re.compile(r"^S: (\d+) (\d+) (\d+) 0 N$")
 OPEN = re.compile(r"^S: [gs] \d+$")
 CLOSE = "S: p"
 FATAL = ("Exception", "NOT ENOUGH MEMORY")
+# target/runtime.c prints this when a fault ends the run; it makes the run unsound, not a failed test.
+FAULT = "E: HardFault"
 
 
 def verdict(output, returncode):
@@ -36,6 +38,8 @@ def verdict(output, returncode):
             passed += 1
         elif m := FAILED.match(line):
             failures.append(f"test {m.group(1)} failed: error {m.group(2)} at line {m.group(3)}")
+        elif line == FAULT:
+            problems.append("target reported a HardFault")
         elif line.startswith("E:"):
             if detail := line[2:].strip():
                 failures.append(f"error detail: {detail}")

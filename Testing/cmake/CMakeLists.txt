@@ -403,7 +403,7 @@ if(NOT CMSISDSP_TEST_COVERAGE)
         # The FVP exits 0 whatever the program returns, so the verdict comes from the output on every target.
         set_tests_properties(framework_nan_control PROPERTIES
             PASS_REGULAR_EXPRESSION "NAN-CONTROL PASS"
-            FAIL_REGULAR_EXPRESSION "NAN-CONTROL FAIL")
+            FAIL_REGULAR_EXPRESSION "NAN-CONTROL FAIL;E: HardFault")
     endif()
 endif()
 
