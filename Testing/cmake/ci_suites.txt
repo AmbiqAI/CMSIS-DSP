@@ -1,0 +1,5 @@
+# Suites the Ambiq pull-request CI runs (.github/workflows/ambiq-tests.yml), one class per line. The host
+# variants run all of them; the target variants run those the changed files map to (ci_plan.py). A suite
+# group joins here in the PR that enables it.
+BasicTestsF32
+BasicTestsQ31

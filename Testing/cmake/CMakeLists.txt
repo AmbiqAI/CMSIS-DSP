@@ -495,7 +495,7 @@ add_test(NAME suite_status_selftest
             test_decode_gcov
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
-# The inventory reads the sources as text, so its tests need no coverage build.
+# The inventory and the CI plan read the sources as text, so their tests need no coverage build.
 add_test(NAME coverage_inventory_selftest
-    COMMAND Python3::Interpreter -m unittest -v test_inventory
+    COMMAND Python3::Interpreter -m unittest -v test_inventory test_ci_plan
     WORKING_DIRECTORY ${TESTING_DIR}/coverage)

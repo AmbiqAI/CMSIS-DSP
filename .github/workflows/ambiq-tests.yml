@@ -1,0 +1,183 @@
+name: Ambiq tests
+
+# Every pull request to ambiq/integration, with no path filter: the host variants run every suite in
+# Testing/cmake/ci_suites.txt, the target variants run those the changed files map to, and the coverage
+# gate judges the lines the pull request changed against the merged report of all of them.
+on:
+  pull_request:
+    branches: [ambiq/integration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ambiq-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The toolchain, CMSIS_6 and Cortex_DFP the target variants were verified with.
+  ARM_GCC_URL: https://artifacts.tools.arm.com/arm-none-eabi-gcc/14.3.1/arm-gnu-toolchain-x86_64-arm-none-eabi.tar.xz
+  CMSIS_6_REF: 8753b993c7544f0329b2ccc61bfbc967fdb3b112
+  CORTEX_DFP_REF: v1.2.0
+  BASE_REF: ${{ github.base_ref || 'ambiq/integration' }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      host_suites: ${{ steps.plan.outputs.host_suites }}
+      target_suites: ${{ steps.plan.outputs.target_suites }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Choose the suites
+        id: plan
+        run: python Testing/coverage/ci_plan.py --root . --diff-base "origin/$BASE_REF" --output "$GITHUB_OUTPUT"
+
+  host:
+    needs: plan
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [A, B, C, I]
+    name: host ${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: Testing/requirements-ci.txt
+      - name: Install the Python packages
+        run: pip install -r Testing/requirements-ci.txt
+      - name: Import every pattern generator dependency
+        run: |
+          python -c "import statsmodels.api, statsmodels.tsa.stattools, sklearn, pyquaternion, matplotlib.pyplot
+          from scipy.interpolate import interp2d"
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Configure
+        run: >
+          cmake -G Ninja -S Testing/cmake -B build -DPython3_EXECUTABLE="$(which python)"
+          -DCMSISDSP_TEST_VARIANT=${{ matrix.variant }} -DCMSISDSP_TEST_COVERAGE=ON
+          "-DCMSISDSP_TEST_SUITES=${{ needs.plan.outputs.host_suites }}"
+      - name: Build
+        run: cmake --build build -j "$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.variant }}
+          path: build/coverage/coverage-${{ matrix.variant }}.json
+          if-no-files-found: error
+
+  target:
+    needs: plan
+    if: needs.plan.outputs.target_suites != ''
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [D, E, F, G, H]
+    name: target ${{ matrix.variant }}
+    env:
+      ON_QEMU: ${{ contains(fromJSON('["D", "E"]'), matrix.variant) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ARM-software/CMSIS_6
+          ref: ${{ env.CMSIS_6_REF }}
+          path: ci-deps/CMSIS_6
+      - uses: actions/checkout@v4
+        with:
+          repository: ARM-software/Cortex_DFP
+          ref: ${{ env.CORTEX_DFP_REF }}
+          path: ci-deps/Cortex_DFP
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: Testing/requirements-ci.txt
+      - name: Install the Python packages
+        run: pip install -r Testing/requirements-ci.txt
+      - name: Install the Arm GNU toolchain
+        run: |
+          mkdir -p "$RUNNER_TEMP/arm-gcc"
+          curl -sSfL "$ARM_GCC_URL" | tar -xJ -C "$RUNNER_TEMP/arm-gcc" --strip-components=1
+          echo "ARM_GCC_ROOT=$RUNNER_TEMP/arm-gcc" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/arm-gcc/bin/arm-none-eabi-gcc" --version | head -1
+      - name: Install Ninja and QEMU
+        run: |
+          packages=(ninja-build)
+          if [ "$ON_QEMU" = true ]; then packages+=(qemu-system-arm); fi
+          sudo apt-get update
+          sudo apt-get install -y "${packages[@]}"
+      - name: Install the Corstone-300 FVP
+        if: env.ON_QEMU != 'true'
+        uses: ARM-software/cmsis-actions/vcpkg@v1
+        with:
+          config: ./Testing/cmake/vcpkg-configuration.json
+          cache: -ambiq-tests
+      - name: Configure
+        run: |
+          model=()
+          if [ "$ON_QEMU" != true ]; then
+            fvp="$AVH_FVP_PLUGINS/../bin/FVP_Corstone_SSE-300_Ethos-U55"
+            test -x "$fvp" || { echo "no Corstone-300 FVP at $fvp"; exit 1; }
+            model=("-DCORSTONE300_FVP=$fvp")
+          fi
+          cmake -G Ninja -S Testing/cmake -B build -DPython3_EXECUTABLE="$(which python)" \
+            -DCMAKE_TOOLCHAIN_FILE=Testing/cmake/toolchains/arm-none-eabi-gcc.cmake \
+            -DCMSISDSP_TEST_VARIANT=${{ matrix.variant }} -DCMSISDSP_TEST_COVERAGE=ON \
+            "-DCMSISDSP_TEST_SUITES=${{ needs.plan.outputs.target_suites }}" \
+            -DCMSIS_CORE="$PWD/ci-deps/CMSIS_6/CMSIS/Core" -DCORTEX_DFP="$PWD/ci-deps/Cortex_DFP" "${model[@]}"
+      - name: Build
+        run: cmake --build build -j "$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j "$(nproc)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.variant }}
+          path: build/coverage/coverage-${{ matrix.variant }}.json
+          if-no-files-found: error
+
+  gate:
+    needs: [plan, host, target]
+    # The target variants are skipped when no change maps to a suite; any other result fails the gate.
+    if: >
+      always() && needs.plan.result == 'success' && needs.host.result == 'success' &&
+      (needs.target.result == 'success' || needs.target.result == 'skipped')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: Testing/requirements-ci.txt
+      - name: Install the Python packages
+        run: pip install -r Testing/requirements-ci.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: reports
+          merge-multiple: true
+      - name: Merge the variants' reports
+        run: python Testing/coverage/merge.py --root . --output-dir merged reports/coverage-*.json
+      - name: Gate the changed lines
+        run: python Testing/coverage/coverage_gate.py check --report merged/coverage.json --root . --diff-base "origin/$BASE_REF"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-merged
+          path: merged
+          if-no-files-found: ignore
