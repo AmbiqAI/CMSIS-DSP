@@ -27,8 +27,9 @@ jobs:
         include:
           - os: ubuntu-24.04
             cc: gcc-14
-          - os: macos-14
-            cc: clang
+          # No macOS runners are available to this repository; macOS clang is checked locally.
+          - os: ubuntu-24.04
+            cc: clang-18
     runs-on: ${{ matrix.os }}
     name: host reference (${{ matrix.os }}, ${{ matrix.cc }})
     env:
@@ -44,12 +45,8 @@ jobs:
         with:
           python-version: '3.12'
       - uses: astral-sh/setup-uv@v6
-      - name: Install Ninja and GCC 14
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ninja-build gcc-14
-      - name: Install Ninja
-        if: runner.os == 'macOS'
-        run: brew install ninja
+      - name: Install Ninja and the compiler
+        run: sudo apt-get update && sudo apt-get install -y ninja-build ${{ matrix.cc }}
       - name: Test the host reference
         env:
           HCT_ROOT: ${{ github.workspace }}/.hct
