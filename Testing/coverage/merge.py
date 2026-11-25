@@ -14,8 +14,9 @@ never leaves an old report behind.
   variant that compiles it.
 - Each variant may appear once, and every report must hold only the scope of the gate: Source/ without
   CommonTables, plus Include/dsp/.
-- gcovr 8.4 cannot merge reports from llvm-cov (macOS) with reports from GCC in this mode, so all reports
-  must come from the same one.
+- gcovr 8.4 cannot merge, in this mode, reports whose functions carry start and end positions (GCC 14
+  and later) with reports whose functions do not (llvm-cov, and GCC 13 and earlier), so all reports must be
+  of one kind.
 """
 import argparse
 import json
@@ -61,13 +62,17 @@ def read_report(path):
     outside = [entry.get("file") for entry in data["files"] if not in_scope(entry.get("file"))]
     if outside:
         raise ReportError(f"{path}: {len(outside)} file(s) outside the scope, first {outside[0]}")
-    # GCC's gcov gives each function its start and end ("pos"); llvm-cov gives none.
+    # gcov from GCC 14 and later gives each function its start and end ("pos"); llvm-cov and older GCC do not.
     kinds = {"pos" in function for entry in data["files"] for function in entry.get("functions", [])}
     if not kinds:
         raise ReportError(f"{path}: the report lists no function")
     if len(kinds) > 1:
-        raise ReportError(f"{path}: mixes functions from GCC and llvm-cov")
-    return match.group(1), "GCC" if kinds == {True} else "llvm-cov"
+        raise ReportError(f"{path}: mixes functions with and without positions")
+    return match.group(1), POSITIONED if kinds == {True} else UNPOSITIONED
+
+
+POSITIONED = "with positions (GCC 14 or later)"
+UNPOSITIONED = "without positions (llvm-cov, or GCC 13 or earlier)"
 
 
 def gcovr_command(root, reports, output_dir):
@@ -114,7 +119,7 @@ def main(argv=None):
         variants.setdefault(variant, report)
         producers.setdefault(producer, report)
     if len(producers) > 1:
-        errors.append("reports from GCC and llvm-cov cannot be merged: " +
+        errors.append("reports with and without function positions cannot be merged: " +
                       ", ".join(f"{producer} ({report})" for producer, report in sorted(producers.items())))
     if errors:
         for error in errors:

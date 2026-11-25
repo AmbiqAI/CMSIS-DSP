@@ -60,11 +60,13 @@ jobs:
         run: |
           python -c "import statsmodels.api, statsmodels.tsa.stattools, sklearn, pyquaternion, matplotlib.pyplot
           from scipy.interpolate import interp2d"
-      - name: Install Ninja
-        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      # GCC 14, as on the targets: gcovr cannot merge GCC 13's reports, which lack function positions, with them.
+      - name: Install Ninja and GCC 14
+        run: sudo apt-get update && sudo apt-get install -y ninja-build gcc-14 g++-14
       - name: Configure
         run: >
           cmake -G Ninja -S Testing/cmake -B build -DPython3_EXECUTABLE="$(which python)"
+          -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14
           -DCMSISDSP_TEST_VARIANT=${{ matrix.variant }} -DCMSISDSP_TEST_COVERAGE=ON
           "-DCMSISDSP_TEST_SUITES=${{ needs.plan.outputs.host_suites }}"
       - name: Build
