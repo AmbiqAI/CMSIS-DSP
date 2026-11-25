@@ -20,8 +20,10 @@ set(HOST_REFERENCE_PATH_MACROS
     ARM_MATH_DSP ARM_MATH_MVEI ARM_MATH_MVEF ARM_MATH_HELIUM ARM_MATH_MVE_FLOAT16 ARM_MATH_AUTOVECTORIZE
     ARM_MATH_NEON ARM_MATH_NEON_EXPERIMENTAL ARM_MATH_NEON_FLOAT16 ARM_MATH_LOOPUNROLL
     __ARM_FEATURE_DSP __ARM_FEATURE_MVE)
+# Flags that let the compiler change IEEE results (signed zeros, NaN and infinity handling, rounding of
+# intermediates, reassociation, approximate functions); later -fno-fast-math does not undo all of them.
 set(HOST_REFERENCE_UNSAFE_FP
-    "(^|[ ;])(-Ofast|-ffast-math|-funsafe-math-optimizations|-fassociative-math|-freciprocal-math|-ffinite-math-only|-ffp-contract=(fast|on))([ ;]|$)")
+    "(^|[ ;])(-Ofast|-ffast-math|-funsafe-math-optimizations|-fassociative-math|-freciprocal-math|-ffinite-math-only|-ffp-contract=(fast|on)|-fno-signed-zeros|-fno-honor-nans|-fno-honor-infinities|-fexcess-precision=fast|-fcx-limited-range|-fcx-fortran-rules|-fapprox-func|-ffp-model=(fast|aggressive)|-mrecip(=[^ ;]*)?)([ ;]|$)")
 # Source/ options that change what the reference computes or builds; each must be OFF. ROUNDING and
 # MATRIXCHECK change results and status codes, and the manifest cannot say they were set.
 set(HOST_REFERENCE_OFF_OPTIONS

@@ -8,6 +8,7 @@ HCT_REQUIRED=1 that check must run.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -21,6 +22,8 @@ MANIFEST = "cmsis_dsp_host_reference.json"
 GENERATOR = ["-G", "Ninja"] if shutil.which("ninja") else []
 REFUSAL = "CMSIS-DSP host reference:"
 FP_OPTIONS = ["-O2", "-ffp-contract=off", "-fno-fast-math"]
+OFF_OPTIONS = ["HELIUM", "HELIUMEXPERIMENTAL", "MVEF", "MVEI", "MVEFLOAT16", "NEON", "NEONEXPERIMENTAL",
+               "AUTOVECTORIZE", "LOOPUNROLL", "DISABLEFLOAT16", "FASTBUILD", "ROUNDING", "MATRIXCHECK"]
 PATH_MACROS = ["ARM_MATH_DSP", "ARM_MATH_MVEI", "ARM_MATH_MVEF", "ARM_MATH_HELIUM", "ARM_MATH_MVE_FLOAT16",
                "ARM_MATH_AUTOVECTORIZE", "ARM_MATH_NEON", "ARM_MATH_NEON_EXPERIMENTAL", "ARM_MATH_NEON_FLOAT16",
                "ARM_MATH_LOOPUNROLL", "__ARM_FEATURE_DSP", "__ARM_FEATURE_MVE"]
@@ -33,6 +36,14 @@ def configure(build, *args):
 
 def run(*cmd):
     return subprocess.run([str(c) for c in cmd], text=True, capture_output=True, check=False)
+
+
+def accepts(flag):
+    """True when the host C compiler compiles a trivial file with `flag`."""
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "empty.c"
+        source.write_text("int main(void) { return 0; }\n")
+        return run(os.environ.get("CC", "cc"), flag, "-c", source, "-o", Path(tmp) / "empty.o").returncode == 0
 
 
 class HostReferenceBuildTest(unittest.TestCase):
@@ -93,8 +104,9 @@ class HostReferenceBuildTest(unittest.TestCase):
 
     def test_the_archive_holds_every_family_and_the_f16_kernels(self):
         symbols = run("nm", self.manifest["archive"]).stdout
+        # The type and name are the last two fields, whatever nm prints before them (address, member name).
         defined = {line.split()[-1].lstrip("_") for line in symbols.splitlines()
-                   if len(line.split()) == 3 and line.split()[1] in ("T", "S", "R", "D")}
+                   if len(line.split()) >= 2 and line.split()[-2] in ("T", "S", "R", "D")}
         for name in ("arm_add_f32", "arm_add_f16", "arm_add_q15", "arm_mat_mult_f32", "arm_fir_f32",
                      "arm_rfft_fast_f32", "cmsis_dsp_host_reference"):
             self.assertIn(name, defined)
@@ -142,9 +154,13 @@ class HostReferenceRefusalTest(unittest.TestCase):
         self.assertIn(REFUSAL, output)
         self.assertIn(message, " ".join(output.split()))
 
+    def test_every_refused_option_is_tested(self):
+        text = (PROJECT / "CMakeLists.txt").read_text()
+        listed = re.search(r"set\(HOST_REFERENCE_OFF_OPTIONS([^)]*)\)", text).group(1).split()
+        self.assertEqual(sorted(listed), sorted(OFF_OPTIONS))
+
     def test_a_code_path_option(self):
-        for option in ("HELIUM", "MVEI", "MVEF", "NEON", "AUTOVECTORIZE", "LOOPUNROLL", "DISABLEFLOAT16", "FASTBUILD",
-                       "ROUNDING", "MATRIXCHECK"):
+        for option in OFF_OPTIONS:
             with self.subTest(option=option):
                 self.refuses([f"-D{option}=ON"], f"{option}=ON changes what the reference computes or builds")
 
@@ -152,9 +168,18 @@ class HostReferenceRefusalTest(unittest.TestCase):
         self.refuses(["-DCMSISDSP_HOST_REFERENCE=OFF"], "this project only builds the host reference")
 
     def test_unsafe_floating_point_flags(self):
-        for flag in ("-ffast-math", "-Ofast", "-ffp-contract=fast", "-funsafe-math-optimizations"):
+        for flag in ("-ffast-math", "-Ofast", "-ffp-contract=fast", "-ffp-contract=on", "-funsafe-math-optimizations",
+                     "-fassociative-math", "-freciprocal-math", "-ffinite-math-only", "-fno-signed-zeros",
+                     "-fno-honor-nans", "-fno-honor-infinities", "-fexcess-precision=fast", "-fcx-limited-range",
+                     "-fcx-fortran-rules", "-fapprox-func", "-ffp-model=fast", "-ffp-model=aggressive", "-mrecip",
+                     "-mrecip=all"):
             with self.subTest(flag=flag):
-                self.refuses([f"-DCMAKE_C_FLAGS={flag}"], f"CMAKE_C_FLAGS contains '{flag}'")
+                if accepts(flag):
+                    self.refuses([f"-DCMAKE_C_FLAGS={flag}"], f"CMAKE_C_FLAGS contains '{flag}'")
+                else:
+                    # A flag this compiler rejects already fails CMake's compiler check.
+                    with tempfile.TemporaryDirectory() as tmp:
+                        self.assertNotEqual(configure(Path(tmp) / "build", f"-DCMAKE_C_FLAGS={flag}").returncode, 0)
         self.refuses(["-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_C_FLAGS_RELEASE=-O3 -ffast-math"],
                      "CMAKE_C_FLAGS_RELEASE contains '-ffast-math'")
 
