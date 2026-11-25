@@ -334,11 +334,13 @@ def check(files, waivers, baseline, changed=None, removed=()):
             failures.append(f"{path}: branch coverage {coverage.branch_percent():.4f}% ({covered}/{total}) "
                             f"is below its baseline {baseline[path]:.4f}%")
     if changed is not None:
-        # A changed source file that no variant compiled has lines no report can show as run.
+        # A changed source file that no variant compiled has lines no report can show as run. That holds for a
+        # rename or a deletion-only edit too: either can drop the file from the build.
         for path in sorted(set(changed) - set(files)):
-            if path.endswith(".c") and changed[path] and not any(w.file == path and not w.function and not w.lines
-                                                                  for w in waivers):
+            if path.endswith(".c") and not any(w.file == path and not w.function and not w.lines for w in waivers):
                 failures.append(f"{path}: changed, but no variant compiled it")
+            if path in baseline:
+                failures.append(f"{path}: changed and has a baseline, but is not in the report")
             for waiver in waivers:
                 if waiver.file == path and not waiver.function and not waiver.lines:
                     waiver.used = True

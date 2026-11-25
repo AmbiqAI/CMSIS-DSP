@@ -349,6 +349,21 @@ class Diff(Gate):
         self.change(SUB, 31)
         self.fails(add_file(), extra=self.diff(), said=(f"{SUB}: changed, but no variant compiled it",))
 
+    def test_deletion_only_edit_of_a_file_no_variant_compiled(self):
+        lines = open(os.path.join(self.dir.name, SUB)).read().splitlines()
+        self.write(SUB, lines[:30] + lines[31:])
+        self.commit("delete a line")
+        self.fails(add_file(), extra=self.diff(), said=(f"{SUB}: changed, but no variant compiled it",))
+
+    def test_renamed_file_no_variant_compiled(self):
+        moved = "Source/BasicMathFunctions/arm_sub_f32_moved.c"
+        self.git("mv", SUB, moved)
+        self.commit("rename")
+        self.path("branch_baseline.json", json.dumps({moved: 10}))
+        self.fails(add_file(), extra=self.diff(), said=(f"{moved}: changed, but no variant compiled it",
+                                                        f"{moved}: changed and has a baseline, but is not in the "
+                                                        "report"))
+
     def test_changed_file_no_variant_compiled_is_waived(self):
         self.waive({"file": SUB, "reason": "Neon only."})
         self.change(SUB, 31)
