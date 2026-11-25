@@ -177,9 +177,24 @@ def _split_params(text):
     return [] if params in ([""], ["void"]) else params
 
 
+_QUALIFIERS = frozenset({"extern", "static", "inline", "__STATIC_INLINE", "__STATIC_FORCEINLINE"})
+
+
+def c_tokens(text):
+    """A C type as tokens, so spacing around `*` does not matter."""
+    return tuple(re.findall(r"\w+|\S", text))
+
+
+def _return_text(live, start):
+    before = live[:start]
+    cut = max(before.rfind(";"), before.rfind("}"), before.rfind("{"))
+    words = " ".join(line for line in before[cut + 1:].split("\n") if not line.strip().startswith("#")).split()
+    return " ".join(word for word in words if word not in _QUALIFIERS)
+
+
 def scan_header(path, relpath):
-    """{name: (line, guards, [parameter text])} for each top-level declaration of an arm_ function
-    the exported build compiles."""
+    """{name: (line, guards, [parameter text], return type)} for each top-level declaration of an
+    arm_ function the exported build compiles."""
     try:
         with open(path, encoding="utf-8") as handle:
             text = handle.read()
@@ -214,7 +229,8 @@ def scan_header(path, relpath):
         if name in found:
             raise ExportError("%s:%d: %s is declared twice in the exported build (first at line %d)"
                               % (relpath, line, name, found[name][0]))
-        found[name] = (line, list(state[line - 1][1]), _split_params(live[match.end():close - 1]))
+        found[name] = (line, list(state[line - 1][1]), _split_params(live[match.end():close - 1]),
+                       _return_text(live, match.start()))
     return found
 
 
@@ -292,9 +308,12 @@ def load_overrides(path=OVERRIDES):
     return overrides
 
 
-def _param_name(text):
-    match = re.search(r"(\w+)\s*(\[[^\]]*\])*\s*$", text)
-    return match.group(1) if match else ""
+def _param_parts(text):
+    """(type, name, extent) of a header parameter's text."""
+    match = re.search(r"(\w+)\s*((?:\[[^\]]*\])*)\s*$", text)
+    if match is None:
+        return text, "", ""
+    return text[:match.start()].strip(), match.group(1), "".join(match.group(2).split())
 
 
 def build(root, xml_dir, overrides):
@@ -304,7 +323,7 @@ def build(root, xml_dir, overrides):
     for pattern in HEADER_PATTERNS:
         for path in sorted(glob.glob(os.path.join(root, pattern))):
             relpath = os.path.relpath(path, root).replace(os.sep, "/")
-            for name, (line, guards, header_params) in scan_header(path, relpath).items():
+            for name, (line, guards, header_params, header_returns) in scan_header(path, relpath).items():
                 candidates = doxygen.get(name)
                 if not candidates:
                     problems.append("%s:%d: %s is not in Doxygen's output" % (relpath, line, name))
@@ -314,10 +333,22 @@ def build(root, xml_dir, overrides):
                     problems.append("%s: Doxygen has %d different signatures for it" % (name, len(shapes)))
                     continue
                 returns, params, _, _ = candidates[0]
-                names = [_param_name(text) for text in header_params]
+                parts = [_param_parts(text) for text in header_params]
+                names = [part[1] for part in parts]
                 if len(names) != len(params):
                     problems.append("%s:%d: %s has %d parameters in the header and %d in Doxygen"
                                     % (relpath, line, name, len(names), len(params)))
+                    continue
+                if c_tokens(header_returns) != c_tokens(returns):
+                    problems.append("%s:%d: %s returns %r in the header and %r in Doxygen"
+                                    % (relpath, line, name, header_returns, returns))
+                    continue
+                mismatched = ["%s %r in the header, %r in Doxygen" % (h_name, h_type + h_extent, c_type + (extent or ""))
+                              for (h_type, h_name, h_extent), (_, c_type, extent) in zip(parts, params)
+                              if c_tokens(h_type) != c_tokens(c_type) or h_extent != "".join((extent or "").split())]
+                if mismatched:
+                    problems.append("%s:%d: %s: parameter types differ: %s"
+                                    % (relpath, line, name, "; ".join(mismatched)))
                     continue
                 directions = {}
                 for candidate in candidates:

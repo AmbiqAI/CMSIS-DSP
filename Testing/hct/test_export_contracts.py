@@ -97,15 +97,22 @@ class ScanTest(unittest.TestCase):
         self.assertEqual(sorted(found), ["arm_half_f16", "arm_inline_q31", "arm_mve_init_f16", "arm_plain_f32",
                                          "arm_split_f32"])
         self.assertEqual(found["arm_plain_f32"], (9, [], ["const float32_t *pSrc", "float32_t *pDst",
-                                                          "uint32_t blockSize"]))
+                                                          "uint32_t blockSize"], "void"))
         self.assertEqual(found["arm_split_f32"][:2], (15, []))
         self.assertEqual(len(found["arm_split_f32"][2]), 2)
         self.assertEqual(found["arm_half_f16"], (18, ["defined(ARM_FLOAT16_SUPPORTED)"],
-                                                 ["const float16_t *pSrc", "float16_t *pDst"]))
+                                                 ["const float16_t *pSrc", "float16_t *pDst"], "void"))
         self.assertEqual(found["arm_mve_init_f16"], (21, ["defined(ARM_FLOAT16_SUPPORTED)",
                                                           "defined(ARM_MATH_MVEF) && !defined(ARM_MATH_AUTOVECTORIZE)"],
-                                                     []))
+                                                     [], "void"))
         self.assertEqual(found["arm_inline_q31"][0], 24)
+        self.assertEqual(found["arm_inline_q31"][3], "int32_t")
+
+    def test_return_types_drop_storage_qualifiers(self):
+        found = self.scan("#include \"x.h\"\nextern arm_cfft_instance_f32 *arm_cfft_get(void);\n"
+                          "__STATIC_INLINE float32_t\n  arm_s(float32_t x) { return x; }\n")
+        self.assertEqual(found["arm_cfft_get"][3], "arm_cfft_instance_f32 *")
+        self.assertEqual(found["arm_s"][3], "float32_t")
 
     def test_an_unfixed_else_branch_carries_the_negated_guard(self):
         found = self.scan("#if defined(ARM_MATH_DSP)\nvoid arm_a(void);\n#elif defined(X)\nvoid arm_b(void);\n"
@@ -116,7 +123,7 @@ class ScanTest(unittest.TestCase):
 
     def test_a_fixed_false_branch_is_dropped_and_its_else_kept_without_a_guard(self):
         found = self.scan("#if !defined(ARM_MATH_NEON)\nvoid arm_m(void);\n#else\nvoid arm_n(void);\n#endif\n")
-        self.assertEqual(found, {"arm_m": (2, [], [])})
+        self.assertEqual(found, {"arm_m": (2, [], [], "void")})
 
     def test_a_name_declared_twice_is_refused(self):
         with self.assertRaisesRegex(ec.ExportError, "arm_a is declared twice .*\\(first at line 1\\)"):
@@ -198,6 +205,37 @@ class BuildTest(unittest.TestCase):
         with self.assertRaisesRegex(ec.ExportError, "names parameters the export does not have: arm_add_f32.pNope"):
             self.build([_member("arm_add_f32", params, [("pSrcA", "in"), ("pDst", "out")])],
                        {"arm_add_f32.pNope": "in"})
+
+    def test_types_are_compared_by_token(self):
+        _write(self.root, "Include/dsp/basic_functions.h",
+               "void arm_add_f32(const float32_t*pSrcA, float32_t  * pDst, uint32_t blockSize);\n")
+        document = self.build([_member("arm_add_f32", [("pSrcA", "const float32_t *"), ("pDst", "float32_t *"),
+                                                       ("blockSize", "uint32_t")], [("pSrcA", "in"), ("pDst", "out")])])
+        self.assertEqual(document["functions"][0]["params"][0]["type"], "const float32_t *")
+
+    def test_a_return_type_mismatch_is_refused(self):
+        params = [("pSrcA", "const float32_t *"), ("pDst", "float32_t *"), ("blockSize", "uint32_t")]
+        with self.assertRaisesRegex(ec.ExportError, "arm_add_f32 returns 'void' in the header and 'arm_status' in "
+                                                    "Doxygen"):
+            self.build([_member("arm_add_f32", params, [("pSrcA", "in"), ("pDst", "out")], returns="arm_status")])
+
+    def test_a_parameter_type_mismatch_is_refused(self):
+        params = [("pSrcA", "const float32_t *"), ("pDst", "float64_t *"), ("blockSize", "uint32_t")]
+        with self.assertRaisesRegex(ec.ExportError, "arm_add_f32: parameter types differ: pDst 'float32_t \\*' in "
+                                                    "the header, 'float64_t \\*' in Doxygen"):
+            self.build([_member("arm_add_f32", params, [("pSrcA", "in"), ("pDst", "out")])])
+
+    def test_a_dropped_const_is_a_mismatch(self):
+        params = [("pSrcA", "float32_t *"), ("pDst", "float32_t *"), ("blockSize", "uint32_t")]
+        with self.assertRaisesRegex(ec.ExportError, "pSrcA 'const float32_t \\*' in the header, 'float32_t \\*'"):
+            self.build([_member("arm_add_f32", params, [("pSrcA", "in"), ("pDst", "out")])])
+
+    def test_an_array_extent_mismatch_is_refused(self):
+        _write(self.root, "Include/dsp/basic_functions.h", "void arm_add_f32(float32_t pDst[4]);\n")
+        member = _member("arm_add_f32", [("pDst", "float32_t")], [("pDst", "out")]).replace(
+            "<declname>pDst</declname>", "<declname>pDst</declname><array>[3]</array>")
+        with self.assertRaisesRegex(ec.ExportError, "pDst 'float32_t\\[4\\]' in the header, 'float32_t\\[3\\]'"):
+            self.build([member])
 
     def test_two_doxygen_signatures_are_refused(self):
         with self.assertRaisesRegex(ec.ExportError, "arm_add_f32: Doxygen has 2 different signatures"):
