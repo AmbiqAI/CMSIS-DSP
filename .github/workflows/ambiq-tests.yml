@@ -5,7 +5,9 @@ name: Ambiq tests
 # gate judges the lines the pull request changed against the merged report of all of them.
 #
 # A full run (nightly, a tag, a manual run, or a pull request labelled ci-full) runs every listed suite on
-# all nine variants, both instrumented at -O0 and at the shipped flags, and gates the whole merged report.
+# all nine variants, both instrumented at -O0 and at the shipped flags, and gates the whole merged report; a
+# labelled pull request is also gated on its changed lines. Adding any other label runs nothing and, being in
+# a concurrency group of its own, cancels nothing.
 # A schedule here would never fire, since GitHub schedules only the default branch (main): heliaDSP's
 # cmsis-dsp-nightly workflow starts the nightly run through workflow_dispatch on ambiq/integration.
 on:
@@ -20,7 +22,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ambiq-tests-${{ github.ref }}
+  group: >-
+    ambiq-tests-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'ci-full'
+    && format('-label-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 env:
@@ -33,6 +37,7 @@ env:
 
 jobs:
   plan:
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-full'
     runs-on: ubuntu-24.04
     outputs:
       host_suites: ${{ steps.plan.outputs.host_suites }}
@@ -180,7 +185,7 @@ jobs:
     # The target variants are skipped when no change maps to a suite; any other result fails the gate. A
     # full run gates and publishes whatever reports it has, and fails below unless all nine are there.
     if: >
-      always() && needs.plan.result == 'success' && (needs.plan.outputs.full == 'true' || (needs.host.result == 'success' &&
+      !cancelled() && needs.plan.result == 'success' && (needs.plan.outputs.full == 'true' || (needs.host.result == 'success' &&
       (needs.target.result == 'success' || needs.target.result == 'skipped')))
     runs-on: ubuntu-24.04
     steps:
@@ -200,12 +205,13 @@ jobs:
           path: reports
           merge-multiple: true
       - name: Merge the variants' reports
+        id: merge
         run: python Testing/coverage/merge.py --root . --output-dir merged reports/coverage-*.json
       - name: Gate the changed lines
-        if: env.FULL != 'true'
+        if: github.event_name == 'pull_request'
         run: python Testing/coverage/coverage_gate.py check --report merged/coverage.json --root . --diff-base "origin/$BASE_REF"
       - name: Gate the whole report
-        if: env.FULL == 'true'
+        if: ${{ !cancelled() && env.FULL == 'true' && steps.merge.outcome == 'success' }}
         run: python Testing/coverage/coverage_gate.py check --report merged/coverage.json --root .
       - name: Check that every variant reported
         if: always() && env.FULL == 'true'
