@@ -484,7 +484,7 @@ if(NOT test_target STREQUAL "host")
     if(NOT CMSISDSP_TEST_BUILD_ONLY)
         add_test(NAME startup_fault_control COMMAND ${run_image} $<TARGET_FILE:startup_fault_control>)
         set_tests_properties(startup_fault_control PROPERTIES
-            TIMEOUT 60
+            TIMEOUT ${CMSISDSP_TEST_TIMEOUT}
             PASS_REGULAR_EXPRESSION "E: HardFault"
             FAIL_REGULAR_EXPRESSION "STARTUP-FAULT-CONTROL REACHED MAIN")
     endif()
@@ -495,7 +495,7 @@ add_test(NAME suite_status_selftest
             test_decode_gcov
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
-# The inventory reads the sources as text, so its tests need no coverage build.
+# The inventory and the CI plan read the sources as text, so their tests need no coverage build.
 add_test(NAME coverage_inventory_selftest
-    COMMAND Python3::Interpreter -m unittest -v test_inventory
+    COMMAND Python3::Interpreter -m unittest -v test_inventory test_ci_plan
     WORKING_DIRECTORY ${TESTING_DIR}/coverage)

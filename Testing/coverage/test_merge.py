@@ -91,11 +91,12 @@ class Merge(unittest.TestCase):
 
     def test_gcc_and_llvm_cov_reports(self):
         llvm = dict(SCALAR, functions=[function("arm_add_f32", 116, 4, gcc=False)])
-        self.rejects(self.report("A", llvm), self.report("G", MVE))
+        self.rejects(self.report("A", llvm), self.report("G", MVE),
+                     reason="reports with and without function positions cannot be merged")
 
     def test_report_mixing_producers(self):
         mixed = dict(SCALAR, functions=[function("arm_add_f32", 116, 4), function("helper", 160, 0, gcc=False)])
-        self.rejects(self.report("A", mixed))
+        self.rejects(self.report("A", mixed), reason="mixes functions with and without positions")
 
     def test_file_outside_the_scope(self):
         framework = dict(SCALAR, file="Testing/FrameworkSource/Test.cpp")
