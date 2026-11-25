@@ -1,6 +1,7 @@
 import contextlib
 import io
 import os
+import shutil
 import subprocess
 import unittest
 
@@ -105,6 +106,47 @@ class Plan(Tree):
             status = ci_plan.main(["--root", str(self.root), "--diff-base", "base"])
         self.assertEqual(status, 0)
         self.assertEqual(output.getvalue(), "host_suites=BasicTestsF32;BasicTestsQ31\ntarget_suites=\n")
+
+    def test_full_runs_every_listed_suite_on_the_targets(self):
+        self.write(HELPER, (self.root / HELPER).read_text() + "// changed\n")
+        self.commit("helper")
+        status, result, errors = self.run_full()
+        self.assertEqual(status, 0, errors)
+        self.assertEqual(result, {"host_suites": "BasicTestsF32;BasicTestsQ31",
+                                  "target_suites": "BasicTestsF32;BasicTestsQ31"})
+        self.assertIn("full run", errors)
+
+    def test_full_follows_the_list(self):
+        self.write("Testing/cmake/ci_suites.txt", "BasicTestsQ31\n")
+        status, result, _ = self.run_full()
+        self.assertEqual((status, result), (0, {"host_suites": "BasicTestsQ31", "target_suites": "BasicTestsQ31"}))
+
+    def test_full_needs_no_git(self):
+        shutil.rmtree(self.root / ".git")
+        status, result, errors = self.run_full()
+        self.assertEqual(status, 0, errors)
+        self.assertEqual(result["target_suites"], "BasicTestsF32;BasicTestsQ31")
+
+    def test_full_still_checks_the_suites_file(self):
+        self.write("Testing/cmake/ci_suites.txt", "NoSuchSuite\n")
+        status, result, errors = self.run_full()
+        self.assertEqual((status, result), (1, {}))
+        self.assertIn("NoSuchSuite is not a suite", errors)
+
+    def test_full_and_diff_base_are_exclusive(self):
+        for argv in (["--root", str(self.root)],
+                     ["--root", str(self.root), "--full", "--diff-base", "base"]):
+            with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+                ci_plan.main(argv + ["--output", str(self.output)])
+            self.assertEqual(caught.exception.code, 2)
+        self.assertFalse(self.output.exists())
+
+    def run_full(self):
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors), contextlib.redirect_stdout(io.StringIO()):
+            status = ci_plan.main(["--root", str(self.root), "--full", "--output", str(self.output)])
+        written = self.output.read_text() if self.output.exists() else ""
+        return status, dict(line.split("=", 1) for line in written.splitlines()), errors.getvalue()
 
     def rejects(self, said, *extra):
         status, result, errors = self.run_plan(*extra)

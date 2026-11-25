@@ -1,11 +1,12 @@
 """Choose the suites a pull request's CI runs.
 
-usage: ci_plan.py --root DIR --diff-base REF [--suites-file FILE] [--output FILE]
+usage: ci_plan.py --root DIR (--diff-base REF | --full) [--suites-file FILE] [--output FILE]
 
 The host variants run every suite in the suites file (Testing/cmake/ci_suites.txt: one suite class per
 line, # starts a comment; by default the one under --root). The target variants run those of them that
 inventory.py maps the paths changed since the merge base with REF to. A path that was deleted or renamed
-away counts too: as it is no longer in the tree, it maps to every suite.
+away counts too: as it is no longer in the tree, it maps to every suite. With --full (the nightly and tag
+runs) the target variants run every suite in the file, and no diff is taken.
 
 The result is written as host_suites=... and target_suites=... lines (each a ;-separated CMake list,
 target_suites empty when no target needs to run), to --output (such as $GITHUB_OUTPUT) or to stdout.
@@ -62,7 +63,9 @@ def plan(inventory, enabled, paths):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", required=True)
-    parser.add_argument("--diff-base", required=True)
+    scope = parser.add_mutually_exclusive_group(required=True)
+    scope.add_argument("--diff-base")
+    scope.add_argument("--full", action="store_true", help="run every listed suite on the targets too")
     parser.add_argument("--suites-file", help="default: <root>/Testing/cmake/ci_suites.txt")
     parser.add_argument("--output")
     args = parser.parse_args(argv)
@@ -71,13 +74,19 @@ def main(argv=None):
         inventory = Inventory(args.root)
         enabled = read_suites(args.suites_file or os.path.join(args.root, "Testing", "cmake", "ci_suites.txt"),
                               inventory)
-        paths = changed_paths(args.root, args.diff_base)
-        targets, mapped = plan(inventory, enabled, paths)
+        if args.full:
+            paths, targets, mapped = [], list(enabled), {}
+        else:
+            paths = changed_paths(args.root, args.diff_base)
+            targets, mapped = plan(inventory, enabled, paths)
     except InventoryError as exc:
         print(f"ci_plan.py: {exc}", file=sys.stderr)
         return 1
 
-    print(f"{len(paths)} changed path(s) since the merge base with {args.diff_base}", file=sys.stderr)
+    if args.full:
+        print("full run: every listed suite on every variant", file=sys.stderr)
+    else:
+        print(f"{len(paths)} changed path(s) since the merge base with {args.diff_base}", file=sys.stderr)
     for path, suites in mapped.items():
         shown = [name for name in enabled if name in suites]
         print(f"  {path}: {', '.join(shown) if shown else 'no enabled suite'}", file=sys.stderr)
