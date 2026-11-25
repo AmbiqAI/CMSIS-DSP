@@ -6,15 +6,14 @@ name: Ambiq tests
 #
 # A full run (nightly, a tag, a manual run, or a pull request labelled ci-full) runs every listed suite on
 # all nine variants, both instrumented at -O0 and at the shipped flags, and gates the whole merged report.
-# GitHub starts scheduled and manual runs only from the default branch's copy of this file.
+# A schedule here would never fire, since GitHub schedules only the default branch (main): heliaDSP's
+# cmsis-dsp-nightly workflow starts the nightly run through workflow_dispatch on ambiq/integration.
 on:
   pull_request:
     branches: [ambiq/integration]
     types: [opened, synchronize, reopened, labeled]
   push:
     tags: ['**']
-  schedule:
-    - cron: '17 3 * * *'
   workflow_dispatch:
 
 permissions:
