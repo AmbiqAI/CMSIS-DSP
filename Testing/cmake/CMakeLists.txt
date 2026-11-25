@@ -484,7 +484,7 @@ if(NOT test_target STREQUAL "host")
     if(NOT CMSISDSP_TEST_BUILD_ONLY)
         add_test(NAME startup_fault_control COMMAND ${run_image} $<TARGET_FILE:startup_fault_control>)
         set_tests_properties(startup_fault_control PROPERTIES
-            TIMEOUT 60
+            TIMEOUT ${CMSISDSP_TEST_TIMEOUT}
             PASS_REGULAR_EXPRESSION "E: HardFault"
             FAIL_REGULAR_EXPRESSION "STARTUP-FAULT-CONTROL REACHED MAIN")
     endif()
