@@ -1,0 +1,9 @@
+# Coverage gate waivers (coverage_gate.py). Each [[waiver]] names a file in Source/ (not CommonTables) or
+# Include/dsp/, and optionally one function or one line range, and says why it cannot or need not run:
+#
+#   [[waiver]]
+#   file = "Source/BasicMathFunctions/arm_add_f32.c"
+#   lines = [150, 152]
+#   reason = "Only reachable on a Neon build, which no variant compiles."
+#
+# A waiver that waives nothing that never ran fails the gate, so remove it once a test covers its lines.

@@ -145,6 +145,10 @@ if(CMSISDSP_TEST_COVERAGE)
                 "GCC ${CMAKE_C_COMPILER_VERSION}")
         endif()
     endif()
+    if(Python3_VERSION VERSION_LESS 3.11)
+        message(FATAL_ERROR "Coverage builds need Python 3.11 or later (the gate reads TOML with tomllib); "
+            "${Python3_EXECUTABLE} is ${Python3_VERSION}")
+    endif()
     execute_process(COMMAND ${Python3_EXECUTABLE} -m gcovr --version
         RESULT_VARIABLE gcovr_status OUTPUT_QUIET ERROR_QUIET)
     if(NOT gcovr_status EQUAL 0)
@@ -439,9 +443,12 @@ elseif(test_target STREQUAL "host" OR NOT CMSISDSP_TEST_BUILD_ONLY)
     endif()
 endif()
 if(CMSISDSP_TEST_COVERAGE)
-    # Runs gcovr, which configure checks only in coverage builds.
+    # They need gcovr and Python 3.11, which configure checks only in coverage builds.
     add_test(NAME coverage_merge_selftest
         COMMAND Python3::Interpreter -m unittest -v test_merge
+        WORKING_DIRECTORY ${TESTING_DIR}/coverage)
+    add_test(NAME coverage_gate_selftest
+        COMMAND Python3::Interpreter -m unittest -v test_coverage_gate
         WORKING_DIRECTORY ${TESTING_DIR}/coverage)
 endif()
 
