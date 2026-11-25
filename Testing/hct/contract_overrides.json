@@ -1,0 +1,493 @@
+{
+  "_comment": "Directions for parameters whose Arm @param blocks are missing, name another parameter, contradict each other, or give the pointer's direction where the call writes the buffer (state an init zeroes, scratch). Each entry is read from the code; export_contracts.py refuses an entry the export does not use.",
+  "directions": {
+    "arm_absmin_q15.pIndex": {
+      "direction": "out",
+      "reason": "The header documents [in], Source/StatisticsFunctions/arm_absmin_q15.c documents [out]; the function writes the index."
+    },
+    "arm_biquad_cas_df1_32x64_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_biquad_cascade_df1_init_f16.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_biquad_cascade_df1_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_biquad_cascade_df1_init_q15.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_biquad_cascade_df1_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_biquad_cascade_df1_mve_init_f16.S": {
+      "direction": "in,out",
+      "reason": "No doc block; arm_biquad_cascade_df1_mve_init_f32 documents S as [in,out]."
+    },
+    "arm_biquad_cascade_df1_mve_init_f16.pCoeffs": {
+      "direction": "in",
+      "reason": "No doc block; arm_biquad_cascade_df1_mve_init_f32 documents pCoeffs as [in], and the body only reads it."
+    },
+    "arm_biquad_cascade_df1_mve_init_f16.pCoeffsMod": {
+      "direction": "out",
+      "reason": "No doc block; the body fills it with generateCoefsFastBiquadF16 (the f32 sibling's [in] is a documentation error)."
+    },
+    "arm_biquad_cascade_df1_mve_init_f16.pState": {
+      "direction": "out",
+      "reason": "No doc block; the body zeroes it through arm_biquad_cascade_df1_init_f16."
+    },
+    "arm_biquad_cascade_df1_mve_init_f32.pCoeffsMod": {
+      "direction": "out",
+      "reason": "Documented [in]; the body fills it with generateCoefsFastBiquadF32."
+    },
+    "arm_biquad_cascade_df1_mve_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in]; the body zeroes it through arm_biquad_cascade_df1_init_f32."
+    },
+    "arm_biquad_cascade_df2T_init_f16.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_biquad_cascade_df2T_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_biquad_cascade_df2T_init_f64.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_biquad_cascade_stereo_df2T_init_f16.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_biquad_cascade_stereo_df2T_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_cfft_q15.S": {
+      "direction": "in",
+      "reason": "The Helium definition Doxygen reads has no doc block; the scalar definition documents S as [in] (a const instance)."
+    },
+    "arm_cfft_q15.p1": {
+      "direction": "in,out",
+      "reason": "The Helium definition Doxygen reads names it pSrc; the scalar definition documents p1 as [in,out] (an in-place transform)."
+    },
+    "arm_cfft_q31.S": {
+      "direction": "in",
+      "reason": "The Helium definition Doxygen reads has no doc block; the scalar definition documents S as [in] (a const instance)."
+    },
+    "arm_cfft_q31.p1": {
+      "direction": "in,out",
+      "reason": "The Helium definition Doxygen reads names it pSrc; the scalar definition documents p1 as [in,out] (an in-place transform)."
+    },
+    "arm_circularRead_f32.circBuffer": {
+      "direction": "in",
+      "reason": "Undocumented inline helper; the body only reads circBuffer[rOffset]."
+    },
+    "arm_circularRead_f32.dst": {
+      "direction": "out",
+      "reason": "Undocumented inline helper; the body writes *dst and never reads it."
+    },
+    "arm_circularRead_f32.dst_base": {
+      "direction": "in",
+      "reason": "Undocumented inline helper; dst_base is only used to compute the wrap address, never dereferenced."
+    },
+    "arm_circularRead_f32.readOffset": {
+      "direction": "in,out",
+      "reason": "Undocumented inline helper; the body reads *readOffset and stores the advanced offset."
+    },
+    "arm_circularRead_q15.circBuffer": {
+      "direction": "in",
+      "reason": "Undocumented inline helper; the body only reads circBuffer[rOffset]."
+    },
+    "arm_circularRead_q15.dst": {
+      "direction": "out",
+      "reason": "Undocumented inline helper; the body writes *dst and never reads it."
+    },
+    "arm_circularRead_q15.dst_base": {
+      "direction": "in",
+      "reason": "Undocumented inline helper; dst_base is only used to compute the wrap address, never dereferenced."
+    },
+    "arm_circularRead_q15.readOffset": {
+      "direction": "in,out",
+      "reason": "Undocumented inline helper; the body reads *readOffset and stores the advanced offset."
+    },
+    "arm_circularRead_q7.circBuffer": {
+      "direction": "in",
+      "reason": "Undocumented inline helper; the body only reads circBuffer[rOffset]."
+    },
+    "arm_circularRead_q7.dst": {
+      "direction": "out",
+      "reason": "Undocumented inline helper; the body writes *dst and never reads it."
+    },
+    "arm_circularRead_q7.dst_base": {
+      "direction": "in",
+      "reason": "Undocumented inline helper; dst_base is only used to compute the wrap address, never dereferenced."
+    },
+    "arm_circularRead_q7.readOffset": {
+      "direction": "in,out",
+      "reason": "Undocumented inline helper; the body reads *readOffset and stores the advanced offset."
+    },
+    "arm_circularWrite_f32.circBuffer": {
+      "direction": "out",
+      "reason": "Undocumented inline helper; the body writes circBuffer[wOffset] and never reads it."
+    },
+    "arm_circularWrite_f32.src": {
+      "direction": "in",
+      "reason": "Undocumented inline helper; the body only reads *src."
+    },
+    "arm_circularWrite_f32.writeOffset": {
+      "direction": "in,out",
+      "reason": "Undocumented inline helper; the body reads *writeOffset and stores the advanced offset."
+    },
+    "arm_circularWrite_q15.circBuffer": {
+      "direction": "out",
+      "reason": "Undocumented inline helper; the body writes circBuffer[wOffset] and never reads it."
+    },
+    "arm_circularWrite_q15.src": {
+      "direction": "in",
+      "reason": "Undocumented inline helper; the body only reads *src."
+    },
+    "arm_circularWrite_q15.writeOffset": {
+      "direction": "in,out",
+      "reason": "Undocumented inline helper; the body reads *writeOffset and stores the advanced offset."
+    },
+    "arm_circularWrite_q7.circBuffer": {
+      "direction": "out",
+      "reason": "Undocumented inline helper; the body writes circBuffer[wOffset] and never reads it."
+    },
+    "arm_circularWrite_q7.src": {
+      "direction": "in",
+      "reason": "Undocumented inline helper; the body only reads *src."
+    },
+    "arm_circularWrite_q7.writeOffset": {
+      "direction": "in,out",
+      "reason": "Undocumented inline helper; the body reads *writeOffset and stores the advanced offset."
+    },
+    "arm_conv_fast_opt_q15.pScratch1": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_fast_opt_q15.pScratch2": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_opt_q15.pScratch1": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_opt_q15.pScratch2": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_opt_q7.pScratch1": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_opt_q7.pScratch2": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_partial_fast_opt_q15.pScratch1": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_partial_fast_opt_q15.pScratch2": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_partial_opt_q15.pScratch1": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_partial_opt_q15.pScratch2": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_partial_opt_q7.pScratch1": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_conv_partial_opt_q7.pScratch2": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_correlate_fast_opt_q15.pScratch": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_correlate_opt_q15.pScratch": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_correlate_opt_q7.pScratch1": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_correlate_opt_q7.pScratch2": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_fir_decimate_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_decimate_init_f64.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_decimate_init_q15.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_decimate_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_init_f16.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_init_f64.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_init_q15.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_init_q7.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_interpolate_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_interpolate_init_q15.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_interpolate_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_lattice_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_lattice_init_q15.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_lattice_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_sparse_f32.pScratchIn": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_fir_sparse_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_sparse_init_q15.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_sparse_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_sparse_init_q7.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_fir_sparse_q15.pScratchIn": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_fir_sparse_q15.pScratchOut": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_fir_sparse_q31.pScratchIn": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_fir_sparse_q7.pScratchIn": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_fir_sparse_q7.pScratchOut": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_iir_lattice_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_iir_lattice_init_q15.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_iir_lattice_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_lms_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_lms_init_q15.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_lms_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_lms_norm_init_f32.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_lms_norm_init_q15.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_lms_norm_init_q31.pState": {
+      "direction": "out",
+      "reason": "Documented [in] as the pointer the instance keeps; the call zeroes the state buffer before anything reads it."
+    },
+    "arm_logsumexp_dot_prod_f16.pTmpBuffer": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_logsumexp_dot_prod_f32.pTmpBuffer": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the scratch pointer; the call writes intermediate results to it and reads them back (Arm documents its QR and MFCC scratch as [in,out])."
+    },
+    "arm_mat_cmplx_mult_q15.pScratch": {
+      "direction": "in,out",
+      "reason": "Documented [in] under another branch's definition; the non-Helium path stores intermediate results in it and reads them back."
+    },
+    "arm_mat_mult_fast_q15.pState": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the pointer to the array for storing intermediate results; the call writes the transposed operand there and reads it back."
+    },
+    "arm_mat_mult_opt_q31.pState": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the pointer to the array for storing intermediate results; the call writes the transposed operand there and reads it back."
+    },
+    "arm_mat_mult_q15.pState": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the pointer to the array for storing intermediate results; the call writes the transposed operand there and reads it back."
+    },
+    "arm_mat_mult_q7.pState": {
+      "direction": "in,out",
+      "reason": "Documented [in] as the pointer to the array for storing intermediate results; the call writes the transposed operand there and reads it back."
+    },
+    "arm_merge_sort_f32.pSrc": {
+      "direction": "in,out",
+      "reason": "The header documents [in,out], the source [in]; with pSrc == pDst the sort runs in place, so pSrc is written."
+    },
+    "arm_min_q15.pIndex": {
+      "direction": "out",
+      "reason": "The header documents [in], Source/StatisticsFunctions/arm_min_q15.c documents [out]; the function writes the index."
+    },
+    "arm_quaternion_conjugate_f32.inputQuaternions": {
+      "direction": "in",
+      "reason": "Documented as pInputQuaternions [in]; the header names the parameter inputQuaternions."
+    },
+    "arm_quaternion_normalize_f32.inputQuaternions": {
+      "direction": "in",
+      "reason": "Documented as pInputQuaternions [in]; the header names the parameter inputQuaternions."
+    },
+    "arm_rfft_init_1024_q15.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q15, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_1024_q31.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q31, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_128_q15.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q15, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_128_q31.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q31, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_2048_q15.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q15, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_2048_q31.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q31, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_256_q15.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q15, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_256_q31.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q31, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_32_q15.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q15, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_32_q31.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q31, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_4096_q15.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q15, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_4096_q31.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q31, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_512_q15.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q15, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_512_q31.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q31, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_64_q15.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q15, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_64_q31.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q31, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_8192_q15.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q15, which calls them, documents S as [in,out]."
+    },
+    "arm_rfft_init_8192_q31.S": {
+      "direction": "in,out",
+      "reason": "The size-specific inits have no doc block; arm_rfft_init_q31, which calls them, documents S as [in,out]."
+    }
+  }
+}

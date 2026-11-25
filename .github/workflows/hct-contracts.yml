@@ -1,0 +1,61 @@
+name: hct contracts
+
+# The kernel contract export in Testing/hct: its exporter's tests, that the committed export is what
+# Doxygen makes from the headers, and that helia-core-tester accepts it.
+on:
+  pull_request:
+    branches: [ambiq/integration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hct-contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The Doxygen the export is pinned to (Testing/hct/export_contracts.py), as in ns-cmsis-nn.
+  DOXYGEN_VERSION: "1.17.0"
+  DOXYGEN_SHA256: "75419ef4f446fc1c24ef12514b574e66e898ee6f527c6ae2ad84f91a905823c2"
+  # The helia-core-tester commit whose reader checks the export (dev/kernel-contracts-dsp, E2).
+  HCT_REF: bae9a4faed014bf69d5175efbaa35bddd00b192b
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test the exporter
+        run: python -m unittest discover -s Testing/hct -p "test_*.py" -v
+      - name: Cache the Doxygen tarball
+        uses: actions/cache@v4
+        with:
+          path: /tmp/doxygen-${{ env.DOXYGEN_VERSION }}.linux.bin.tar.gz
+          key: doxygen-tarball-${{ runner.os }}-${{ env.DOXYGEN_VERSION }}
+      - name: Install Doxygen
+        run: |
+          set -euo pipefail
+          archive="/tmp/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+          if ! echo "${DOXYGEN_SHA256}  ${archive}" | sha256sum -c - >/dev/null 2>&1; then
+            curl -fsSL --retry 3 -o "${archive}" \
+              "https://github.com/doxygen/doxygen/releases/download/Release_${DOXYGEN_VERSION//./_}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+            echo "${DOXYGEN_SHA256}  ${archive}" | sha256sum -c -
+          fi
+          tar -C /tmp -xzf "${archive}"
+          echo "/tmp/doxygen-${DOXYGEN_VERSION}/bin" >> "${GITHUB_PATH}"
+      - name: Check the export is current
+        run: python Testing/hct/export_contracts.py check --doxygen doxygen
+      # hct runs from its own checkout: an installed copy looks for that checkout when imported.
+      - uses: actions/checkout@v4
+        with:
+          repository: AmbiqAI/helia-core-tester
+          ref: ${{ env.HCT_REF }}
+          path: .hct
+      - uses: astral-sh/setup-uv@v6
+      - name: Validate with helia-core-tester
+        working-directory: .hct
+        run: uv run --frozen -p 3.12 helia_core_tester contract validate --library "$GITHUB_WORKSPACE/Testing/hct"
