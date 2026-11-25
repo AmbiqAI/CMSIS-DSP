@@ -147,8 +147,8 @@ class Full(Gate):
     def test_branch_coverage_dropped(self):
         self.waive({"file": ADD, "lines": [18, 18], "reason": "Neon only."})
         self.path("branch_baseline.json", json.dumps({ADD: 100}))
-        self.fails(add_file(branches=(4, 0)), said=(f"{ADD}: branch coverage 50.00% (1/2) is below its baseline "
-                                                    "100.00%",))
+        self.fails(add_file(branches=(4, 0)), said=(f"{ADD}: branch coverage 50.0000% (1/2) is below its baseline "
+                                                    "100.0000%",))
 
     def test_file_without_branches_meets_any_baseline(self):
         self.waive({"file": ADD, "lines": [18, 18], "reason": "Neon only."})
@@ -230,7 +230,10 @@ class Inputs(Gate):
         bad_function["functions"][0]["lineno"] = 0
         bad_pos = add_file()
         bad_pos["functions"][0]["pos"] = ["10:1"]
+        excluded_branch = add_file()
+        excluded_branch["lines"][1]["branches"][1]["gcovr/excluded"] = True
         cases = (("use a waiver instead", (excluded,)), ("malformed line entry", (malformed,)),
+                 ("has a branch excluded in the source", (excluded_branch,)),
                  ("malformed branch", (bad_branch,)), ("malformed function entry", (bad_function,)),
                  ("malformed pos", (bad_pos,)), ("is listed twice", (add_file(), add_file())),
                  ("outside the scope", (dict(add_file(), file="Testing/main.cpp"),)),
@@ -366,6 +369,60 @@ class Diff(Gate):
         self.commit("remove")
         self.passes(add_file(), extra=self.diff())
 
+    def test_deleted_file_with_a_baseline_or_waiver(self):
+        os.remove(os.path.join(self.dir.name, SUB))
+        self.commit("remove")
+        self.path("branch_baseline.json", json.dumps({SUB: 10}))
+        self.fails(add_file(), extra=self.diff(), said=(f"{SUB}: removed or renamed, but still has a baseline",))
+        self.path("branch_baseline.json", "{}")
+        self.waive({"file": SUB, "reason": "Deprecated."})
+        self.fails(add_file(), extra=self.diff(), said=(f"{SUB}: removed or renamed, but still has 1 waiver(s)",))
+
+    def rename(self, new):
+        self.git("mv", SUB, new)
+        self.commit("rename")
+
+    def test_renamed_file_keeps_its_old_baseline(self):
+        moved = "Source/BasicMathFunctions/arm_sub_f32_moved.c"
+        self.rename(moved)
+        self.path("branch_baseline.json", json.dumps({SUB: 10}))
+        self.fails(add_file(), dict(sub_file(count=1), file=moved), extra=self.diff(),
+                   said=(f"{SUB}: removed or renamed, but still has a baseline",))
+
+    def test_renamed_file_is_judged(self):
+        moved = "Source/BasicMathFunctions/arm_sub_f32_moved.c"
+        self.rename(moved)
+        self.path("branch_baseline.json", json.dumps({moved: 100}))
+        self.waive({"file": moved, "lines": [1, 2], "reason": "Was untested."})
+        output = self.fails(add_file(), dict(sub_file(count=1), file=moved), extra=self.diff(),
+                            said=(f"{moved}: branch coverage 50.0000% (1/2) is below its baseline",
+                                  f"{moved} lines 1-2: the waiver matches nothing"))
+        self.assertNotIn("line(s)", output)
+        self.assertIn("1 changed file(s)", output)
+
+    def test_source_lines_that_read_like_diff_headers(self):
+        lines = open(os.path.join(self.dir.name, ADD)).read().splitlines()
+        lines[19] = "-- x"
+        self.write(ADD, lines)
+        self.commit("odd line")
+        self.git("tag", "odd")
+        lines[19] = "++ y"
+        lines[20] = "--- z"
+        self.write(ADD, lines)
+        self.commit("odder line")
+        self.report_path = self.report(add_file(), dict(add_file(), file=SUB))
+        status, output = self.run_gate("--diff-base", "odd")
+        self.assertEqual(status, 0, output)
+        self.assertIn("1 changed file(s)", output)
+
+    def test_quoted_path(self):
+        self.write('Source/BasicMathFunctions/arm_"q".c', ["x"])
+        self.commit("quoted")
+        self.report_path = self.report(add_file())
+        status, output = self.run_gate(*self.diff())
+        self.assertEqual(status, 1, output)
+        self.assertIn("quoted path", output)
+
     def test_unknown_base(self):
         self.report_path = self.report(add_file())
         status, output = self.run_gate("--diff-base", "no-such-ref")
@@ -398,7 +455,15 @@ class Ratchet(Gate):
             return json.load(source)
 
     def test_first_baseline_is_the_current_coverage(self):
-        self.assertEqual(self.ratchet(add_file(branches=(1, 1, 0))), {ADD: 66.66})
+        self.assertEqual(self.ratchet(add_file(branches=(1, 1, 0))), {ADD: 66.6666})
+
+    def test_one_branch_less_in_a_large_file(self):
+        self.ratchet(add_file(branches=(1,) * 19999 + (0,)))
+        self.report_path = self.report(add_file(branches=(1,) * 19998 + (0, 0)))
+        self.waive({"file": ADD, "lines": [18, 18], "reason": "Neon only."})
+        status, output = self.run_gate()
+        self.assertEqual(status, 1, output)
+        self.assertIn("99.9900% (19998/20000) is below its baseline 99.9950%", output)
 
     def test_raises_but_never_lowers(self):
         self.path("branch_baseline.json", json.dumps({ADD: 75, SUB: 10}))

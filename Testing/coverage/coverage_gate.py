@@ -13,8 +13,8 @@ With --diff-base, check runs in diff mode: it judges only the lines that changed
 REF, and only the waivers and baseline entries of files that changed, so a report from part of the matrix
 can be checked. Without it, check judges everything (full mode).
 
-ratchet raises each file's baseline to its current branch coverage, rounded down to 0.01%, and never
-lowers one.
+ratchet raises each file's baseline to its current branch coverage, rounded down to 0.0001% (well under one
+branch of any file), and never lowers one.
 
 waivers.toml holds [[waiver]] tables. Each one names a file, and optionally a function or a line range
 (lines = [first, last]), and gives a reason:
@@ -39,7 +39,7 @@ from merge import in_scope
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WAIVER_KEYS = {"file", "function", "lines", "reason"}
-HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+HUNK = re.compile(r"^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
 
 class GateError(Exception):
@@ -102,6 +102,9 @@ def read_report(path):
             for branch in line["branches"]:
                 if not isinstance(branch, dict) or not is_count(branch.get("count")):
                     raise GateError(f"{path}: {name}:{number} has a malformed branch {branch!r}")
+                if branch.get("gcovr/excluded"):
+                    raise GateError(f"{path}: {name}:{number} has a branch excluded in the source; use a waiver "
+                                    "instead")
                 coverage.branches[0] += branch["count"] > 0
                 coverage.branches[1] += 1
         for function in functions:
@@ -220,34 +223,63 @@ def read_baseline(path):
     return data
 
 
+def diff_path(text, prefix):
+    path = text[len(prefix):]
+    if path.startswith('"'):
+        raise GateError(f"git diff names a quoted path {path}; rename the file")
+    return path
+
+
 def changed_lines(root, base):
-    """The lines each in-scope file gained or changed since the merge base of base and HEAD."""
+    """Since the merge base of base and HEAD: the lines each in-scope file gained or changed (a file renamed
+    without a change has none), and the in-scope paths that were deleted or renamed away."""
     command = ["git", "-C", root, "-c", "core.quotePath=false", "diff", "--no-color", "--no-ext-diff",
-               "--unified=0", "--diff-filter=ACMR", "-M", f"{base}...HEAD", "--", "Source", "Include/dsp"]
+               "--unified=0", "--diff-filter=ACDMR", "-M", f"{base}...HEAD", "--", "Source", "Include/dsp"]
     try:
         result = subprocess.run(command, capture_output=True, text=True)
     except OSError as exc:
         raise GateError(f"cannot run git: {exc.strerror}") from None
     if result.returncode != 0:
         raise GateError(f"git diff against {base} failed: {result.stderr.strip()}")
-    changed, current = {}, None
+    changed, removed, current, old, body = {}, set(), None, None, 0
     for text in result.stdout.splitlines():
-        if text.startswith("+++ "):
-            target = text[4:]
-            if target.startswith('"'):
-                raise GateError(f"git diff names a quoted path {target}; rename the file")
-            if not target.startswith("b/"):
-                raise GateError(f"unexpected git diff line {text!r}")
-            current = target[2:] if in_scope(target[2:]) else None
-            if current:
+        if body:
+            # A hunk's own lines are skipped by count, so a source line that reads like a header is not one.
+            if not text.startswith(("+", "-", "\\")):
+                raise GateError(f"unexpected line in a git diff hunk {text!r}")
+            body -= not text.startswith("\\")
+            continue
+        if text.startswith("diff --git "):
+            current = old = None
+        elif text.startswith("rename from "):
+            removed.add(diff_path(text, "rename from "))
+        elif text.startswith("rename to "):
+            changed.setdefault(diff_path(text, "rename to "), set())
+        elif text.startswith("--- "):
+            source = diff_path(text, "--- ")
+            old = source[2:] if source.startswith("a/") else None
+        elif text.startswith("+++ "):
+            target = diff_path(text, "+++ ")
+            if target == "/dev/null":
+                if old is None:
+                    raise GateError(f"unexpected git diff deletion {text!r}")
+                removed.add(old)
+                current = None
+            elif target.startswith("b/"):
+                current = target[2:]
                 changed.setdefault(current, set())
-        elif text.startswith("@@") and current:
+            else:
+                raise GateError(f"unexpected git diff line {text!r}")
+        elif text.startswith("@@"):
             match = HUNK.match(text)
             if not match:
                 raise GateError(f"unexpected git diff hunk {text!r}")
-            first, count = int(match.group(1)), int(match.group(2) or 1)
-            changed[current].update(range(first, first + count))
-    return changed
+            first, count = int(match.group(2)), int(match.group(3) or 1)
+            body = int(match.group(1) or 1) + count
+            if current:
+                changed[current].update(range(first, first + count))
+    return {path: lines for path, lines in changed.items() if in_scope(path)}, {path for path in removed
+                                                                                   if in_scope(path)}
 
 
 def ranges(numbers):
@@ -262,8 +294,9 @@ def ranges(numbers):
     return ", ".join(spans)
 
 
-def check(files, waivers, baseline, changed=None):
-    """Return the gate's failures. changed maps file to changed lines in diff mode, and is None in full mode."""
+def check(files, waivers, baseline, changed=None, removed=()):
+    """Return the gate's failures. In diff mode, changed maps each changed file to its changed lines and removed
+    holds the files deleted or renamed away; in full mode changed is None."""
     failures = []
     by_file = {}
     for waiver in waivers:
@@ -298,8 +331,8 @@ def check(files, waivers, baseline, changed=None):
                 failures.append(f"{path}:{first}: function {name} never ran")
         if path in baseline and coverage.branch_percent() < baseline[path] - 1e-9:
             covered, total = coverage.branches
-            failures.append(f"{path}: branch coverage {coverage.branch_percent():.2f}% ({covered}/{total}) "
-                            f"is below its baseline {baseline[path]:.2f}%")
+            failures.append(f"{path}: branch coverage {coverage.branch_percent():.4f}% ({covered}/{total}) "
+                            f"is below its baseline {baseline[path]:.4f}%")
     if changed is not None:
         # A changed source file that no variant compiled has lines no report can show as run.
         for path in sorted(set(changed) - set(files)):
@@ -309,6 +342,12 @@ def check(files, waivers, baseline, changed=None):
             for waiver in waivers:
                 if waiver.file == path and not waiver.function and not waiver.lines:
                     waiver.used = True
+        # A baseline or waiver left on a path the change removed would no longer gate anything.
+        for path in sorted(set(removed) - set(changed)):
+            if path in baseline:
+                failures.append(f"{path}: removed or renamed, but still has a baseline")
+            if path in by_file:
+                failures.append(f"{path}: removed or renamed, but still has {len(by_file[path])} waiver(s)")
     else:
         for path in sorted(set(baseline) - set(files)):
             failures.append(f"{path}: has a baseline but is not in the report")
@@ -323,7 +362,7 @@ def ratchet(files, baseline):
     for path, coverage in files.items():
         if coverage.branches[1] == 0:
             continue
-        value = math.floor(coverage.branch_percent() * 100) / 100
+        value = math.floor(coverage.branch_percent() * 10000) / 10000
         if value > raised.get(path, 0):
             raised[path] = value
     return dict(sorted(raised.items()))
@@ -358,15 +397,15 @@ def main(argv=None):
             changed = sorted(p for p in raised if raised[p] != baseline.get(p))
             print(f"coverage_gate.py: raised {len(changed)} baseline(s)")
             for path in changed:
-                print(f"  {path}: {baseline.get(path, 0):.2f}% -> {raised[path]:.2f}%")
+                print(f"  {path}: {baseline.get(path, 0):.4f}% -> {raised[path]:.4f}%")
             return 0
         waivers = read_waivers(args.waivers)
-        changed = changed_lines(args.root, args.diff_base) if args.diff_base else None
+        changed, removed = changed_lines(args.root, args.diff_base) if args.diff_base else (None, ())
     except GateError as exc:
         print(f"coverage_gate.py: {exc}", file=sys.stderr)
         return 1
 
-    failures = check(files, waivers, baseline, changed)
+    failures = check(files, waivers, baseline, changed, removed)
     mode = f"diff mode against {args.diff_base}, {len(changed)} changed file(s)" if changed is not None else \
         "full mode"
     for failure in failures:
