@@ -6,6 +6,10 @@
 #include "arm_math.h"
 #include "arm_math_f16.h"
 
+#ifndef HOST_REFERENCE_F16_PRODUCT_SUM
+#error "define HOST_REFERENCE_F16_PRODUCT_SUM as the manifest's float16_type gives it (2048 or 2050)"
+#endif
+
 static int failures;
 
 static void expect(int ok, const char *what)
@@ -37,6 +41,14 @@ static void basic_math(void)
     float16_t hout[2];
     arm_add_f16(ha, hb, hout, 2);
     expect((float)hout[0] == 2.0f && (float)hout[1] == 0.0f, "arm_add_f16");
+
+    /* 2048 + (1 + 2^-10)(1 - 2^-11): the product rounds to 1 in half, so the evaluation the manifest's
+       float16_type pins decides between 2048 and 2050. */
+    const float16_t da[2] = {(float16_t)2048.0f, (float16_t)1.0009765625f};
+    const float16_t db[2] = {(float16_t)1.0f, (float16_t)0.99951171875f};
+    float16_t dot;
+    arm_dot_prod_f16(da, db, 2, &dot);
+    expect((float)dot == (float)HOST_REFERENCE_F16_PRODUCT_SUM, "arm_dot_prod_f16 evaluation");
 }
 
 static void matrix(void)

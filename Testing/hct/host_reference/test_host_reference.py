@@ -8,6 +8,7 @@ HCT_REQUIRED=1 that check must run.
 
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -23,15 +24,28 @@ GENERATOR = ["-G", "Ninja"] if shutil.which("ninja") else []
 REFUSAL = "CMSIS-DSP host reference:"
 FP_OPTIONS = ["-O2", "-ffp-contract=off", "-fno-fast-math"]
 OFF_OPTIONS = ["HELIUM", "HELIUMEXPERIMENTAL", "MVEF", "MVEI", "MVEFLOAT16", "NEON", "NEONEXPERIMENTAL",
-               "AUTOVECTORIZE", "LOOPUNROLL", "DISABLEFLOAT16", "FASTBUILD", "ROUNDING", "MATRIXCHECK"]
+               "AUTOVECTORIZE", "LOOPUNROLL", "DISABLEFLOAT16", "ARMAC5", "FASTBUILD", "ROUNDING", "MATRIXCHECK"]
+# The option pinning float16 evaluation, and what 2048 + (1 + 2^-10)(1 - 2^-11) gives with it, by float16_t:
+# 2048 when the product is rounded to half on its own, 2050 when it is kept in float.
+F16_OPTION = "-fexcess-precision=standard"
+F16_PRODUCT_SUM = {"__fp16": 2048, "_Float16": 2050}
 PATH_MACROS = ["ARM_MATH_DSP", "ARM_MATH_MVEI", "ARM_MATH_MVEF", "ARM_MATH_HELIUM", "ARM_MATH_MVE_FLOAT16",
                "ARM_MATH_AUTOVECTORIZE", "ARM_MATH_NEON", "ARM_MATH_NEON_EXPERIMENTAL", "ARM_MATH_NEON_FLOAT16",
                "ARM_MATH_LOOPUNROLL", "__ARM_FEATURE_DSP", "__ARM_FEATURE_MVE"]
 
 
-def configure(build, *args):
-    return subprocess.run(["cmake", "-S", str(PROJECT), "-B", str(build), *GENERATOR, *args],
-                          text=True, capture_output=True, check=False)
+def configure(build, *args, env=None, generator=None):
+    return subprocess.run(["cmake", "-S", str(PROJECT), "-B", str(build), *(generator or GENERATOR), *args],
+                          text=True, capture_output=True, check=False,
+                          env=None if env is None else {**os.environ, **env})
+
+
+def launcher(directory, *flags):
+    """A compiler launcher that appends `flags` to every compile, past any flag CMake scans."""
+    script = Path(directory) / "append-flags.sh"
+    script.write_text('#!/bin/sh\nexec "$@" ' + " ".join(flags) + "\n")
+    script.chmod(0o755)
+    return script
 
 
 def run(*cmd):
@@ -73,7 +87,7 @@ class HostReferenceBuildTest(unittest.TestCase):
         self.assertTrue(Path(manifest["archive"]).is_file())
         self.assertEqual([Path(d).resolve() for d in manifest["include_dirs"]],
                          [ROOT / "Include", ROOT / "dsppp" / "Include"])
-        self.assertEqual(manifest["library_compile_options"], FP_OPTIONS)
+        self.assertEqual(manifest["library_compile_options"], FP_OPTIONS + [F16_OPTION])
         self.assertEqual(manifest["link_libraries"], ["m"])
         self.assertTrue(Path(manifest["c_compiler"]["path"]).is_file())
         self.assertIn(manifest["c_compiler"]["id"], ("GNU", "Clang", "AppleClang"))
@@ -94,7 +108,7 @@ class HostReferenceBuildTest(unittest.TestCase):
         for command in sources:
             with self.subTest(file=command["file"]):
                 text = command["command"]
-                for option in FP_OPTIONS:
+                for option in self.manifest["library_compile_options"]:
                     self.assertIn(option, text)
                 for forbidden in ("-Ofast", "-ffast-math", "ARM_MATH_LOOPUNROLL", "ARM_MATH_HELIUM", "ARM_MATH_MVE",
                                   "ARM_MATH_NEON", "ARM_MATH_AUTOVECTORIZE", "DISABLEFLOAT16", "ARM_MATH_ROUNDING",
@@ -118,6 +132,7 @@ class HostReferenceBuildTest(unittest.TestCase):
         manifest = self.manifest
         executable = self.build_dir / "smoke"
         flags = [f"-D{d}" for d in manifest["compile_definitions"]]
+        flags.append(f"-DHOST_REFERENCE_F16_PRODUCT_SUM={F16_PRODUCT_SUM[manifest['float16_type']]}")
         for directory in manifest["include_dirs"]:
             flags += ["-I", directory]
         compiled = run(manifest["c_compiler"]["path"], *flags, "-O2", "-ffp-contract=off", PROJECT / "smoke.c",
@@ -145,10 +160,10 @@ class HostReferenceBuildTest(unittest.TestCase):
 class HostReferenceRefusalTest(unittest.TestCase):
     """Each configuration that would change the reference fails the configure, naming the cause."""
 
-    def refuses(self, args, message):
+    def refuses(self, args, message, env=None, generator=None):
         # A fresh directory each time: a cached CMAKE_C_FLAGS would carry into the next configure.
         with tempfile.TemporaryDirectory() as tmp:
-            result = configure(Path(tmp) / "build", *args)
+            result = configure(Path(tmp) / "build", *args, env=env, generator=generator)
         output = result.stdout + result.stderr
         self.assertNotEqual(result.returncode, 0, output)
         self.assertIn(REFUSAL, output)
@@ -172,7 +187,8 @@ class HostReferenceRefusalTest(unittest.TestCase):
                      "-fassociative-math", "-freciprocal-math", "-ffinite-math-only", "-fno-signed-zeros",
                      "-fno-honor-nans", "-fno-honor-infinities", "-fexcess-precision=fast", "-fcx-limited-range",
                      "-fcx-fortran-rules", "-fapprox-func", "-ffp-model=fast", "-ffp-model=aggressive", "-mrecip",
-                     "-mrecip=all"):
+                     "-mrecip=all", "-mfpmath=387", "-mfpmath=sse+387", "-fsingle-precision-constant",
+                     "-ffp-eval-method=double", "-ffp-eval-method=extended"):
             with self.subTest(flag=flag):
                 if accepts(flag):
                     self.refuses([f"-DCMAKE_C_FLAGS={flag}"], f"CMAKE_C_FLAGS contains '{flag}'")
@@ -182,6 +198,38 @@ class HostReferenceRefusalTest(unittest.TestCase):
                         self.assertNotEqual(configure(Path(tmp) / "build", f"-DCMAKE_C_FLAGS={flag}").returncode, 0)
         self.refuses(["-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_C_FLAGS_RELEASE=-O3 -ffast-math"],
                      "CMAKE_C_FLAGS_RELEASE contains '-ffast-math'")
+
+    def test_an_unsafe_flag_in_cc(self):
+        compiler = os.environ.get("CC", "cc")
+        self.refuses([], "CMAKE_C_COMPILER_ARG1 contains '-ffast-math'", env={"CC": f"{compiler} -ffast-math"})
+
+    def test_float16_evaluated_otherwise_than_pinned(self):
+        # A flag added past every scan (here by a launcher) still meets the probe: with _Float16 as float the
+        # product is kept in float on every host.
+        with tempfile.TemporaryDirectory() as tmp:
+            self.refuses([f"-DCMAKE_C_COMPILER_LAUNCHER={launcher(tmp, '-D_Float16=float')}"],
+                         "is not evaluated")
+
+    @unittest.skipUnless(platform.machine() in ("x86_64", "AMD64"), "x87 exists only on x86")
+    def test_x87_intermediates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            probe = Path(tmp) / "x87.c"
+            probe.write_text("int main(void) { volatile float x = 1.0f, y = 5.9604644775390625e-08f; "
+                             "float d = (x + y) - x; return d != 0.0f; }\n")
+            built = run(os.environ.get("CC", "cc"), "-O2", "-mfpmath=387", probe, "-o", Path(tmp) / "x87")
+            if built.returncode != 0 or run(Path(tmp) / "x87").returncode == 0:
+                self.skipTest("this compiler does not evaluate float in x87 precision with -mfpmath=387")
+            self.refuses([f"-DCMAKE_C_COMPILER_LAUNCHER={launcher(tmp, '-mfpmath=387')}"],
+                         "float intermediates are not rounded to float")
+
+    @unittest.skipUnless(shutil.which("ninja"), "needs Ninja for a multi-config generator")
+    def test_a_multi_config_generator(self):
+        self.refuses([], "needs a single-configuration generator", generator=["-G", "Ninja Multi-Config"])
+
+    def test_flags_that_do_not_compile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.refuses([f"-DCMAKE_C_COMPILER_LAUNCHER={launcher(tmp, '-fno-such-flag-for-the-reference')}"],
+                         "does not compile an empty program")
 
     def test_a_path_macro_in_the_flags(self):
         for macro in ("ARM_MATH_MVEI", "ARM_MATH_HELIUM", "ARM_MATH_LOOPUNROLL", "ARM_MATH_NEON", "__ARM_FEATURE_DSP"):
@@ -215,6 +263,7 @@ class GuardTest(unittest.TestCase):
             with self.subTest(macro=macro):
                 result = self.compile(f"-D{macro}=1")
                 self.assertNotEqual(result.returncode, 0)
+                self.assertIn("plain C code only", result.stderr)
 
     def test_no_float16_fails(self):
         result = run(os.environ.get("CC", "cc"), "-D__GNUC_PYTHON__", "-DDISABLEFLOAT16", "-I", ROOT / "Include",

@@ -23,12 +23,12 @@ set(HOST_REFERENCE_PATH_MACROS
 # Flags that let the compiler change IEEE results (signed zeros, NaN and infinity handling, rounding of
 # intermediates, reassociation, approximate functions); later -fno-fast-math does not undo all of them.
 set(HOST_REFERENCE_UNSAFE_FP
-    "(^|[ ;])(-Ofast|-ffast-math|-funsafe-math-optimizations|-fassociative-math|-freciprocal-math|-ffinite-math-only|-ffp-contract=(fast|on)|-fno-signed-zeros|-fno-honor-nans|-fno-honor-infinities|-fexcess-precision=fast|-fcx-limited-range|-fcx-fortran-rules|-fapprox-func|-ffp-model=(fast|aggressive)|-mrecip(=[^ ;]*)?)([ ;]|$)")
+    "(^|[ ;])(-Ofast|-ffast-math|-funsafe-math-optimizations|-fassociative-math|-freciprocal-math|-ffinite-math-only|-ffp-contract=(fast|on)|-fno-signed-zeros|-fno-honor-nans|-fno-honor-infinities|-fexcess-precision=fast|-fcx-limited-range|-fcx-fortran-rules|-fapprox-func|-ffp-model=(fast|aggressive)|-mrecip(=[^ ;]*)?|-mfpmath=[^ ;]*387[^ ;]*|-fsingle-precision-constant|-ffp-eval-method=(double|extended))([ ;]|$)")
 # Source/ options that change what the reference computes or builds; each must be OFF. ROUNDING and
 # MATRIXCHECK change results and status codes, and the manifest cannot say they were set.
 set(HOST_REFERENCE_OFF_OPTIONS
     HELIUM HELIUMEXPERIMENTAL MVEF MVEI MVEFLOAT16 NEON NEONEXPERIMENTAL AUTOVECTORIZE LOOPUNROLL DISABLEFLOAT16
-    FASTBUILD ROUNDING MATRIXCHECK)
+    ARMAC5 FASTBUILD ROUNDING MATRIXCHECK)
 
 function(host_reference_fail)
   string(JOIN "" reason ${ARGV})
@@ -46,6 +46,11 @@ endif()
 if(NOT CMAKE_C_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
   host_reference_fail("needs GCC or Clang for its floating-point flags (got ${CMAKE_C_COMPILER_ID})")
 endif()
+get_property(multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(multi_config)
+  host_reference_fail("needs a single-configuration generator such as Ninja or Unix Makefiles; ${CMAKE_GENERATOR} "
+                      "builds one archive per configuration, and the manifest names one")
+endif()
 foreach(name IN LISTS HOST_REFERENCE_OFF_OPTIONS)
   if(DEFINED ${name} AND ${name})
     host_reference_fail("${name}=${${name}} changes what the reference computes or builds; leave it OFF")
@@ -53,7 +58,8 @@ foreach(name IN LISTS HOST_REFERENCE_OFF_OPTIONS)
   set(${name} OFF CACHE BOOL "" FORCE)
 endforeach()
 
-set(flag_vars CMAKE_C_FLAGS)
+# CC="cc -flag" puts the flag in CMAKE_C_COMPILER_ARG1.
+set(flag_vars CMAKE_C_COMPILER_ARG1 CMAKE_C_FLAGS)
 foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL ${CMAKE_CONFIGURATION_TYPES} ${CMAKE_BUILD_TYPE})
   string(TOUPPER "${config}" config)
   list(APPEND flag_vars CMAKE_C_FLAGS_${config})
@@ -72,6 +78,8 @@ foreach(path IN ITEMS "${DSP_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_C_COM
 endforeach()
 
 include(CheckCSourceCompiles)
+# The probes compile as the archive does, a compiler launcher included.
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES CMAKE_C_COMPILER_LAUNCHER)
 function(host_reference_probe out_var definitions source)
   set(CMAKE_REQUIRED_INCLUDES "${DSP_ROOT}/Include")
   set(CMAKE_REQUIRED_DEFINITIONS -D__GNUC_PYTHON__ ${definitions})
@@ -101,6 +109,11 @@ int main(void) { return 0; }")
     host_reference_fail("the compile flags select a code path (${found}); the reference is the plain C build")
   endif()
 endfunction()
+host_reference_probe(trivial_compiles "" "int main(void) { return 0; }")
+if(NOT trivial_compiles)
+  host_reference_fail("the C compiler does not compile an empty program with these flags "
+                      "(${CMAKE_C_COMPILER_LAUNCHER} ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1} ${CMAKE_C_FLAGS})")
+endif()
 host_reference_path_macros("")
 host_reference_probe(arm_math_compiles "" "#include \"arm_math.h\"
 int main(void) { return 0; }")
@@ -140,6 +153,80 @@ int main(void) { volatile float16_t h = (float16_t)1.0f; return (int)(float)h - 
   set(float16_type "_Float16")
 endif()
 
+# How float16 arithmetic is evaluated, pinned and then checked below, so every host with the same float16_t
+# gives the same goldens. With __fp16, float16_t is storage-only, as on the Cortex-M55: its arithmetic is done
+# in float and rounded at each assignment, and the kernels' explicit _Float16 operations round to half each,
+# as the M55's FP16 instructions do. With _Float16, float16_t's own arithmetic is done in float and rounded at
+# each assignment and cast, as the M55's float16_t is; the kernels' explicit _Float16 products are then
+# rounded once with the sum they feed rather than on their own, so those can differ from the target in the
+# last bit. -fexcess-precision=standard gives both: a host with FP16 arithmetic has no excess precision.
+set(f16_option "-fexcess-precision=standard")
+if(float16_type STREQUAL "__fp16")
+  set(f16_evaluation "per operation in half")
+  set(f16_probe_expected 2048)
+else()
+  set(f16_evaluation "in float, rounded at each assignment")
+  set(f16_probe_expected 2050)
+endif()
+include(CheckCCompilerFlag)
+unset(f16_option_accepted CACHE)
+check_c_compiler_flag("${f16_option}" f16_option_accepted)
+if(NOT f16_option_accepted)
+  host_reference_fail("${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION} does not accept ${f16_option}, which pins "
+                      "float16 evaluation; use GCC, or Clang 16 or later")
+endif()
+unset(f16_option_accepted CACHE)
+list(APPEND HOST_REFERENCE_OPTIONS "${f16_option}")
+
+# What the flags do, whatever way they reached the compiler: float and double intermediates are rounded to
+# their type (no x87 extended precision), and float16 is evaluated as pinned above. 2048 + 1.0004883 is
+# 2050 when the product (1 + 2^-10)(1 - 2^-11) is kept in float, and 2048 when it is first rounded to 1.
+include(CheckCSourceRuns)
+string(JOIN " " CMAKE_REQUIRED_FLAGS ${HOST_REFERENCE_OPTIONS})
+set(CMAKE_REQUIRED_INCLUDES "${DSP_ROOT}/Include")
+set(CMAKE_REQUIRED_DEFINITIONS -D__GNUC_PYTHON__)
+foreach(definition IN LISTS float16_definitions)
+  list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D${definition}")
+endforeach()
+set(CMAKE_REQUIRED_QUIET ON)
+foreach(probe IN ITEMS float double float16)
+  unset(evaluates_${probe} CACHE)
+endforeach()
+check_c_source_runs("
+int main(void) { volatile float x = 1.0f, y = 5.9604644775390625e-08f; float d = (x + y) - x; return d != 0.0f; }"
+                    evaluates_float)
+check_c_source_runs("
+int main(void) { volatile double x = 1.0, y = 1.1102230246251565e-16; double d = (x + y) - x; return d != 0.0; }"
+                    evaluates_double)
+check_c_source_runs("
+#include \"arm_math_types.h\"
+#include \"arm_math_types_f16.h\"
+int main(void)
+{
+    volatile float16_t s = (float16_t)2048.0f, a = (float16_t)1.0009765625f, b = (float16_t)0.99951171875f;
+    float16_t r = s;
+    r += (_Float16)a * (_Float16)b;
+    return (float)r != ${f16_probe_expected}.0f;
+}" evaluates_float16)
+foreach(probe IN ITEMS float double)
+  if(NOT evaluates_${probe})
+    host_reference_fail("${probe} intermediates are not rounded to ${probe} with these flags "
+                        "(${CMAKE_C_COMPILER_ARG1} ${CMAKE_C_FLAGS} ${CMAKE_REQUIRED_FLAGS}); the reference needs IEEE "
+                        "${probe} evaluation (on x86-64, SSE rather than x87)")
+  endif()
+endforeach()
+if(NOT evaluates_float16)
+  host_reference_fail("float16_t (${float16_type}) is not evaluated ${f16_evaluation} with these flags "
+                      "(${CMAKE_C_COMPILER_ARG1} ${CMAKE_C_FLAGS} ${CMAKE_REQUIRED_FLAGS}), so its goldens would "
+                      "depend on the host; with __fp16 the host needs FP16 arithmetic (on AArch64, +fp16 in -march)")
+endif()
+foreach(probe IN ITEMS float double float16)
+  unset(evaluates_${probe} CACHE)
+endforeach()
+unset(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_INCLUDES)
+unset(CMAKE_REQUIRED_DEFINITIONS)
+
 set(HOST ON CACHE BOOL "" FORCE)
 set(CMSISDSP_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory("${DSP_ROOT}/Source" cmsisdsp)
@@ -170,4 +257,4 @@ file(GENERATE OUTPUT "${HOST_REFERENCE_MANIFEST}" CONTENT "{
 }
 ")
 message(STATUS "CMSIS-DSP host reference: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}, "
-               "float16_t = ${float16_type}, manifest ${HOST_REFERENCE_MANIFEST}")
+               "float16_t = ${float16_type} (evaluated ${f16_evaluation}), manifest ${HOST_REFERENCE_MANIFEST}")
