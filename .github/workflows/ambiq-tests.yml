@@ -134,7 +134,7 @@ jobs:
             model=("-DCORSTONE300_FVP=$fvp")
           fi
           cmake -G Ninja -S Testing/cmake -B build -DPython3_EXECUTABLE="$(which python)" \
-            -DCMAKE_TOOLCHAIN_FILE=Testing/cmake/toolchains/arm-none-eabi-gcc.cmake \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/Testing/cmake/toolchains/arm-none-eabi-gcc.cmake" \
             -DCMSISDSP_TEST_VARIANT=${{ matrix.variant }} -DCMSISDSP_TEST_COVERAGE=ON \
             "-DCMSISDSP_TEST_SUITES=${{ needs.plan.outputs.target_suites }}" \
             -DCMSIS_CORE="$PWD/ci-deps/CMSIS_6/CMSIS/Core" -DCORTEX_DFP="$PWD/ci-deps/Cortex_DFP" "${model[@]}"

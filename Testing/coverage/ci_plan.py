@@ -54,7 +54,7 @@ def plan(inventory, enabled, paths):
     """(target suites, {path: suites it maps to}) for the changed paths."""
     mapped = {}
     for path in paths:
-        mapped[path] = inventory.suites_for(path)[0]
+        mapped[path], _reason = inventory.suites_for(path)
     wanted = set().union(*mapped.values()) if mapped else set()
     return [name for name in enabled if name in wanted], mapped
 
