@@ -14,12 +14,13 @@ get_filename_component(DSP_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 set(HOST_REFERENCE_SCHEMA "hct/host-reference/1")
 set(HOST_REFERENCE_MANIFEST "${CMAKE_CURRENT_BINARY_DIR}/cmsis_dsp_host_reference.json")
 set(HOST_REFERENCE_OPTIONS -O2 -ffp-contract=off -fno-fast-math)
-# The macros that select a code path other than the plain C one, and the Cortex-M features that imply them.
-# A host's own __ARM_NEON selects nothing: every Neon path is behind ARM_MATH_NEON.
+# The macros that select a code path other than the plain C one, the Cortex-M features that imply them, and
+# the two that change results or status codes (ROUNDING, MATRIXCHECK), which the manifest cannot carry. A
+# host's own __ARM_NEON selects nothing: every Neon path is behind ARM_MATH_NEON.
 set(HOST_REFERENCE_PATH_MACROS
     ARM_MATH_DSP ARM_MATH_MVEI ARM_MATH_MVEF ARM_MATH_HELIUM ARM_MATH_MVE_FLOAT16 ARM_MATH_AUTOVECTORIZE
     ARM_MATH_NEON ARM_MATH_NEON_EXPERIMENTAL ARM_MATH_NEON_FLOAT16 ARM_MATH_LOOPUNROLL
-    __ARM_FEATURE_DSP __ARM_FEATURE_MVE)
+    ARM_MATH_ROUNDING ARM_MATH_MATRIX_CHECK __ARM_FEATURE_DSP __ARM_FEATURE_MVE)
 # Flags that let the compiler change IEEE results (signed zeros, NaN and infinity handling, rounding of
 # intermediates, reassociation, approximate functions); later -fno-fast-math does not undo all of them.
 set(HOST_REFERENCE_UNSAFE_FP
@@ -78,8 +79,8 @@ foreach(path IN ITEMS "${DSP_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_C_COM
 endforeach()
 
 include(CheckCSourceCompiles)
-# The probes compile as the archive does, a compiler launcher included.
-list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES CMAKE_C_COMPILER_LAUNCHER)
+# The probes compile and link as the archive does, launchers included.
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES CMAKE_C_COMPILER_LAUNCHER CMAKE_C_LINKER_LAUNCHER)
 function(host_reference_probe out_var definitions source)
   set(CMAKE_REQUIRED_INCLUDES "${DSP_ROOT}/Include")
   set(CMAKE_REQUIRED_DEFINITIONS -D__GNUC_PYTHON__ ${definitions})
@@ -106,7 +107,8 @@ int main(void) { return 0; }")
   endforeach()
   if(found)
     string(REPLACE ";" ", " found "${found}")
-    host_reference_fail("the compile flags select a code path (${found}); the reference is the plain C build")
+    host_reference_fail("the compile flags select a code path or change results (${found}); the reference is "
+                        "the plain C build")
   endif()
 endfunction()
 host_reference_probe(trivial_compiles "" "int main(void) { return 0; }")
@@ -115,6 +117,19 @@ if(NOT trivial_compiles)
                       "(${CMAKE_C_COMPILER_LAUNCHER} ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1} ${CMAKE_C_FLAGS})")
 endif()
 host_reference_path_macros("")
+# CMAKE_CROSSCOMPILING stays false for a cross compiler named as CC or a --target in the flags; a program
+# it builds does not run here.
+include(CheckCSourceRuns)
+unset(runs_on_host CACHE)
+set(CMAKE_REQUIRED_QUIET ON)
+check_c_source_runs("int main(void) { return 0; }" runs_on_host)
+unset(CMAKE_REQUIRED_QUIET)
+if(NOT runs_on_host)
+  host_reference_fail("a program ${CMAKE_C_COMPILER} builds with these flags does not run on this host "
+                      "(${CMAKE_HOST_SYSTEM_PROCESSOR}); the reference is built for the host CPU, not with a cross "
+                      "compiler or a --target")
+endif()
+unset(runs_on_host CACHE)
 host_reference_probe(arm_math_compiles "" "#include \"arm_math.h\"
 int main(void) { return 0; }")
 if(NOT arm_math_compiles)

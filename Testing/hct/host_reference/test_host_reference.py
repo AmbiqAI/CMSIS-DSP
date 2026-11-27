@@ -31,7 +31,8 @@ F16_OPTION = "-fexcess-precision=standard"
 F16_PRODUCT_SUM = {"__fp16": 2048, "_Float16": 2050}
 PATH_MACROS = ["ARM_MATH_DSP", "ARM_MATH_MVEI", "ARM_MATH_MVEF", "ARM_MATH_HELIUM", "ARM_MATH_MVE_FLOAT16",
                "ARM_MATH_AUTOVECTORIZE", "ARM_MATH_NEON", "ARM_MATH_NEON_EXPERIMENTAL", "ARM_MATH_NEON_FLOAT16",
-               "ARM_MATH_LOOPUNROLL", "__ARM_FEATURE_DSP", "__ARM_FEATURE_MVE"]
+               "ARM_MATH_LOOPUNROLL", "ARM_MATH_ROUNDING", "ARM_MATH_MATRIX_CHECK", "__ARM_FEATURE_DSP",
+               "__ARM_FEATURE_MVE"]
 
 
 def configure(build, *args, env=None, generator=None):
@@ -231,10 +232,27 @@ class HostReferenceRefusalTest(unittest.TestCase):
             self.refuses([f"-DCMAKE_C_COMPILER_LAUNCHER={launcher(tmp, '-fno-such-flag-for-the-reference')}"],
                          "does not compile an empty program")
 
+    def test_every_path_macro_is_tested(self):
+        text = (PROJECT / "CMakeLists.txt").read_text()
+        listed = re.search(r"set\(HOST_REFERENCE_PATH_MACROS([^)]*)\)", text).group(1).split()
+        self.assertEqual(sorted(listed), sorted(PATH_MACROS))
+
     def test_a_path_macro_in_the_flags(self):
-        for macro in ("ARM_MATH_MVEI", "ARM_MATH_HELIUM", "ARM_MATH_LOOPUNROLL", "ARM_MATH_NEON", "__ARM_FEATURE_DSP"):
+        for macro in ("ARM_MATH_MVEI", "ARM_MATH_HELIUM", "ARM_MATH_LOOPUNROLL", "ARM_MATH_NEON", "__ARM_FEATURE_DSP",
+                      "ARM_MATH_ROUNDING", "ARM_MATH_MATRIX_CHECK"):
             with self.subTest(macro=macro):
-                self.refuses([f"-DCMAKE_C_FLAGS=-D{macro}=1"], f"the compile flags select a code path ({macro}")
+                self.refuses([f"-DCMAKE_C_FLAGS=-D{macro}=1"],
+                             f"the compile flags select a code path or change results ({macro}")
+
+    def test_programs_that_do_not_run_on_this_host(self):
+        # As a cross compiler's would not: the linker launcher replaces each linked program with one that fails.
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "foreign-link.sh"
+            script.write_text('#!/bin/sh\n"$@" || exit $?\nout=; prev=\nfor a in "$@"; do [ "$prev" = -o ] && out=$a; '
+                              'prev=$a; done\n[ -n "$out" ] && printf \'#!/bin/sh\\nexit 126\\n\' > "$out" && '
+                              'chmod +x "$out"\nexit 0\n')
+            script.chmod(0o755)
+            self.refuses([f"-DCMAKE_C_LINKER_LAUNCHER={script}"], "does not run on this host")
 
     def test_a_cross_build(self):
         self.refuses(["-DCMAKE_SYSTEM_NAME=Generic", "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY"],

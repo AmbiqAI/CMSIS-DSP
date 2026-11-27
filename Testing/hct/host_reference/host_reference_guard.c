@@ -3,7 +3,8 @@
 #if defined(ARM_MATH_DSP) || defined(ARM_MATH_MVEI) || defined(ARM_MATH_MVEF) || defined(ARM_MATH_HELIUM) || \
     defined(ARM_MATH_MVE_FLOAT16) || defined(ARM_MATH_AUTOVECTORIZE) || defined(ARM_MATH_NEON) ||          \
     defined(ARM_MATH_NEON_EXPERIMENTAL) || defined(ARM_MATH_NEON_FLOAT16) || defined(ARM_MATH_LOOPUNROLL) ||  \
-    defined(__ARM_FEATURE_DSP) || defined(__ARM_FEATURE_MVE)
+    defined(ARM_MATH_ROUNDING) || defined(ARM_MATH_MATRIX_CHECK) || defined(__ARM_FEATURE_DSP) ||            \
+    defined(__ARM_FEATURE_MVE)
 #error "the CMSIS-DSP host reference must be built from the plain C code only"
 #endif
 /* Again as Arm's headers derive them; a header such as arm_mve.h may already have stopped the compile. */
@@ -13,7 +14,8 @@
 #if defined(ARM_MATH_DSP) || defined(ARM_MATH_MVEI) || defined(ARM_MATH_MVEF) || defined(ARM_MATH_HELIUM) || \
     defined(ARM_MATH_MVE_FLOAT16) || defined(ARM_MATH_AUTOVECTORIZE) || defined(ARM_MATH_NEON) ||          \
     defined(ARM_MATH_NEON_EXPERIMENTAL) || defined(ARM_MATH_NEON_FLOAT16) || defined(ARM_MATH_LOOPUNROLL) ||  \
-    defined(__ARM_FEATURE_DSP) || defined(__ARM_FEATURE_MVE)
+    defined(ARM_MATH_ROUNDING) || defined(ARM_MATH_MATRIX_CHECK) || defined(__ARM_FEATURE_DSP) ||            \
+    defined(__ARM_FEATURE_MVE)
 #error "the CMSIS-DSP host reference must be built from the plain C code only"
 #endif
 #if !defined(ARM_FLOAT16_SUPPORTED)
