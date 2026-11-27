@@ -3,16 +3,28 @@ name: Ambiq tests
 # Every pull request to ambiq/integration, with no path filter: the host variants run every suite in
 # Testing/cmake/ci_suites.txt, the target variants run those the changed files map to, and the coverage
 # gate judges the lines the pull request changed against the merged report of all of them.
+#
+# A full run (nightly, a tag, a manual run, or a pull request labelled ci-full) runs every listed suite on
+# all nine variants, both instrumented at -O0 and at the shipped flags, and gates the whole merged report; a
+# labelled pull request is also gated on its changed lines. Adding any other label runs nothing and, being in
+# a concurrency group of its own, cancels nothing.
+# A schedule here would never fire, since GitHub schedules only the default branch (main): heliaDSP's
+# cmsis-dsp-nightly workflow starts the nightly run through workflow_dispatch on ambiq/integration.
 on:
   pull_request:
     branches: [ambiq/integration]
+    types: [opened, synchronize, reopened, labeled]
+  push:
+    tags: ['**']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ambiq-tests-${{ github.ref }}
+  group: >-
+    ambiq-tests-${{ github.ref }}${{ github.event.action == 'labeled' && github.event.label.name != 'ci-full'
+    && format('-label-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 env:
@@ -21,13 +33,17 @@ env:
   CMSIS_6_REF: 8753b993c7544f0329b2ccc61bfbc967fdb3b112
   CORTEX_DFP_REF: v1.2.0
   BASE_REF: ${{ github.base_ref || 'ambiq/integration' }}
+  FULL: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci-full') }}
 
 jobs:
   plan:
+    if: github.event.action != 'labeled' || github.event.label.name == 'ci-full'
     runs-on: ubuntu-24.04
     outputs:
       host_suites: ${{ steps.plan.outputs.host_suites }}
       target_suites: ${{ steps.plan.outputs.target_suites }}
+      builds: ${{ steps.plan.outputs.builds }}
+      full: ${{ env.FULL }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +53,15 @@ jobs:
           python-version: '3.12'
       - name: Choose the suites
         id: plan
-        run: python Testing/coverage/ci_plan.py --root . --diff-base "origin/$BASE_REF" --output "$GITHUB_OUTPUT"
+        run: |
+          if [ "$FULL" = true ]; then
+            scope=(--full)
+            echo 'builds=["coverage", "shipped"]' >> "$GITHUB_OUTPUT"
+          else
+            scope=(--diff-base "origin/$BASE_REF")
+            echo 'builds=["coverage"]' >> "$GITHUB_OUTPUT"
+          fi
+          python Testing/coverage/ci_plan.py --root . "${scope[@]}" --output "$GITHUB_OUTPUT"
 
   host:
     needs: plan
@@ -46,7 +70,8 @@ jobs:
       fail-fast: false
       matrix:
         variant: [A, B, C, I]
-    name: host ${{ matrix.variant }}
+        build: ${{ fromJSON(needs.plan.outputs.builds) }}
+    name: host ${{ matrix.variant }} ${{ matrix.build }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -67,13 +92,15 @@ jobs:
         run: >
           cmake -G Ninja -S Testing/cmake -B build -DPython3_EXECUTABLE="$(which python)"
           -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14
-          -DCMSISDSP_TEST_VARIANT=${{ matrix.variant }} -DCMSISDSP_TEST_COVERAGE=ON
+          -DCMSISDSP_TEST_VARIANT=${{ matrix.variant }}
+          -DCMSISDSP_TEST_COVERAGE=${{ matrix.build == 'coverage' && 'ON' || 'OFF' }}
           "-DCMSISDSP_TEST_SUITES=${{ needs.plan.outputs.host_suites }}"
       - name: Build
         run: cmake --build build -j "$(nproc)"
       - name: Test
         run: ctest --test-dir build --output-on-failure
       - uses: actions/upload-artifact@v4
+        if: matrix.build == 'coverage'
         with:
           name: coverage-${{ matrix.variant }}
           path: build/coverage/coverage-${{ matrix.variant }}.json
@@ -87,7 +114,8 @@ jobs:
       fail-fast: false
       matrix:
         variant: [D, E, F, G, H]
-    name: target ${{ matrix.variant }}
+        build: ${{ fromJSON(needs.plan.outputs.builds) }}
+    name: target ${{ matrix.variant }} ${{ matrix.build }}
     env:
       ON_QEMU: ${{ contains(fromJSON('["D", "E"]'), matrix.variant) }}
     steps:
@@ -137,7 +165,8 @@ jobs:
           fi
           cmake -G Ninja -S Testing/cmake -B build -DPython3_EXECUTABLE="$(which python)" \
             -DCMAKE_TOOLCHAIN_FILE="$PWD/Testing/cmake/toolchains/arm-none-eabi-gcc.cmake" \
-            -DCMSISDSP_TEST_VARIANT=${{ matrix.variant }} -DCMSISDSP_TEST_COVERAGE=ON \
+            -DCMSISDSP_TEST_VARIANT=${{ matrix.variant }} \
+            -DCMSISDSP_TEST_COVERAGE=${{ matrix.build == 'coverage' && 'ON' || 'OFF' }} \
             "-DCMSISDSP_TEST_SUITES=${{ needs.plan.outputs.target_suites }}" \
             -DCMSIS_CORE="$PWD/ci-deps/CMSIS_6/CMSIS/Core" -DCORTEX_DFP="$PWD/ci-deps/Cortex_DFP" "${model[@]}"
       - name: Build
@@ -145,6 +174,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure -j "$(nproc)"
       - uses: actions/upload-artifact@v4
+        if: matrix.build == 'coverage'
         with:
           name: coverage-${{ matrix.variant }}
           path: build/coverage/coverage-${{ matrix.variant }}.json
@@ -152,10 +182,11 @@ jobs:
 
   gate:
     needs: [plan, host, target]
-    # The target variants are skipped when no change maps to a suite; any other result fails the gate.
+    # The target variants are skipped when no change maps to a suite; any other result fails the gate. A
+    # full run gates and publishes whatever reports it has, and fails below unless all nine are there.
     if: >
-      always() && needs.plan.result == 'success' && needs.host.result == 'success' &&
-      (needs.target.result == 'success' || needs.target.result == 'skipped')
+      !cancelled() && needs.plan.result == 'success' && (needs.plan.outputs.full == 'true' || (needs.host.result == 'success' &&
+      (needs.target.result == 'success' || needs.target.result == 'skipped')))
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -174,9 +205,33 @@ jobs:
           path: reports
           merge-multiple: true
       - name: Merge the variants' reports
+        id: merge
         run: python Testing/coverage/merge.py --root . --output-dir merged reports/coverage-*.json
       - name: Gate the changed lines
+        if: github.event_name == 'pull_request'
         run: python Testing/coverage/coverage_gate.py check --report merged/coverage.json --root . --diff-base "origin/$BASE_REF"
+      - name: Gate the whole report
+        if: ${{ !cancelled() && env.FULL == 'true' && steps.merge.outcome == 'success' }}
+        run: python Testing/coverage/coverage_gate.py check --report merged/coverage.json --root .
+      - name: Check that every variant reported
+        if: always() && env.FULL == 'true'
+        run: |
+          missing=()
+          for variant in A B C D E F G H I; do
+            test -f "reports/coverage-$variant.json" || missing+=("$variant")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then echo "no coverage report from variant(s) ${missing[*]}"; exit 1; fi
+      # The gate ran whatever the matrix did; it still fails when any build, coverage or shipped, failed.
+      - name: Check that every build passed
+        if: always() && env.FULL == 'true'
+        env:
+          HOST_RESULT: ${{ needs.host.result }}
+          TARGET_RESULT: ${{ needs.target.result }}
+        run: |
+          if [ "$HOST_RESULT" != success ] || [ "$TARGET_RESULT" != success ]; then
+            echo "host builds: $HOST_RESULT, target builds: $TARGET_RESULT"
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
