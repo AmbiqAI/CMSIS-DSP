@@ -1,0 +1,7 @@
+# The CMSIS-DSP pack for helia-core-tester (hct). Fields arrive as hct reads them; the build
+# recipe and variants come with the engine's build backend.
+schema: hct/library-profile/1
+library: cmsis-dsp
+source_root: ../..
+contracts:
+  signatures: kernel_contracts.json
