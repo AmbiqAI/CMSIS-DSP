@@ -127,10 +127,15 @@ class _Level:
             self.decided = value
 
     def elif_(self, condition):
+        if self.header_guard:
+            # Taken only when the header is included a second time: not part of the build's declarations.
+            self.active, self.guard = False, None
+            return
         self._enter(condition)
 
     def else_(self):
         if self.header_guard:
+            self.active, self.guard = False, None
             return
         if self.decided:
             self.active, self.guard = False, None

@@ -125,6 +125,14 @@ class ScanTest(unittest.TestCase):
         found = self.scan("#if !defined(ARM_MATH_NEON)\nvoid arm_m(void);\n#else\nvoid arm_n(void);\n#endif\n")
         self.assertEqual(found, {"arm_m": (2, [], [], "void")})
 
+    def test_an_include_guard_alternative_is_not_scanned(self):
+        for alternative in ("#else", "#elif defined(OTHER_H_)"):
+            with self.subTest(alternative=alternative):
+                found = self.scan("#ifndef GUARD_H_\n#define GUARD_H_\nvoid arm_kept_f32(int a);\n%s\n"
+                                  "void arm_second_inclusion_f32(int a);\n#endif\n" % alternative)
+                self.assertEqual(set(found), {"arm_kept_f32"})
+                self.assertEqual(found["arm_kept_f32"][1], [])
+
     def test_a_name_declared_twice_is_refused(self):
         with self.assertRaisesRegex(ec.ExportError, "arm_a is declared twice .*\\(first at line 1\\)"):
             self.scan("void arm_a(void);\nvoid arm_a(int x);\n")
