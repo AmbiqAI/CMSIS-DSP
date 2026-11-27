@@ -2981,12 +2981,12 @@
       "returns": "float32_t",
       "params": [
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pA",
           "type": "float32_t *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pB",
           "type": "float32_t *"
         },
@@ -7952,12 +7952,12 @@
           "type": "uint32_t"
         },
         {
-          "direction": "in",
+          "direction": "out",
           "name": "coeffs",
           "type": "float32_t *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "tempBuffer",
           "type": "float32_t *"
         }
@@ -10316,7 +10316,7 @@
           "type": "q7_t *"
         },
         {
-          "direction": "in",
+          "direction": "out",
           "name": "pIndex",
           "type": "uint32_t *"
         }
@@ -10345,7 +10345,7 @@
           "type": "q7_t *"
         },
         {
-          "direction": "in",
+          "direction": "out",
           "name": "pIndex",
           "type": "uint32_t *"
         }
@@ -13993,7 +13993,7 @@
           "type": "const arm_rfft_instance_q15 *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pSrc",
           "type": "q15_t *"
         },
@@ -14262,7 +14262,7 @@
           "type": "const arm_rfft_instance_q31 *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pSrc",
           "type": "q31_t *"
         },
@@ -14417,12 +14417,12 @@
           "type": "arm_rfft_fast_instance_f64 *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "p",
           "type": "float64_t *"
         },
         {
-          "direction": "in",
+          "direction": "out",
           "name": "pOut",
           "type": "float64_t *"
         },
@@ -14577,12 +14577,12 @@
           "type": "const arm_rfft_fast_instance_f32 *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "p",
           "type": "float32_t *"
         },
         {
-          "direction": "in",
+          "direction": "out",
           "name": "pOut",
           "type": "float32_t *"
         },
@@ -15052,7 +15052,7 @@
           "type": "const arm_mfcc_instance_f32 *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pSrc",
           "type": "float32_t *"
         },
@@ -15527,7 +15527,7 @@
           "type": "const arm_mfcc_instance_q31 *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pSrc",
           "type": "q31_t *"
         },
@@ -16002,7 +16002,7 @@
           "type": "const arm_mfcc_instance_q15 *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pSrc",
           "type": "q15_t *"
         },
@@ -17587,12 +17587,12 @@
       "returns": "float16_t",
       "params": [
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pA",
           "type": "float16_t *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pB",
           "type": "float16_t *"
         },
@@ -20109,12 +20109,12 @@
           "type": "const arm_rfft_fast_instance_f16 *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "p",
           "type": "float16_t *"
         },
         {
-          "direction": "in",
+          "direction": "out",
           "name": "pOut",
           "type": "float16_t *"
         },
@@ -20708,7 +20708,7 @@
           "type": "const arm_mfcc_instance_f16 *"
         },
         {
-          "direction": "in",
+          "direction": "in,out",
           "name": "pSrc",
           "type": "float16_t *"
         },

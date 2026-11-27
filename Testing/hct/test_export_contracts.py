@@ -189,12 +189,12 @@ class BuildTest(unittest.TestCase):
         _write(self.root, "Include/dsp/more_functions.h", "void arm_missing_f32(void);\nvoid arm_count_f32(int a);\n")
         with self.assertRaises(ec.ExportError) as caught:
             self.build([_member("arm_add_f32", [("pSrcA", "const float32_t *"), ("pDst", "float32_t *"),
-                                                ("blockSize", "uint32_t")], [("pSrcA", "in"), ("pSrcA", "out")]),
+                                                ("blockSize", "uint32_t")], [("pDst", "in"), ("pDst", "out")]),
                         _member("arm_count_f32", [])])
         message = str(caught.exception)
         self.assertIn("4 problem(s)", message)
-        self.assertIn("arm_add_f32.pSrcA: directions ['in', 'out'] conflict", message)
-        self.assertIn("arm_add_f32.pDst: pointer parameter without a direction", message)
+        self.assertIn("arm_add_f32.pDst: directions ['in', 'out'] conflict", message)
+        self.assertIn("arm_add_f32.pSrcA: pointer parameter without a direction", message)
         self.assertIn("Include/dsp/more_functions.h:1: arm_missing_f32 is not in Doxygen's output", message)
         self.assertIn("arm_count_f32 has 1 parameters in the header and 0 in Doxygen", message)
 
@@ -247,6 +247,92 @@ class BuildTest(unittest.TestCase):
         params = [("pSrcA", "const float32_t *"), ("pDst", "float32_t *"), ("blockSize", "uint32_t")]
         with self.assertRaisesRegex(ec.ExportError, "arm_add_f32 is declared in two public headers"):
             self.build([_member("arm_add_f32", params, [("pSrcA", "in"), ("pDst", "out")])])
+
+
+    def test_a_source_block_doxygen_dropped_still_conflicts(self):
+        # Doxygen keeps one block when the header and the source place theirs differently; the scan
+        # reads both.
+        _write(self.root, "Include/dsp/basic_functions.h",
+               "/** @param[in] pSrcA a\n    @param[in] pDst where the sum goes */\n"
+               "void arm_add_f32(const float32_t *pSrcA, float32_t *pDst, uint32_t blockSize);\n")
+        _write(self.root, "Source/BasicMathFunctions/arm_add_f32.c",
+               "/** @param[in] pSrcA a\n    @param[out] pDst the sum */\nvoid arm_add_f32(const float32_t *pSrcA, "
+               "float32_t *pDst, uint32_t blockSize) {}\n")
+        params = [("pSrcA", "const float32_t *"), ("pDst", "float32_t *"), ("blockSize", "uint32_t")]
+        with self.assertRaisesRegex(ec.ExportError, r"arm_add_f32.pDst: directions \['in', 'out'\] conflict"):
+            self.build([_member("arm_add_f32", params, [("pSrcA", "in"), ("pDst", "in")])])
+
+    def test_blocks_that_disagree_on_a_pointer_to_const_give_in(self):
+        params = [("pSrcA", "const float32_t *"), ("pDst", "float32_t *"), ("blockSize", "uint32_t")]
+        document = self.build([_member("arm_add_f32", params, [("pSrcA", "in"), ("pSrcA", "inout"), ("pDst", "out")])])
+        self.assertEqual(document["functions"][0]["params"][0]["direction"], "in")
+
+    def test_a_pointer_its_block_says_is_modified_must_not_be_in(self):
+        _write(self.root, "Source/BasicMathFunctions/arm_add_f32.c",
+               "/** @param[in] pSrcA a\n    @param[in] pDst points to input buffer\n"
+               "        (Source buffer is modified by this function.) */\n"
+               "void arm_add_f32(const float32_t *pSrcA, float32_t *pDst, uint32_t blockSize) {}\n")
+        params = [("pSrcA", "const float32_t *"), ("pDst", "float32_t *"), ("blockSize", "uint32_t")]
+        member = _member("arm_add_f32", params, [("pSrcA", "in"), ("pDst", "in")])
+        with self.assertRaisesRegex(ec.ExportError, "arm_add_f32.pDst: exported in, but its @param says it is modified"):
+            self.build([member])
+        document = self.build([member], {"arm_add_f32.pDst": "in,out"})
+        self.assertEqual(document["functions"][0]["params"][1]["direction"], "in,out")
+
+    def test_a_pointer_to_const_said_to_be_modified_is_in(self):
+        _write(self.root, "Source/BasicMathFunctions/arm_add_f32.c",
+               "/** @param[in] pSrcA matrix; the source matrix is modified by the function\n"
+               "    @param[out] pDst d */\nvoid arm_add_f32(const float32_t *pSrcA, float32_t *pDst, "
+               "uint32_t blockSize) {}\n")
+        params = [("pSrcA", "const float32_t *"), ("pDst", "float32_t *"), ("blockSize", "uint32_t")]
+        document = self.build([_member("arm_add_f32", params, [("pSrcA", "in"), ("pDst", "out")])])
+        self.assertEqual(document["functions"][0]["params"][0]["direction"], "in")
+
+
+class ParamDocsTest(unittest.TestCase):
+    SOURCE = textwrap.dedent("""\
+        #include "dsp/statistics_functions.h"
+        /**
+          @param[in]     pSrc       points to the input vector
+          @param[out]    pIndex     index of minimum value
+                                    returned here
+          @param[in,out] pState     state
+          @param[inout]  pTmp       scratch
+         */
+        #if defined(ARM_MATH_MVEI) && !defined(ARM_MATH_AUTOVECTORIZE) && !defined(A_LONG_MACRO_NAME_TO_SHIFT)
+        static void arm_small_blk_min_q7(const q7_t *pSrc, uint32_t *pIndex)
+        {
+            arm_called_q7(pSrc);
+        }
+        #endif
+        void arm_min_q7(const q7_t *pSrc, uint32_t *pIndex, q7_t *pState, q7_t *pTmp)
+        {
+        }
+        /** @param[in] x only a helper follows */
+        static void arm_helper_q7(int x) { }
+        """)
+
+    def scan(self, public):
+        with tempfile.TemporaryDirectory() as tmp:
+            return ec.scan_param_docs(_write(tmp, "Source/S/arm_min_q7.c", self.SOURCE), "Source/S/arm_min_q7.c", public)
+
+    def test_a_block_documents_the_public_function_after_it(self):
+        docs = self.scan({"arm_min_q7"})
+        self.assertEqual(set(docs), {"arm_min_q7"})
+        params = docs["arm_min_q7"]
+        self.assertEqual({name: [d for d, _ in items] for name, items in params.items()},
+                         {"pSrc": ["in"], "pIndex": ["out"], "pState": ["inout"], "pTmp": ["inout"]})
+        self.assertEqual(params["pIndex"][0][1], "index of minimum value returned here")
+
+    def test_without_a_public_list_the_first_function_takes_it(self):
+        docs = self.scan(None)
+        self.assertIn("arm_small_blk_min_q7", docs)
+        self.assertNotIn("arm_min_q7", docs)
+        self.assertIn("arm_helper_q7", docs)
+
+    def test_an_unreadable_file_is_refused(self):
+        with self.assertRaisesRegex(ec.ExportError, "cannot read"):
+            ec.scan_param_docs("/nonexistent/arm_x.c", "Source/S/arm_x.c")
 
 
 class OverridesTest(unittest.TestCase):

@@ -2,8 +2,12 @@ name: hct contracts
 
 # The kernel contract export in Testing/hct: its exporter's tests, that the committed export is what
 # Doxygen makes from the headers, and that helia-core-tester accepts it.
+# Also on every push to ambiq/integration: two pull requests can each be current against an older base and
+# leave a stale export once both merge.
 on:
   pull_request:
+    branches: [ambiq/integration]
+  push:
     branches: [ambiq/integration]
   workflow_dispatch:
 

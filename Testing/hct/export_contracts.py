@@ -11,9 +11,10 @@ Where each part of a record comes from:
 - The functions, their header, line and `#if` guards come from a scan of the public headers
   (Include/dsp/*_functions.h and *_functions_f16.h). Doxygen does not keep those: with
   preprocessing on it records the definition in Source/, and it drops the conditions.
-- Return and parameter types and each parameter's direction come from Doxygen's XML over
-  Include/dsp and Source/, which merges the @param[in|out] blocks of the header and the source
-  file (transforms document theirs only in Source/).
+- Return and parameter types come from Doxygen's XML over Include/dsp and Source/. Each
+  parameter's direction is every @param[in|out] the header and the Source file give it: Doxygen's
+  merged blocks and a direct scan of both files, since Doxygen keeps only one block when the two
+  are placed differently.
 
 The export is the Cortex-M build: declarations that exist only for NEON, or only for the
 non-default MFCC and mixed-radix FFT configurations, are left out (CONFIGURATION). Every other
@@ -21,8 +22,9 @@ condition a declaration sits under is kept as a guard, so Helium-only functions 
 `defined(ARM_MATH_MVEF) && !defined(ARM_MATH_AUTOVECTORIZE)`.
 
 Fail closed: Doxygen of any version other than DOXYGEN_VERSION, a header function Doxygen did
-not see, parameters that differ between the header and Doxygen, conflicting directions, or a
-pointer parameter without a direction (and no entry in contract_overrides.json) stop the export.
+not see, parameters that differ between the header and Doxygen, conflicting directions, a
+pointer parameter without a direction, or a non-const pointer exported `in` that its @param text
+says is modified (and no entry in contract_overrides.json) stop the export.
 """
 import argparse
 import bisect
@@ -67,6 +69,12 @@ _DEFINE = re.compile(r"^\s*#")
 _DEFINED = re.compile(r"\bdefined\s*\(\s*(\w+)\s*\)|\bdefined\s+(\w+)")
 _IDENT = re.compile(r"\b[A-Za-z_]\w*\b")
 _DECL = re.compile(r"\b(arm_\w+)\s*\(")
+_DOC_BLOCK = re.compile(r"/\*.*?\*/", re.S)
+_CALL = re.compile(r"\b(\w+)\s*\(")
+_PARAM_DOC = re.compile(r"[@\\]param\s*\[\s*(in|out|in\s*,\s*out|inout)\s*\]\s*\**\s*(\w+)(.*?)(?=[@\\][a-z]+\b|\Z)",
+                        re.S)
+_MODIFIED = re.compile(r"\bmodified\b", re.I)
+SOURCE_PATTERNS = ("Source/*/*.c",)
 
 
 class ExportError(Exception):
@@ -234,6 +242,53 @@ def scan_header(path, relpath):
     return found
 
 
+def scan_param_docs(path, relpath, public=None):
+    """{function: {param: [(direction, text)]}} for each doc comment with @param[...] lines, read as
+    documenting the first function after it, before the next such comment, that is in `public` (any
+    arm_ function when None); preprocessor lines are skipped, and so are static helpers a source
+    file defines between a block and the function it documents."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            text = handle.read()
+    except OSError as exc:
+        raise ExportError("%s: cannot read (%s)" % (relpath, exc)) from None
+    # Same length as `text`, so a block's end is a position in `code` too.
+    code = "\n".join(" " * len(line) if _DEFINE.match(line) else line for line in _strip_comments(text).split("\n"))
+    blocks = []
+    for block in _DOC_BLOCK.finditer(text):
+        params = _PARAM_DOC.findall(re.sub(r"(?m)^\s*\*+", " ", block.group(0)[2:-2]))
+        if params:
+            blocks.append((block.start(), block.end(), params))
+    found = {}
+    for index, (_, end, params) in enumerate(blocks):
+        stop = blocks[index + 1][0] if index + 1 < len(blocks) else len(code)
+        names = [m.group(1) for m in _CALL.finditer(code, end, stop)]
+        names = [n for n in names if n.startswith("arm_") and (public is None or n in public)]
+        if not names:
+            continue
+        entry = found.setdefault(names[0], {})
+        for direction, name, description in params:
+            direction = "inout" if "out" in direction and "in" in direction else direction
+            entry.setdefault(name, []).append((direction, " ".join(description.split())))
+    return found
+
+
+def read_param_docs(root):
+    """scan_param_docs over every public header and Source file, merged per function."""
+    public = set()
+    for pattern in HEADER_PATTERNS:
+        for path in sorted(glob.glob(os.path.join(root, pattern))):
+            public.update(scan_header(path, os.path.relpath(path, root).replace(os.sep, "/")))
+    docs = {}
+    for pattern in HEADER_PATTERNS + SOURCE_PATTERNS:
+        for path in sorted(glob.glob(os.path.join(root, pattern))):
+            relpath = os.path.relpath(path, root).replace(os.sep, "/")
+            for function, params in scan_param_docs(path, relpath, public).items():
+                for name, items in params.items():
+                    docs.setdefault(function, {}).setdefault(name, []).extend(items)
+    return docs
+
+
 def doxygen_version(doxygen):
     try:
         out = subprocess.run([doxygen, "--version"], check=True, capture_output=True, text=True).stdout
@@ -319,6 +374,7 @@ def _param_parts(text):
 def build(root, xml_dir, overrides):
     """The export document."""
     doxygen = read_doxygen(xml_dir)
+    param_docs = read_param_docs(root)
     records, problems, used = [], [], set()
     for pattern in HEADER_PATTERNS:
         for path in sorted(glob.glob(os.path.join(root, pattern))):
@@ -354,6 +410,9 @@ def build(root, xml_dir, overrides):
                 for candidate in candidates:
                     for param, found in candidate[2].items():
                         directions.setdefault(param, set()).update(found)
+                documented = param_docs.get(name, {})
+                for param, items in documented.items():
+                    directions.setdefault(param, set()).update(direction for direction, _ in items)
                 exported = []
                 for header_name, (doxygen_name, c_type, extent) in zip(names, params):
                     key = "%s.%s" % (name, header_name)
@@ -363,6 +422,16 @@ def build(root, xml_dir, overrides):
                         used.add(key)
                     elif len(found) == 1:
                         direction = DIRECTIONS[found.pop()]
+                        texts = [text for doc_name in {header_name, doxygen_name}
+                                 for _, text in documented.get(doc_name, [])]
+                        if (direction == "in" and "*" in c_type and not c_tokens(c_type)[0] == "const"
+                                and any(_MODIFIED.search(text) for text in texts)):
+                            problems.append("%s: exported in, but its @param says it is modified" % key)
+                            continue
+                    elif len(found) > 1 and "*" in c_type and c_tokens(c_type)[0] == "const":
+                        # The call cannot write through a pointer to const, whatever a block says of
+                        # what the instance points to.
+                        direction = "in"
                     elif len(found) > 1:
                         problems.append("%s: directions %s conflict" % (key, sorted(found)))
                         continue
