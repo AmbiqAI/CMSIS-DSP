@@ -287,6 +287,17 @@ class BuildTest(unittest.TestCase):
         document = self.build([member], {"arm_add_f32.pDst": "in,out"})
         self.assertEqual(document["functions"][0]["params"][1]["direction"], "in,out")
 
+    def test_source_blocks_are_read_at_any_depth_except_the_excluded_templates(self):
+        params = [("pSrcA", "const float32_t *"), ("pDst", "float32_t *"), ("blockSize", "uint32_t")]
+        member = _member("arm_add_f32", params, [("pSrcA", "in"), ("pDst", "out")])
+        block = ("/** @param[in] pSrcA a\n    @param[in] pDst d */\nvoid arm_add_f32(const float32_t *pSrcA, "
+                 "float32_t *pDst, uint32_t blockSize) {}\n")
+        _write(self.root, ec.EXCLUDED_SOURCES[0], block)
+        self.build([member])
+        _write(self.root, "Source/TransformFunctions/RFFTFixedTables/arm_add_f32.c", block)
+        with self.assertRaisesRegex(ec.ExportError, r"arm_add_f32.pDst: directions \['in', 'out'\] conflict"):
+            self.build([member])
+
     def test_a_pointer_to_const_said_to_be_modified_is_in(self):
         _write(self.root, "Source/BasicMathFunctions/arm_add_f32.c",
                "/** @param[in] pSrcA matrix; the source matrix is modified by the function\n"

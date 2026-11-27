@@ -74,7 +74,9 @@ _CALL = re.compile(r"\b(\w+)\s*\(")
 _PARAM_DOC = re.compile(r"[@\\]param\s*\[\s*(in|out|in\s*,\s*out|inout)\s*\]\s*\**\s*(\w+)(.*?)(?=[@\\][a-z]+\b|\Z)",
                         re.S)
 _MODIFIED = re.compile(r"\bmodified\b", re.I)
-SOURCE_PATTERNS = ("Source/*/*.c",)
+SOURCE_PATTERNS = ("Source/**/*.c",)
+# Files Doxygen and the @param scan both leave out: included templates, not translation units of their own.
+EXCLUDED_SOURCES = ("Source/DistanceFunctions/arm_boolean_distance.c", "Source/MatrixFunctions/_arm_mat_mult_neon_buffers.c")
 
 
 class ExportError(Exception):
@@ -286,8 +288,10 @@ def read_param_docs(root):
             public.update(scan_header(path, os.path.relpath(path, root).replace(os.sep, "/")))
     docs = {}
     for pattern in HEADER_PATTERNS + SOURCE_PATTERNS:
-        for path in sorted(glob.glob(os.path.join(root, pattern))):
+        for path in sorted(glob.glob(os.path.join(root, pattern), recursive=True)):
             relpath = os.path.relpath(path, root).replace(os.sep, "/")
+            if relpath in EXCLUDED_SOURCES:
+                continue
             for function, params in scan_param_docs(path, relpath, public).items():
                 for name, items in params.items():
                     docs.setdefault(function, {}).setdefault(name, []).extend(items)
@@ -310,7 +314,7 @@ def run_doxygen(doxygen, root, output_dir):
     settings = {
         "OUTPUT_DIRECTORY": output_dir, "GENERATE_HTML": "NO", "GENERATE_LATEX": "NO", "GENERATE_XML": "YES",
         "XML_PROGRAMLISTING": "NO", "INPUT": "Include/dsp Source", "FILE_PATTERNS": "*_functions.h *_functions_f16.h *.c",
-        "EXCLUDE": "Source/DistanceFunctions/arm_boolean_distance.c Source/MatrixFunctions/_arm_mat_mult_neon_buffers.c",
+        "EXCLUDE": " ".join(EXCLUDED_SOURCES),
         "RECURSIVE": "YES", "EXTRACT_ALL": "YES", "EXTRACT_STATIC": "YES", "ENABLE_PREPROCESSING": "YES",
         "MACRO_EXPANSION": "YES", "EXPAND_ONLY_PREDEF": "NO", "SEARCH_INCLUDES": "NO", "PREDEFINED": PREDEFINED,
         "QUIET": "YES", "WARNINGS": "NO", "WARN_IF_UNDOCUMENTED": "NO", "WARN_IF_DOC_ERROR": "NO",
