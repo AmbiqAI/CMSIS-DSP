@@ -1,0 +1,54 @@
+name: hct host reference
+
+# The plain C host build of CMSIS-DSP that helia-core-tester records goldens from (Testing/hct/host_reference):
+# it builds, refuses every configuration that would change it, gives exact results to a caller built from its
+# manifest alone, and helia-core-tester reads that manifest.
+on:
+  pull_request:
+    branches: [ambiq/integration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hct-host-reference-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The helia-core-tester commit whose reader checks the manifest (dev/kernel-contracts-dsp, E2).
+  HCT_REF: bae9a4faed014bf69d5175efbaa35bddd00b192b
+
+jobs:
+  host-reference:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            cc: gcc-14
+          # No macOS runners are available to this repository; macOS clang is checked locally.
+          - os: ubuntu-24.04
+            cc: clang-18
+    runs-on: ${{ matrix.os }}
+    name: host reference (${{ matrix.os }}, ${{ matrix.cc }})
+    env:
+      CC: ${{ matrix.cc }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: AmbiqAI/helia-core-tester
+          ref: ${{ env.HCT_REF }}
+          path: .hct
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+      - name: Install Ninja and the compiler
+        run: sudo apt-get update && sudo apt-get install -y ninja-build ${{ matrix.cc }}
+      - name: Test the host reference
+        env:
+          HCT_ROOT: ${{ github.workspace }}/.hct
+          HCT_REQUIRED: '1'
+        run: python -m unittest discover -s Testing/hct/host_reference -p "test_*.py" -v
