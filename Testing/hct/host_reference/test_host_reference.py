@@ -136,7 +136,7 @@ class HostReferenceBuildTest(unittest.TestCase):
         flags.append(f"-DHOST_REFERENCE_F16_PRODUCT_SUM={F16_PRODUCT_SUM[manifest['float16_type']]}")
         for directory in manifest["include_dirs"]:
             flags += ["-I", directory]
-        compiled = run(manifest["c_compiler"]["path"], *flags, "-O2", "-ffp-contract=off", PROJECT / "smoke.c",
+        compiled = run(manifest["c_compiler"]["path"], *flags, *manifest["library_compile_options"], PROJECT / "smoke.c",
                        manifest["archive"], *[f"-l{lib}" for lib in manifest["link_libraries"]], "-o", executable)
         self.assertEqual(compiled.returncode, 0, compiled.stderr)
         result = run(executable)
