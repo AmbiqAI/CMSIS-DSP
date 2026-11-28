@@ -1,0 +1,24 @@
+name: arm_mult_q31 bit-exact
+
+on:
+  pull_request:
+    paths:
+      - 'Source/BasicMathFunctions/arm_mult_q31.c'
+      - 'Include/dsp/basic_math_functions.h'
+      - 'Include/dsp/none.h'
+      - 'Include/arm_math_types.h'
+      - 'Testing/Regression/mult_q31_exact.c'
+      - 'Testing/Regression/run_mult_q31_exact.py'
+      - '.github/workflows/mult-q31-exact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scalar arm_mult_q31 against VQDMULH, with and without loop unrolling
+        run: python3 Testing/Regression/run_mult_q31_exact.py --build-dir build/mult-q31-exact
