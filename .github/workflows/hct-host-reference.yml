@@ -53,3 +53,9 @@ jobs:
           HCT_ROOT: ${{ github.workspace }}/.hct
           HCT_REQUIRED: '1'
         run: python -m unittest discover -s Testing/hct/host_reference -p "test_*.py" -v
+      # Runs every generator and checks each CaseSpec against the contract; goldens come from this host build.
+      - name: Generate every pack case
+        working-directory: .hct
+        run: >-
+          uv run --frozen -p 3.12 helia_core_tester generate --library "$GITHUB_WORKSPACE/Testing/hct"
+          --golden record --cpu cortex-m55 --suite both --seed 7
