@@ -1,0 +1,881 @@
+schema: hct/descriptor/1
+name: clip_q7_n0_full_narrow
+entry: arm_clip_q7
+params:
+  n: 0
+  values: full
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n0_full_point
+entry: arm_clip_q7
+params:
+  n: 0
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n1_full_narrow
+entry: arm_clip_q7
+params:
+  n: 1
+  values: full
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n1_full_point
+entry: arm_clip_q7
+params:
+  n: 1
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n15_full_narrow
+entry: arm_clip_q7
+params:
+  n: 15
+  values: full
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n15_full_point
+entry: arm_clip_q7
+params:
+  n: 15
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n16_full_narrow
+entry: arm_clip_q7
+params:
+  n: 16
+  values: full
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n16_full_point
+entry: arm_clip_q7
+params:
+  n: 16
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n17_full_narrow
+entry: arm_clip_q7
+params:
+  n: 17
+  values: full
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n17_full_point
+entry: arm_clip_q7
+params:
+  n: 17
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n67_full_narrow
+entry: arm_clip_q7
+params:
+  n: 67
+  values: full
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n67_full_point
+entry: arm_clip_q7
+params:
+  n: 67
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n255_full_narrow
+entry: arm_clip_q7
+params:
+  n: 255
+  values: full
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n255_full_point
+entry: arm_clip_q7
+params:
+  n: 255
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n0_edges_narrow
+entry: arm_clip_q7
+params:
+  n: 0
+  values: edges
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n0_edges_point
+entry: arm_clip_q7
+params:
+  n: 0
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n1_edges_narrow
+entry: arm_clip_q7
+params:
+  n: 1
+  values: edges
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n1_edges_point
+entry: arm_clip_q7
+params:
+  n: 1
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n15_edges_narrow
+entry: arm_clip_q7
+params:
+  n: 15
+  values: edges
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n15_edges_point
+entry: arm_clip_q7
+params:
+  n: 15
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n16_edges_narrow
+entry: arm_clip_q7
+params:
+  n: 16
+  values: edges
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n16_edges_point
+entry: arm_clip_q7
+params:
+  n: 16
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n17_edges_narrow
+entry: arm_clip_q7
+params:
+  n: 17
+  values: edges
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n17_edges_point
+entry: arm_clip_q7
+params:
+  n: 17
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n67_edges_narrow
+entry: arm_clip_q7
+params:
+  n: 67
+  values: edges
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n67_edges_point
+entry: arm_clip_q7
+params:
+  n: 67
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q7_n255_edges_narrow
+entry: arm_clip_q7
+params:
+  n: 255
+  values: edges
+  low: -32
+  high: 63
+---
+schema: hct/descriptor/1
+name: clip_q7_n255_edges_point
+entry: arm_clip_q7
+params:
+  n: 255
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n0_full_narrow
+entry: arm_clip_q15
+params:
+  n: 0
+  values: full
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n0_full_point
+entry: arm_clip_q15
+params:
+  n: 0
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n1_full_narrow
+entry: arm_clip_q15
+params:
+  n: 1
+  values: full
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n1_full_point
+entry: arm_clip_q15
+params:
+  n: 1
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n7_full_narrow
+entry: arm_clip_q15
+params:
+  n: 7
+  values: full
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n7_full_point
+entry: arm_clip_q15
+params:
+  n: 7
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n8_full_narrow
+entry: arm_clip_q15
+params:
+  n: 8
+  values: full
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n8_full_point
+entry: arm_clip_q15
+params:
+  n: 8
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n9_full_narrow
+entry: arm_clip_q15
+params:
+  n: 9
+  values: full
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n9_full_point
+entry: arm_clip_q15
+params:
+  n: 9
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n35_full_narrow
+entry: arm_clip_q15
+params:
+  n: 35
+  values: full
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n35_full_point
+entry: arm_clip_q15
+params:
+  n: 35
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n255_full_narrow
+entry: arm_clip_q15
+params:
+  n: 255
+  values: full
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n255_full_point
+entry: arm_clip_q15
+params:
+  n: 255
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n0_edges_narrow
+entry: arm_clip_q15
+params:
+  n: 0
+  values: edges
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n0_edges_point
+entry: arm_clip_q15
+params:
+  n: 0
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n1_edges_narrow
+entry: arm_clip_q15
+params:
+  n: 1
+  values: edges
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n1_edges_point
+entry: arm_clip_q15
+params:
+  n: 1
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n7_edges_narrow
+entry: arm_clip_q15
+params:
+  n: 7
+  values: edges
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n7_edges_point
+entry: arm_clip_q15
+params:
+  n: 7
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n8_edges_narrow
+entry: arm_clip_q15
+params:
+  n: 8
+  values: edges
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n8_edges_point
+entry: arm_clip_q15
+params:
+  n: 8
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n9_edges_narrow
+entry: arm_clip_q15
+params:
+  n: 9
+  values: edges
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n9_edges_point
+entry: arm_clip_q15
+params:
+  n: 9
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n35_edges_narrow
+entry: arm_clip_q15
+params:
+  n: 35
+  values: edges
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n35_edges_point
+entry: arm_clip_q15
+params:
+  n: 35
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q15_n255_edges_narrow
+entry: arm_clip_q15
+params:
+  n: 255
+  values: edges
+  low: -8192
+  high: 16383
+---
+schema: hct/descriptor/1
+name: clip_q15_n255_edges_point
+entry: arm_clip_q15
+params:
+  n: 255
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n0_full_narrow
+entry: arm_clip_q31
+params:
+  n: 0
+  values: full
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n0_full_point
+entry: arm_clip_q31
+params:
+  n: 0
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n1_full_narrow
+entry: arm_clip_q31
+params:
+  n: 1
+  values: full
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n1_full_point
+entry: arm_clip_q31
+params:
+  n: 1
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n3_full_narrow
+entry: arm_clip_q31
+params:
+  n: 3
+  values: full
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n3_full_point
+entry: arm_clip_q31
+params:
+  n: 3
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n4_full_narrow
+entry: arm_clip_q31
+params:
+  n: 4
+  values: full
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n4_full_point
+entry: arm_clip_q31
+params:
+  n: 4
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n5_full_narrow
+entry: arm_clip_q31
+params:
+  n: 5
+  values: full
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n5_full_point
+entry: arm_clip_q31
+params:
+  n: 5
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n19_full_narrow
+entry: arm_clip_q31
+params:
+  n: 19
+  values: full
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n19_full_point
+entry: arm_clip_q31
+params:
+  n: 19
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n255_full_narrow
+entry: arm_clip_q31
+params:
+  n: 255
+  values: full
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n255_full_point
+entry: arm_clip_q31
+params:
+  n: 255
+  values: full
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n0_edges_narrow
+entry: arm_clip_q31
+params:
+  n: 0
+  values: edges
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n0_edges_point
+entry: arm_clip_q31
+params:
+  n: 0
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n1_edges_narrow
+entry: arm_clip_q31
+params:
+  n: 1
+  values: edges
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n1_edges_point
+entry: arm_clip_q31
+params:
+  n: 1
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n3_edges_narrow
+entry: arm_clip_q31
+params:
+  n: 3
+  values: edges
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n3_edges_point
+entry: arm_clip_q31
+params:
+  n: 3
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n4_edges_narrow
+entry: arm_clip_q31
+params:
+  n: 4
+  values: edges
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n4_edges_point
+entry: arm_clip_q31
+params:
+  n: 4
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n5_edges_narrow
+entry: arm_clip_q31
+params:
+  n: 5
+  values: edges
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n5_edges_point
+entry: arm_clip_q31
+params:
+  n: 5
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n19_edges_narrow
+entry: arm_clip_q31
+params:
+  n: 19
+  values: edges
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n19_edges_point
+entry: arm_clip_q31
+params:
+  n: 19
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_q31_n255_edges_narrow
+entry: arm_clip_q31
+params:
+  n: 255
+  values: edges
+  low: -536870912
+  high: 1073741823
+---
+schema: hct/descriptor/1
+name: clip_q31_n255_edges_point
+entry: arm_clip_q31
+params:
+  n: 255
+  values: edges
+  low: 0
+  high: 0
+---
+schema: hct/descriptor/1
+name: clip_f32_n0_unit_narrow
+entry: arm_clip_f32
+params:
+  n: 0
+  values: unit
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n1_unit_narrow
+entry: arm_clip_f32
+params:
+  n: 1
+  values: unit
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n3_unit_narrow
+entry: arm_clip_f32
+params:
+  n: 3
+  values: unit
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n4_unit_narrow
+entry: arm_clip_f32
+params:
+  n: 4
+  values: unit
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n5_unit_narrow
+entry: arm_clip_f32
+params:
+  n: 5
+  values: unit
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n19_unit_narrow
+entry: arm_clip_f32
+params:
+  n: 19
+  values: unit
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n255_unit_narrow
+entry: arm_clip_f32
+params:
+  n: 255
+  values: unit
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n0_wide_narrow
+entry: arm_clip_f32
+params:
+  n: 0
+  values: wide
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n1_wide_narrow
+entry: arm_clip_f32
+params:
+  n: 1
+  values: wide
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n3_wide_narrow
+entry: arm_clip_f32
+params:
+  n: 3
+  values: wide
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n4_wide_narrow
+entry: arm_clip_f32
+params:
+  n: 4
+  values: wide
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n5_wide_narrow
+entry: arm_clip_f32
+params:
+  n: 5
+  values: wide
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n19_wide_narrow
+entry: arm_clip_f32
+params:
+  n: 19
+  values: wide
+  low: -0.25
+  high: 0.5
+---
+schema: hct/descriptor/1
+name: clip_f32_n255_wide_narrow
+entry: arm_clip_f32
+params:
+  n: 255
+  values: wide
+  low: -0.25
+  high: 0.5

@@ -22,8 +22,9 @@ env:
   # The Doxygen the export is pinned to (Testing/hct/export_contracts.py), as in ns-cmsis-nn.
   DOXYGEN_VERSION: "1.17.0"
   DOXYGEN_SHA256: "75419ef4f446fc1c24ef12514b574e66e898ee6f527c6ae2ad84f91a905823c2"
-  # The helia-core-tester commit whose reader checks the export and the profile (dev/kernel-contracts-dsp, E4).
-  HCT_REF: 1dcec0e3e3eb2ea0dbd1120c9dd5891531013644
+  # The helia-core-tester commit that reads the export, the profile and the pack (feat/la-e6-build-backend, E6;
+  # moves to the dev/kernel-contracts-dsp merge once E5 and E6 land).
+  HCT_REF: 9ba806b06ae2ee3c389213299ec90db6be4ca1d4
 
 jobs:
   contracts:
@@ -65,3 +66,6 @@ jobs:
       - name: Validate with helia-core-tester
         working-directory: .hct
         run: uv run --frozen -p 3.12 helia_core_tester contract validate --library "$GITHUB_WORKSPACE/Testing/hct"
+      - name: Check the pack's descriptors are what basic_math.py makes
+        working-directory: .hct
+        run: uv run --frozen -p 3.12 helia_core_tester pack check --library "$GITHUB_WORKSPACE/Testing/hct"

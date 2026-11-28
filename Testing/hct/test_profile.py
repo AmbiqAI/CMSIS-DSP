@@ -116,6 +116,30 @@ class ProfileTest(unittest.TestCase):
         for relpath in reference["build_inputs"]:
             self.assertTrue(os.path.isdir(os.path.join(self.root, relpath)), relpath)
 
+    def test_build_names_a_target_and_options_of_this_checkout(self):
+        build = self.profile["build"]
+        project = os.path.join(self.root, build.get("project", "."))
+        self.assertTrue(os.path.isfile(os.path.join(project, "CMakeLists.txt")))
+        with open(os.path.join(self.root, "Source", "CMakeLists.txt"), encoding="utf-8") as handle:
+            source = handle.read()
+        self.assertRegex(source, rf"add_library\({re.escape(build['target'])}\s")
+        options = set(re.findall(r"^option\((\w+)", source, re.M))
+        names = list(build.get("definitions", {}))
+        for values in build.get("cpu_definitions", {}).values():
+            names.extend(values)
+        for name in names:
+            if name == "CMSISCORE":
+                self.assertIn("${CMSISCORE}/Include", source)
+                continue
+            self.assertIn(name, options, f"{name} is not an option of Source/CMakeLists.txt")
+
+    def test_pack_names_its_modules_and_descriptors(self):
+        pack = self.profile["pack"]
+        root = os.path.join(HERE, pack.get("path", "."))
+        self.assertTrue(os.path.isdir(os.path.join(root, pack["descriptors"])))
+        for module in pack["modules"]:
+            self.assertTrue(os.path.isfile(os.path.join(root, f"{module}.py")), module)
+
 
 if __name__ == "__main__":
     unittest.main()

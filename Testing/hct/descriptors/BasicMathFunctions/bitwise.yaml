@@ -1,0 +1,391 @@
+schema: hct/descriptor/1
+name: and_u16_n0_full
+entry: arm_and_u16
+params:
+  n: 0
+  values: full
+---
+schema: hct/descriptor/1
+name: and_u16_n1_full
+entry: arm_and_u16
+params:
+  n: 1
+  values: full
+---
+schema: hct/descriptor/1
+name: and_u16_n7_full
+entry: arm_and_u16
+params:
+  n: 7
+  values: full
+---
+schema: hct/descriptor/1
+name: and_u16_n8_full
+entry: arm_and_u16
+params:
+  n: 8
+  values: full
+---
+schema: hct/descriptor/1
+name: and_u16_n9_full
+entry: arm_and_u16
+params:
+  n: 9
+  values: full
+---
+schema: hct/descriptor/1
+name: and_u16_n35_full
+entry: arm_and_u16
+params:
+  n: 35
+  values: full
+---
+schema: hct/descriptor/1
+name: and_u16_n255_full
+entry: arm_and_u16
+params:
+  n: 255
+  values: full
+---
+schema: hct/descriptor/1
+name: and_u16_n0_edges
+entry: arm_and_u16
+params:
+  n: 0
+  values: edges
+---
+schema: hct/descriptor/1
+name: and_u16_n1_edges
+entry: arm_and_u16
+params:
+  n: 1
+  values: edges
+---
+schema: hct/descriptor/1
+name: and_u16_n7_edges
+entry: arm_and_u16
+params:
+  n: 7
+  values: edges
+---
+schema: hct/descriptor/1
+name: and_u16_n8_edges
+entry: arm_and_u16
+params:
+  n: 8
+  values: edges
+---
+schema: hct/descriptor/1
+name: and_u16_n9_edges
+entry: arm_and_u16
+params:
+  n: 9
+  values: edges
+---
+schema: hct/descriptor/1
+name: and_u16_n35_edges
+entry: arm_and_u16
+params:
+  n: 35
+  values: edges
+---
+schema: hct/descriptor/1
+name: and_u16_n255_edges
+entry: arm_and_u16
+params:
+  n: 255
+  values: edges
+---
+schema: hct/descriptor/1
+name: or_u16_n0_full
+entry: arm_or_u16
+params:
+  n: 0
+  values: full
+---
+schema: hct/descriptor/1
+name: or_u16_n1_full
+entry: arm_or_u16
+params:
+  n: 1
+  values: full
+---
+schema: hct/descriptor/1
+name: or_u16_n7_full
+entry: arm_or_u16
+params:
+  n: 7
+  values: full
+---
+schema: hct/descriptor/1
+name: or_u16_n8_full
+entry: arm_or_u16
+params:
+  n: 8
+  values: full
+---
+schema: hct/descriptor/1
+name: or_u16_n9_full
+entry: arm_or_u16
+params:
+  n: 9
+  values: full
+---
+schema: hct/descriptor/1
+name: or_u16_n35_full
+entry: arm_or_u16
+params:
+  n: 35
+  values: full
+---
+schema: hct/descriptor/1
+name: or_u16_n255_full
+entry: arm_or_u16
+params:
+  n: 255
+  values: full
+---
+schema: hct/descriptor/1
+name: or_u16_n0_edges
+entry: arm_or_u16
+params:
+  n: 0
+  values: edges
+---
+schema: hct/descriptor/1
+name: or_u16_n1_edges
+entry: arm_or_u16
+params:
+  n: 1
+  values: edges
+---
+schema: hct/descriptor/1
+name: or_u16_n7_edges
+entry: arm_or_u16
+params:
+  n: 7
+  values: edges
+---
+schema: hct/descriptor/1
+name: or_u16_n8_edges
+entry: arm_or_u16
+params:
+  n: 8
+  values: edges
+---
+schema: hct/descriptor/1
+name: or_u16_n9_edges
+entry: arm_or_u16
+params:
+  n: 9
+  values: edges
+---
+schema: hct/descriptor/1
+name: or_u16_n35_edges
+entry: arm_or_u16
+params:
+  n: 35
+  values: edges
+---
+schema: hct/descriptor/1
+name: or_u16_n255_edges
+entry: arm_or_u16
+params:
+  n: 255
+  values: edges
+---
+schema: hct/descriptor/1
+name: xor_u16_n0_full
+entry: arm_xor_u16
+params:
+  n: 0
+  values: full
+---
+schema: hct/descriptor/1
+name: xor_u16_n1_full
+entry: arm_xor_u16
+params:
+  n: 1
+  values: full
+---
+schema: hct/descriptor/1
+name: xor_u16_n7_full
+entry: arm_xor_u16
+params:
+  n: 7
+  values: full
+---
+schema: hct/descriptor/1
+name: xor_u16_n8_full
+entry: arm_xor_u16
+params:
+  n: 8
+  values: full
+---
+schema: hct/descriptor/1
+name: xor_u16_n9_full
+entry: arm_xor_u16
+params:
+  n: 9
+  values: full
+---
+schema: hct/descriptor/1
+name: xor_u16_n35_full
+entry: arm_xor_u16
+params:
+  n: 35
+  values: full
+---
+schema: hct/descriptor/1
+name: xor_u16_n255_full
+entry: arm_xor_u16
+params:
+  n: 255
+  values: full
+---
+schema: hct/descriptor/1
+name: xor_u16_n0_edges
+entry: arm_xor_u16
+params:
+  n: 0
+  values: edges
+---
+schema: hct/descriptor/1
+name: xor_u16_n1_edges
+entry: arm_xor_u16
+params:
+  n: 1
+  values: edges
+---
+schema: hct/descriptor/1
+name: xor_u16_n7_edges
+entry: arm_xor_u16
+params:
+  n: 7
+  values: edges
+---
+schema: hct/descriptor/1
+name: xor_u16_n8_edges
+entry: arm_xor_u16
+params:
+  n: 8
+  values: edges
+---
+schema: hct/descriptor/1
+name: xor_u16_n9_edges
+entry: arm_xor_u16
+params:
+  n: 9
+  values: edges
+---
+schema: hct/descriptor/1
+name: xor_u16_n35_edges
+entry: arm_xor_u16
+params:
+  n: 35
+  values: edges
+---
+schema: hct/descriptor/1
+name: xor_u16_n255_edges
+entry: arm_xor_u16
+params:
+  n: 255
+  values: edges
+---
+schema: hct/descriptor/1
+name: not_u16_n0_full
+entry: arm_not_u16
+params:
+  n: 0
+  values: full
+---
+schema: hct/descriptor/1
+name: not_u16_n1_full
+entry: arm_not_u16
+params:
+  n: 1
+  values: full
+---
+schema: hct/descriptor/1
+name: not_u16_n7_full
+entry: arm_not_u16
+params:
+  n: 7
+  values: full
+---
+schema: hct/descriptor/1
+name: not_u16_n8_full
+entry: arm_not_u16
+params:
+  n: 8
+  values: full
+---
+schema: hct/descriptor/1
+name: not_u16_n9_full
+entry: arm_not_u16
+params:
+  n: 9
+  values: full
+---
+schema: hct/descriptor/1
+name: not_u16_n35_full
+entry: arm_not_u16
+params:
+  n: 35
+  values: full
+---
+schema: hct/descriptor/1
+name: not_u16_n255_full
+entry: arm_not_u16
+params:
+  n: 255
+  values: full
+---
+schema: hct/descriptor/1
+name: not_u16_n0_edges
+entry: arm_not_u16
+params:
+  n: 0
+  values: edges
+---
+schema: hct/descriptor/1
+name: not_u16_n1_edges
+entry: arm_not_u16
+params:
+  n: 1
+  values: edges
+---
+schema: hct/descriptor/1
+name: not_u16_n7_edges
+entry: arm_not_u16
+params:
+  n: 7
+  values: edges
+---
+schema: hct/descriptor/1
+name: not_u16_n8_edges
+entry: arm_not_u16
+params:
+  n: 8
+  values: edges
+---
+schema: hct/descriptor/1
+name: not_u16_n9_edges
+entry: arm_not_u16
+params:
+  n: 9
+  values: edges
+---
+schema: hct/descriptor/1
+name: not_u16_n35_edges
+entry: arm_not_u16
+params:
+  n: 35
+  values: edges
+---
+schema: hct/descriptor/1
+name: not_u16_n255_edges
+entry: arm_not_u16
+params:
+  n: 255
+  values: edges
