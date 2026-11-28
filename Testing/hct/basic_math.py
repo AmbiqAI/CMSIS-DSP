@@ -23,8 +23,8 @@ FRACTIONAL_BITS = {"q7_t": 7, "q15_t": 15, "q31_t": 31}
 SUFFIXES = {"q7": "q7_t", "q15": "q15_t", "q31": "q31_t", "f32": "float32_t", "u16": "uint16_t"}
 
 # Fixed-point entries whose Helium build may differ from the host scalar reference, with the reason.
-# Empty while one is undecided: Helium arm_mult_q31 (vqdmulhq) keeps the LSB that the scalar
-# ((q63_t)a * b >> 32) << 1 clears, so it is 1 LSB above the host reference on about half the elements.
+# Empty: arm_mult_q31, the one kernel that differed, now truncates its scalar product as Helium's
+# vqdmulhq does (AmbiqAI/CMSIS-DSP#79); before that its Helium build was 1 LSB above the reference.
 FIXED_POINT_EXCEPTIONS = {}
 
 BINARY = ("add", "sub", "mult")
