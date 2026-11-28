@@ -1,5 +1,4 @@
-# The CMSIS-DSP pack for helia-core-tester (hct). Fields arrive as hct reads them; the build
-# recipe and variants come with the engine's build backend.
+# The CMSIS-DSP pack for helia-core-tester (hct).
 schema: hct/library-profile/1
 library: cmsis-dsp
 source_root: ../..
@@ -27,3 +26,18 @@ host_reference:
   option: CMSISDSP_HOST_REFERENCE
   manifest: cmsis_dsp_host_reference.json
   build_inputs: [Include, PrivateInclude, Source, cmake, Testing/hct/host_reference]
+pack:
+  api: "1.0"
+  descriptors: descriptors
+  modules: [basic_math]
+# The FVP tests link CMSISDSP from Source/ through the root CMakeLists.txt. Helium on cortex-m55; float16
+# is left out where GCC has no MVE to lower it with (cortex-m55-dsp is the M55 with MVE turned off).
+build:
+  target: CMSISDSP
+  definitions:
+    CMSISCORE: "{cmsis_path}/CMSIS/Core"
+  cpu_definitions:
+    cortex-m55: {HELIUM: "ON", MVEFLOAT16: "ON"}
+    cortex-m55-dsp: {DISABLEFLOAT16: "ON"}
+    cortex-m4: {DISABLEFLOAT16: "ON"}
+    cortex-m0: {DISABLEFLOAT16: "ON"}

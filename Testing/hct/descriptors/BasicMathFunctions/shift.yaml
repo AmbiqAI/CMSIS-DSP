@@ -1,0 +1,1679 @@
+schema: hct/descriptor/1
+name: shift_q7_n0_full_sm7
+entry: arm_shift_q7
+params:
+  n: 0
+  values: full
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n0_full_sm1
+entry: arm_shift_q7
+params:
+  n: 0
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n0_full_s0
+entry: arm_shift_q7
+params:
+  n: 0
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n0_full_s1
+entry: arm_shift_q7
+params:
+  n: 0
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n0_full_s7
+entry: arm_shift_q7
+params:
+  n: 0
+  values: full
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_full_sm7
+entry: arm_shift_q7
+params:
+  n: 1
+  values: full
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_full_sm1
+entry: arm_shift_q7
+params:
+  n: 1
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_full_s0
+entry: arm_shift_q7
+params:
+  n: 1
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_full_s1
+entry: arm_shift_q7
+params:
+  n: 1
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_full_s7
+entry: arm_shift_q7
+params:
+  n: 1
+  values: full
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_full_sm7
+entry: arm_shift_q7
+params:
+  n: 15
+  values: full
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_full_sm1
+entry: arm_shift_q7
+params:
+  n: 15
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_full_s0
+entry: arm_shift_q7
+params:
+  n: 15
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_full_s1
+entry: arm_shift_q7
+params:
+  n: 15
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_full_s7
+entry: arm_shift_q7
+params:
+  n: 15
+  values: full
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_full_sm7
+entry: arm_shift_q7
+params:
+  n: 16
+  values: full
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_full_sm1
+entry: arm_shift_q7
+params:
+  n: 16
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_full_s0
+entry: arm_shift_q7
+params:
+  n: 16
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_full_s1
+entry: arm_shift_q7
+params:
+  n: 16
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_full_s7
+entry: arm_shift_q7
+params:
+  n: 16
+  values: full
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_full_sm7
+entry: arm_shift_q7
+params:
+  n: 17
+  values: full
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_full_sm1
+entry: arm_shift_q7
+params:
+  n: 17
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_full_s0
+entry: arm_shift_q7
+params:
+  n: 17
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_full_s1
+entry: arm_shift_q7
+params:
+  n: 17
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_full_s7
+entry: arm_shift_q7
+params:
+  n: 17
+  values: full
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_full_sm7
+entry: arm_shift_q7
+params:
+  n: 67
+  values: full
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_full_sm1
+entry: arm_shift_q7
+params:
+  n: 67
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_full_s0
+entry: arm_shift_q7
+params:
+  n: 67
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_full_s1
+entry: arm_shift_q7
+params:
+  n: 67
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_full_s7
+entry: arm_shift_q7
+params:
+  n: 67
+  values: full
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_full_sm7
+entry: arm_shift_q7
+params:
+  n: 255
+  values: full
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_full_sm1
+entry: arm_shift_q7
+params:
+  n: 255
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_full_s0
+entry: arm_shift_q7
+params:
+  n: 255
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_full_s1
+entry: arm_shift_q7
+params:
+  n: 255
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_full_s7
+entry: arm_shift_q7
+params:
+  n: 255
+  values: full
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n0_edges_sm7
+entry: arm_shift_q7
+params:
+  n: 0
+  values: edges
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n0_edges_sm1
+entry: arm_shift_q7
+params:
+  n: 0
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n0_edges_s0
+entry: arm_shift_q7
+params:
+  n: 0
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n0_edges_s1
+entry: arm_shift_q7
+params:
+  n: 0
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n0_edges_s7
+entry: arm_shift_q7
+params:
+  n: 0
+  values: edges
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_edges_sm7
+entry: arm_shift_q7
+params:
+  n: 1
+  values: edges
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_edges_sm1
+entry: arm_shift_q7
+params:
+  n: 1
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_edges_s0
+entry: arm_shift_q7
+params:
+  n: 1
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_edges_s1
+entry: arm_shift_q7
+params:
+  n: 1
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n1_edges_s7
+entry: arm_shift_q7
+params:
+  n: 1
+  values: edges
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_edges_sm7
+entry: arm_shift_q7
+params:
+  n: 15
+  values: edges
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_edges_sm1
+entry: arm_shift_q7
+params:
+  n: 15
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_edges_s0
+entry: arm_shift_q7
+params:
+  n: 15
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_edges_s1
+entry: arm_shift_q7
+params:
+  n: 15
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n15_edges_s7
+entry: arm_shift_q7
+params:
+  n: 15
+  values: edges
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_edges_sm7
+entry: arm_shift_q7
+params:
+  n: 16
+  values: edges
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_edges_sm1
+entry: arm_shift_q7
+params:
+  n: 16
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_edges_s0
+entry: arm_shift_q7
+params:
+  n: 16
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_edges_s1
+entry: arm_shift_q7
+params:
+  n: 16
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n16_edges_s7
+entry: arm_shift_q7
+params:
+  n: 16
+  values: edges
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_edges_sm7
+entry: arm_shift_q7
+params:
+  n: 17
+  values: edges
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_edges_sm1
+entry: arm_shift_q7
+params:
+  n: 17
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_edges_s0
+entry: arm_shift_q7
+params:
+  n: 17
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_edges_s1
+entry: arm_shift_q7
+params:
+  n: 17
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n17_edges_s7
+entry: arm_shift_q7
+params:
+  n: 17
+  values: edges
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_edges_sm7
+entry: arm_shift_q7
+params:
+  n: 67
+  values: edges
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_edges_sm1
+entry: arm_shift_q7
+params:
+  n: 67
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_edges_s0
+entry: arm_shift_q7
+params:
+  n: 67
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_edges_s1
+entry: arm_shift_q7
+params:
+  n: 67
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n67_edges_s7
+entry: arm_shift_q7
+params:
+  n: 67
+  values: edges
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_edges_sm7
+entry: arm_shift_q7
+params:
+  n: 255
+  values: edges
+  shift_bits: -7
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_edges_sm1
+entry: arm_shift_q7
+params:
+  n: 255
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_edges_s0
+entry: arm_shift_q7
+params:
+  n: 255
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_edges_s1
+entry: arm_shift_q7
+params:
+  n: 255
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q7_n255_edges_s7
+entry: arm_shift_q7
+params:
+  n: 255
+  values: edges
+  shift_bits: 7
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_full_sm15
+entry: arm_shift_q15
+params:
+  n: 0
+  values: full
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_full_sm1
+entry: arm_shift_q15
+params:
+  n: 0
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_full_s0
+entry: arm_shift_q15
+params:
+  n: 0
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_full_s1
+entry: arm_shift_q15
+params:
+  n: 0
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_full_s15
+entry: arm_shift_q15
+params:
+  n: 0
+  values: full
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_full_sm15
+entry: arm_shift_q15
+params:
+  n: 1
+  values: full
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_full_sm1
+entry: arm_shift_q15
+params:
+  n: 1
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_full_s0
+entry: arm_shift_q15
+params:
+  n: 1
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_full_s1
+entry: arm_shift_q15
+params:
+  n: 1
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_full_s15
+entry: arm_shift_q15
+params:
+  n: 1
+  values: full
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_full_sm15
+entry: arm_shift_q15
+params:
+  n: 7
+  values: full
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_full_sm1
+entry: arm_shift_q15
+params:
+  n: 7
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_full_s0
+entry: arm_shift_q15
+params:
+  n: 7
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_full_s1
+entry: arm_shift_q15
+params:
+  n: 7
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_full_s15
+entry: arm_shift_q15
+params:
+  n: 7
+  values: full
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_full_sm15
+entry: arm_shift_q15
+params:
+  n: 8
+  values: full
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_full_sm1
+entry: arm_shift_q15
+params:
+  n: 8
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_full_s0
+entry: arm_shift_q15
+params:
+  n: 8
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_full_s1
+entry: arm_shift_q15
+params:
+  n: 8
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_full_s15
+entry: arm_shift_q15
+params:
+  n: 8
+  values: full
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_full_sm15
+entry: arm_shift_q15
+params:
+  n: 9
+  values: full
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_full_sm1
+entry: arm_shift_q15
+params:
+  n: 9
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_full_s0
+entry: arm_shift_q15
+params:
+  n: 9
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_full_s1
+entry: arm_shift_q15
+params:
+  n: 9
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_full_s15
+entry: arm_shift_q15
+params:
+  n: 9
+  values: full
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_full_sm15
+entry: arm_shift_q15
+params:
+  n: 35
+  values: full
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_full_sm1
+entry: arm_shift_q15
+params:
+  n: 35
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_full_s0
+entry: arm_shift_q15
+params:
+  n: 35
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_full_s1
+entry: arm_shift_q15
+params:
+  n: 35
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_full_s15
+entry: arm_shift_q15
+params:
+  n: 35
+  values: full
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_full_sm15
+entry: arm_shift_q15
+params:
+  n: 255
+  values: full
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_full_sm1
+entry: arm_shift_q15
+params:
+  n: 255
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_full_s0
+entry: arm_shift_q15
+params:
+  n: 255
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_full_s1
+entry: arm_shift_q15
+params:
+  n: 255
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_full_s15
+entry: arm_shift_q15
+params:
+  n: 255
+  values: full
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_edges_sm15
+entry: arm_shift_q15
+params:
+  n: 0
+  values: edges
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_edges_sm1
+entry: arm_shift_q15
+params:
+  n: 0
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_edges_s0
+entry: arm_shift_q15
+params:
+  n: 0
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_edges_s1
+entry: arm_shift_q15
+params:
+  n: 0
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n0_edges_s15
+entry: arm_shift_q15
+params:
+  n: 0
+  values: edges
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_edges_sm15
+entry: arm_shift_q15
+params:
+  n: 1
+  values: edges
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_edges_sm1
+entry: arm_shift_q15
+params:
+  n: 1
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_edges_s0
+entry: arm_shift_q15
+params:
+  n: 1
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_edges_s1
+entry: arm_shift_q15
+params:
+  n: 1
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n1_edges_s15
+entry: arm_shift_q15
+params:
+  n: 1
+  values: edges
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_edges_sm15
+entry: arm_shift_q15
+params:
+  n: 7
+  values: edges
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_edges_sm1
+entry: arm_shift_q15
+params:
+  n: 7
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_edges_s0
+entry: arm_shift_q15
+params:
+  n: 7
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_edges_s1
+entry: arm_shift_q15
+params:
+  n: 7
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n7_edges_s15
+entry: arm_shift_q15
+params:
+  n: 7
+  values: edges
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_edges_sm15
+entry: arm_shift_q15
+params:
+  n: 8
+  values: edges
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_edges_sm1
+entry: arm_shift_q15
+params:
+  n: 8
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_edges_s0
+entry: arm_shift_q15
+params:
+  n: 8
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_edges_s1
+entry: arm_shift_q15
+params:
+  n: 8
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n8_edges_s15
+entry: arm_shift_q15
+params:
+  n: 8
+  values: edges
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_edges_sm15
+entry: arm_shift_q15
+params:
+  n: 9
+  values: edges
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_edges_sm1
+entry: arm_shift_q15
+params:
+  n: 9
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_edges_s0
+entry: arm_shift_q15
+params:
+  n: 9
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_edges_s1
+entry: arm_shift_q15
+params:
+  n: 9
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n9_edges_s15
+entry: arm_shift_q15
+params:
+  n: 9
+  values: edges
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_edges_sm15
+entry: arm_shift_q15
+params:
+  n: 35
+  values: edges
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_edges_sm1
+entry: arm_shift_q15
+params:
+  n: 35
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_edges_s0
+entry: arm_shift_q15
+params:
+  n: 35
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_edges_s1
+entry: arm_shift_q15
+params:
+  n: 35
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n35_edges_s15
+entry: arm_shift_q15
+params:
+  n: 35
+  values: edges
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_edges_sm15
+entry: arm_shift_q15
+params:
+  n: 255
+  values: edges
+  shift_bits: -15
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_edges_sm1
+entry: arm_shift_q15
+params:
+  n: 255
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_edges_s0
+entry: arm_shift_q15
+params:
+  n: 255
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_edges_s1
+entry: arm_shift_q15
+params:
+  n: 255
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q15_n255_edges_s15
+entry: arm_shift_q15
+params:
+  n: 255
+  values: edges
+  shift_bits: 15
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_full_sm31
+entry: arm_shift_q31
+params:
+  n: 0
+  values: full
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_full_sm1
+entry: arm_shift_q31
+params:
+  n: 0
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_full_s0
+entry: arm_shift_q31
+params:
+  n: 0
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_full_s1
+entry: arm_shift_q31
+params:
+  n: 0
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_full_s31
+entry: arm_shift_q31
+params:
+  n: 0
+  values: full
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_full_sm31
+entry: arm_shift_q31
+params:
+  n: 1
+  values: full
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_full_sm1
+entry: arm_shift_q31
+params:
+  n: 1
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_full_s0
+entry: arm_shift_q31
+params:
+  n: 1
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_full_s1
+entry: arm_shift_q31
+params:
+  n: 1
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_full_s31
+entry: arm_shift_q31
+params:
+  n: 1
+  values: full
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_full_sm31
+entry: arm_shift_q31
+params:
+  n: 3
+  values: full
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_full_sm1
+entry: arm_shift_q31
+params:
+  n: 3
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_full_s0
+entry: arm_shift_q31
+params:
+  n: 3
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_full_s1
+entry: arm_shift_q31
+params:
+  n: 3
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_full_s31
+entry: arm_shift_q31
+params:
+  n: 3
+  values: full
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_full_sm31
+entry: arm_shift_q31
+params:
+  n: 4
+  values: full
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_full_sm1
+entry: arm_shift_q31
+params:
+  n: 4
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_full_s0
+entry: arm_shift_q31
+params:
+  n: 4
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_full_s1
+entry: arm_shift_q31
+params:
+  n: 4
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_full_s31
+entry: arm_shift_q31
+params:
+  n: 4
+  values: full
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_full_sm31
+entry: arm_shift_q31
+params:
+  n: 5
+  values: full
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_full_sm1
+entry: arm_shift_q31
+params:
+  n: 5
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_full_s0
+entry: arm_shift_q31
+params:
+  n: 5
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_full_s1
+entry: arm_shift_q31
+params:
+  n: 5
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_full_s31
+entry: arm_shift_q31
+params:
+  n: 5
+  values: full
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_full_sm31
+entry: arm_shift_q31
+params:
+  n: 19
+  values: full
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_full_sm1
+entry: arm_shift_q31
+params:
+  n: 19
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_full_s0
+entry: arm_shift_q31
+params:
+  n: 19
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_full_s1
+entry: arm_shift_q31
+params:
+  n: 19
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_full_s31
+entry: arm_shift_q31
+params:
+  n: 19
+  values: full
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_full_sm31
+entry: arm_shift_q31
+params:
+  n: 255
+  values: full
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_full_sm1
+entry: arm_shift_q31
+params:
+  n: 255
+  values: full
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_full_s0
+entry: arm_shift_q31
+params:
+  n: 255
+  values: full
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_full_s1
+entry: arm_shift_q31
+params:
+  n: 255
+  values: full
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_full_s31
+entry: arm_shift_q31
+params:
+  n: 255
+  values: full
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_edges_sm31
+entry: arm_shift_q31
+params:
+  n: 0
+  values: edges
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_edges_sm1
+entry: arm_shift_q31
+params:
+  n: 0
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_edges_s0
+entry: arm_shift_q31
+params:
+  n: 0
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_edges_s1
+entry: arm_shift_q31
+params:
+  n: 0
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n0_edges_s31
+entry: arm_shift_q31
+params:
+  n: 0
+  values: edges
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_edges_sm31
+entry: arm_shift_q31
+params:
+  n: 1
+  values: edges
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_edges_sm1
+entry: arm_shift_q31
+params:
+  n: 1
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_edges_s0
+entry: arm_shift_q31
+params:
+  n: 1
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_edges_s1
+entry: arm_shift_q31
+params:
+  n: 1
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n1_edges_s31
+entry: arm_shift_q31
+params:
+  n: 1
+  values: edges
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_edges_sm31
+entry: arm_shift_q31
+params:
+  n: 3
+  values: edges
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_edges_sm1
+entry: arm_shift_q31
+params:
+  n: 3
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_edges_s0
+entry: arm_shift_q31
+params:
+  n: 3
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_edges_s1
+entry: arm_shift_q31
+params:
+  n: 3
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n3_edges_s31
+entry: arm_shift_q31
+params:
+  n: 3
+  values: edges
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_edges_sm31
+entry: arm_shift_q31
+params:
+  n: 4
+  values: edges
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_edges_sm1
+entry: arm_shift_q31
+params:
+  n: 4
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_edges_s0
+entry: arm_shift_q31
+params:
+  n: 4
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_edges_s1
+entry: arm_shift_q31
+params:
+  n: 4
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n4_edges_s31
+entry: arm_shift_q31
+params:
+  n: 4
+  values: edges
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_edges_sm31
+entry: arm_shift_q31
+params:
+  n: 5
+  values: edges
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_edges_sm1
+entry: arm_shift_q31
+params:
+  n: 5
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_edges_s0
+entry: arm_shift_q31
+params:
+  n: 5
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_edges_s1
+entry: arm_shift_q31
+params:
+  n: 5
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n5_edges_s31
+entry: arm_shift_q31
+params:
+  n: 5
+  values: edges
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_edges_sm31
+entry: arm_shift_q31
+params:
+  n: 19
+  values: edges
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_edges_sm1
+entry: arm_shift_q31
+params:
+  n: 19
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_edges_s0
+entry: arm_shift_q31
+params:
+  n: 19
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_edges_s1
+entry: arm_shift_q31
+params:
+  n: 19
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n19_edges_s31
+entry: arm_shift_q31
+params:
+  n: 19
+  values: edges
+  shift_bits: 31
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_edges_sm31
+entry: arm_shift_q31
+params:
+  n: 255
+  values: edges
+  shift_bits: -31
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_edges_sm1
+entry: arm_shift_q31
+params:
+  n: 255
+  values: edges
+  shift_bits: -1
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_edges_s0
+entry: arm_shift_q31
+params:
+  n: 255
+  values: edges
+  shift_bits: 0
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_edges_s1
+entry: arm_shift_q31
+params:
+  n: 255
+  values: edges
+  shift_bits: 1
+---
+schema: hct/descriptor/1
+name: shift_q31_n255_edges_s31
+entry: arm_shift_q31
+params:
+  n: 255
+  values: edges
+  shift_bits: 31

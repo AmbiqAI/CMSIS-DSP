@@ -1,0 +1,391 @@
+schema: hct/descriptor/1
+name: abs_q7_n0_full
+entry: arm_abs_q7
+params:
+  n: 0
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q7_n1_full
+entry: arm_abs_q7
+params:
+  n: 1
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q7_n15_full
+entry: arm_abs_q7
+params:
+  n: 15
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q7_n16_full
+entry: arm_abs_q7
+params:
+  n: 16
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q7_n17_full
+entry: arm_abs_q7
+params:
+  n: 17
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q7_n67_full
+entry: arm_abs_q7
+params:
+  n: 67
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q7_n255_full
+entry: arm_abs_q7
+params:
+  n: 255
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q7_n0_edges
+entry: arm_abs_q7
+params:
+  n: 0
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q7_n1_edges
+entry: arm_abs_q7
+params:
+  n: 1
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q7_n15_edges
+entry: arm_abs_q7
+params:
+  n: 15
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q7_n16_edges
+entry: arm_abs_q7
+params:
+  n: 16
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q7_n17_edges
+entry: arm_abs_q7
+params:
+  n: 17
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q7_n67_edges
+entry: arm_abs_q7
+params:
+  n: 67
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q7_n255_edges
+entry: arm_abs_q7
+params:
+  n: 255
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q15_n0_full
+entry: arm_abs_q15
+params:
+  n: 0
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q15_n1_full
+entry: arm_abs_q15
+params:
+  n: 1
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q15_n7_full
+entry: arm_abs_q15
+params:
+  n: 7
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q15_n8_full
+entry: arm_abs_q15
+params:
+  n: 8
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q15_n9_full
+entry: arm_abs_q15
+params:
+  n: 9
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q15_n35_full
+entry: arm_abs_q15
+params:
+  n: 35
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q15_n255_full
+entry: arm_abs_q15
+params:
+  n: 255
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q15_n0_edges
+entry: arm_abs_q15
+params:
+  n: 0
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q15_n1_edges
+entry: arm_abs_q15
+params:
+  n: 1
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q15_n7_edges
+entry: arm_abs_q15
+params:
+  n: 7
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q15_n8_edges
+entry: arm_abs_q15
+params:
+  n: 8
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q15_n9_edges
+entry: arm_abs_q15
+params:
+  n: 9
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q15_n35_edges
+entry: arm_abs_q15
+params:
+  n: 35
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q15_n255_edges
+entry: arm_abs_q15
+params:
+  n: 255
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q31_n0_full
+entry: arm_abs_q31
+params:
+  n: 0
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q31_n1_full
+entry: arm_abs_q31
+params:
+  n: 1
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q31_n3_full
+entry: arm_abs_q31
+params:
+  n: 3
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q31_n4_full
+entry: arm_abs_q31
+params:
+  n: 4
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q31_n5_full
+entry: arm_abs_q31
+params:
+  n: 5
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q31_n19_full
+entry: arm_abs_q31
+params:
+  n: 19
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q31_n255_full
+entry: arm_abs_q31
+params:
+  n: 255
+  values: full
+---
+schema: hct/descriptor/1
+name: abs_q31_n0_edges
+entry: arm_abs_q31
+params:
+  n: 0
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q31_n1_edges
+entry: arm_abs_q31
+params:
+  n: 1
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q31_n3_edges
+entry: arm_abs_q31
+params:
+  n: 3
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q31_n4_edges
+entry: arm_abs_q31
+params:
+  n: 4
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q31_n5_edges
+entry: arm_abs_q31
+params:
+  n: 5
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q31_n19_edges
+entry: arm_abs_q31
+params:
+  n: 19
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_q31_n255_edges
+entry: arm_abs_q31
+params:
+  n: 255
+  values: edges
+---
+schema: hct/descriptor/1
+name: abs_f32_n0_unit
+entry: arm_abs_f32
+params:
+  n: 0
+  values: unit
+---
+schema: hct/descriptor/1
+name: abs_f32_n1_unit
+entry: arm_abs_f32
+params:
+  n: 1
+  values: unit
+---
+schema: hct/descriptor/1
+name: abs_f32_n3_unit
+entry: arm_abs_f32
+params:
+  n: 3
+  values: unit
+---
+schema: hct/descriptor/1
+name: abs_f32_n4_unit
+entry: arm_abs_f32
+params:
+  n: 4
+  values: unit
+---
+schema: hct/descriptor/1
+name: abs_f32_n5_unit
+entry: arm_abs_f32
+params:
+  n: 5
+  values: unit
+---
+schema: hct/descriptor/1
+name: abs_f32_n19_unit
+entry: arm_abs_f32
+params:
+  n: 19
+  values: unit
+---
+schema: hct/descriptor/1
+name: abs_f32_n255_unit
+entry: arm_abs_f32
+params:
+  n: 255
+  values: unit
+---
+schema: hct/descriptor/1
+name: abs_f32_n0_wide
+entry: arm_abs_f32
+params:
+  n: 0
+  values: wide
+---
+schema: hct/descriptor/1
+name: abs_f32_n1_wide
+entry: arm_abs_f32
+params:
+  n: 1
+  values: wide
+---
+schema: hct/descriptor/1
+name: abs_f32_n3_wide
+entry: arm_abs_f32
+params:
+  n: 3
+  values: wide
+---
+schema: hct/descriptor/1
+name: abs_f32_n4_wide
+entry: arm_abs_f32
+params:
+  n: 4
+  values: wide
+---
+schema: hct/descriptor/1
+name: abs_f32_n5_wide
+entry: arm_abs_f32
+params:
+  n: 5
+  values: wide
+---
+schema: hct/descriptor/1
+name: abs_f32_n19_wide
+entry: arm_abs_f32
+params:
+  n: 19
+  values: wide
+---
+schema: hct/descriptor/1
+name: abs_f32_n255_wide
+entry: arm_abs_f32
+params:
+  n: 255
+  values: wide
