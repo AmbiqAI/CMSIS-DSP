@@ -25,7 +25,7 @@ host_reference:
   project: Testing/hct/host_reference
   option: CMSISDSP_HOST_REFERENCE
   manifest: cmsis_dsp_host_reference.json
-  build_inputs: [Include, PrivateInclude, Source, Testing/hct/host_reference]
+  build_inputs: [Include, PrivateInclude, Source, cmake, Testing/hct/host_reference]
 pack:
   api: "1.0"
   descriptors: descriptors
