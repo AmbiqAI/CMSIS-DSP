@@ -6,8 +6,9 @@ source_root: ../..
 contracts:
   signatures: kernel_contracts.json
 harness:
-  includes: [arm_math.h]
-  header_includes: [arm_math.h]
+  # arm_math_f16.h declares the float16 API; its declarations are guarded by ARM_FLOAT16_SUPPORTED.
+  includes: [arm_math.h, arm_math_f16.h]
+  header_includes: [arm_math.h, arm_math_f16.h]
   # arm_status in Include/arm_math_types.h; test_profile.py holds the two together.
   status:
     type: arm_status

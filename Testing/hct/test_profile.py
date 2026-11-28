@@ -6,6 +6,7 @@ Needs PyYAML. helia-core-tester checks the profile's form (`contract validate`);
 this repository can: that its status codes are arm_status and that its paths exist.
 """
 
+import json
 import os
 import re
 import unittest
@@ -101,7 +102,26 @@ class ProfileTest(unittest.TestCase):
             header = header_enum(handle.read(), status["type"])
         self.assertEqual(status["codes"], header)
         self.assertEqual(header[status["success"]], 0)
+        self.assertEqual(status["argument_error"], "ARM_MATH_ARGUMENT_ERROR")
         self.assertIn(status["argument_error"], header)
+
+    def test_harness_headers_declare_every_exported_function(self):
+        include_dir = os.path.join(self.root, "Include")
+        quoted = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.M)
+        for key in ("includes", "header_includes"):
+            seen, pending = set(), list(self.profile["harness"][key])
+            while pending:
+                name = os.path.normpath(pending.pop())
+                path = os.path.join(include_dir, name)
+                if name in seen or not os.path.isfile(path):
+                    continue
+                seen.add(name)
+                with open(path, encoding="utf-8") as handle:
+                    pending.extend(quoted.findall(handle.read()))
+            with open(os.path.join(HERE, self.profile["contracts"]["signatures"]), encoding="utf-8") as handle:
+                functions = json.load(handle)["functions"]
+            missing = sorted({f["header"] for f in functions} - {"Include/" + name for name in seen})
+            self.assertEqual(missing, [], key)
 
     def test_harness_headers_exist(self):
         harness = self.profile["harness"]
