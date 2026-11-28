@@ -1,7 +1,7 @@
 name: hct contracts
 
-# The kernel contract export in Testing/hct: its exporter's tests, that the committed export is what
-# Doxygen makes from the headers, and that helia-core-tester accepts it.
+# The kernel contract export and the profile in Testing/hct: their tests, that the committed export is what
+# Doxygen makes from the headers, and that helia-core-tester accepts both.
 # Also on every push to ambiq/integration: two pull requests can each be current against an older base and
 # leave a stale export once both merge.
 on:
@@ -22,8 +22,8 @@ env:
   # The Doxygen the export is pinned to (Testing/hct/export_contracts.py), as in ns-cmsis-nn.
   DOXYGEN_VERSION: "1.17.0"
   DOXYGEN_SHA256: "75419ef4f446fc1c24ef12514b574e66e898ee6f527c6ae2ad84f91a905823c2"
-  # The helia-core-tester commit whose reader checks the export (dev/kernel-contracts-dsp, E2).
-  HCT_REF: bae9a4faed014bf69d5175efbaa35bddd00b192b
+  # The helia-core-tester commit whose reader checks the export and the profile (dev/kernel-contracts-dsp, E4).
+  HCT_REF: 1dcec0e3e3eb2ea0dbd1120c9dd5891531013644
 
 jobs:
   contracts:
@@ -33,7 +33,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Test the exporter
+      - name: Install PyYAML
+        run: python -m pip install pyyaml==6.0.2
+      - name: Test the exporter and the profile
         run: python -m unittest discover -s Testing/hct -p "test_*.py" -v
       - name: Cache the Doxygen tarball
         uses: actions/cache@v4
