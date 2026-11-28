@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # The helia-core-tester commit whose reader checks the manifest (dev/kernel-contracts-dsp, E2).
-  HCT_REF: bae9a4faed014bf69d5175efbaa35bddd00b192b
+  # The helia-core-tester commit whose reader checks the manifest (dev/kernel-contracts-dsp, E4).
+  HCT_REF: 1dcec0e3e3eb2ea0dbd1120c9dd5891531013644
 
 jobs:
   host-reference:
