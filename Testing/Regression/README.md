@@ -321,3 +321,16 @@ followed by `FAIL: 1 of 20 kernels`.
 ## GCC 15.0–15.2 `__QSUB`/`__QADD` workaround canary
 
 `gcc15_qsub_ifcvt_canary.c` is the reproducer of GCC PR rtl-optimization/122170: the ACLE `__qsub` builtin under a condition, compiled without the workaround in `Include/arm_math_types.h`. Arm GNU 15.2.1 stops on it with an internal compiler error in RTL pass `ce1` at `-O1` and above on any core with the DSP extension; Arm GNU 14.3.1, 15.3.1 and ATfE 22.1.0 compile it. `run_gcc15_qsub_ifcvt_canary.py --compiler <gcc or clang> --cmsis-core <CMSIS-Core directory> [--cpu cortex-m4]` finds whether the compiler is in the workaround's range from the marker `ARM_MATH_GCC15_QSUB_WORKAROUND` in the `-dM -E` output of `arm_math_types.h`, which the block defines for that range with CMSIS-Core 6 and 5.x alike. It compiles the canary at `-O1`, `-O2`, `-O3` and `-Os`, and requires the crash at every level exactly when the marker is defined. It then compiles the six Q31 sources that crashed (`arm_abs_q31.c`, `arm_atan2_q31.c`, `arm_absmax_q31.c`, `arm_absmin_q31.c`, `arm_absmax_no_idx_q31.c`, `arm_absmin_no_idx_q31.c`) and the three `FASTBUILD` aggregates that include them at the same levels with `-DARM_MATH_LOOPUNROLL`, with soft float and with hard float; on a core with MVE, hard float builds the Helium kernels, and a third configuration adds `ARM_MATH_AUTOVECTORIZE`. It expects `PASS: canary agrees with the workaround gate at 4 levels; 72 source compilations succeed` for Cortex-M4 and `108` for Cortex-M55. A compiler inside the gate that compiles the canary reports `narrow the gate`; one outside it that crashes reports `widen the gate`. Workflow `gcc15-qsub-ifcvt.yml` runs it for Cortex-M4 and Cortex-M55 under Arm GNU 14.3.1, 15.2.1, 15.3.1 and ATfE 22.1.0 on every pull request that changes `Include/` or `Source/`, against CMSIS_6 from its default branch.
+
+## `arm_mult_q31` bit-exact host regression
+
+`mult_q31_exact.c` checks the scalar `arm_mult_q31` bit for bit against VQDMULH, `sat((2 * a * b) >> 32)`, which
+`run_mult_q31_exact.py` computes in Python integers. The 255 cases are the products of the extremes, ±1, ±3 and 0
+with each other, then random values; odd positive and odd negative results and the `INT_MIN * INT_MIN` saturation
+are among the first four. Sizes 0–9 and 255 cover the 4-way unrolled body and every remainder, and a canary after
+the last element catches a write past it. The runner compiles the kernel on the host with and without
+`ARM_MATH_LOOPUNROLL` and expects `PASS: 11 arm_mult_q31 sizes bit-exact` for each. Arm's `BasicTestsQ31` allows
+4 LSB, so it cannot tell the scalar path that cleared the LSB from this one. The negative control passes that
+earlier source through `--mult-source`; it must report
+`FAIL: n=1 i=0 a=-2147483648 b=-2147483648 got 2147483646 expected 2147483647`. Workflow `mult-q31-exact.yml` runs
+it on pull requests that change the kernel or the headers it uses.
